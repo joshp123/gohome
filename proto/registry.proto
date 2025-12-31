@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package gohome.registry.v1;
 
-option go_package = "github.com/elliot-alderson/gohome/proto/gen/registry/v1;registryv1";
+option go_package = "github.com/joshp123/gohome/proto/gen/registry/v1;registryv1";
 
 message ListPluginsRequest {}
 

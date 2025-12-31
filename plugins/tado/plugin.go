@@ -3,7 +3,7 @@ package tado
 import (
 	_ "embed"
 
-	"github.com/elliot-alderson/gohome/internal/core"
+	"github.com/joshp123/gohome/internal/core"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 )

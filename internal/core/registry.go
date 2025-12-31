@@ -4,7 +4,7 @@ import (
 	context "context"
 	"sync"
 
-	registryv1 "github.com/elliot-alderson/gohome/proto/gen/registry/v1"
+	registryv1 "github.com/joshp123/gohome/proto/gen/registry/v1"
 )
 
 // RegistryService provides plugin discovery to clients.

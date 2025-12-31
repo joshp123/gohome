@@ -3,8 +3,8 @@ package router
 import (
 	"google.golang.org/grpc"
 
-	"github.com/elliot-alderson/gohome/internal/core"
-	registryv1 "github.com/elliot-alderson/gohome/proto/gen/registry/v1"
+	"github.com/joshp123/gohome/internal/core"
+	registryv1 "github.com/joshp123/gohome/proto/gen/registry/v1"
 )
 
 // RegisterPlugins registers plugin services and core services on the gRPC server.
