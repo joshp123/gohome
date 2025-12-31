@@ -1,0 +1,29 @@
+# Binaries
+/gohome
+*.exe
+
+# Go
+/vendor/
+
+# Nix
+/result
+/result-*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (NEVER commit)
+*.secret
+*.key
+*.pem
+auth.toml
+credentials.json
+
+# Generated proto
+/proto/gen/

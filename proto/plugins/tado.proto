@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package gohome.plugins.tado.v1;
+
+option go_package = "github.com/elliot-alderson/gohome/proto/gen/plugins/tado/v1;tadov1";
+
+message ListZonesRequest {}
+
+message Zone {
+  string id = 1;
+  string name = 2;
+}
+
+message ListZonesResponse {
+  repeated Zone zones = 1;
+}
+
+message SetTemperatureRequest {
+  string zone_id = 1;
+  double temperature_celsius = 2;
+}
+
+message SetTemperatureResponse {}
+
+service TadoService {
+  rpc ListZones(ListZonesRequest) returns (ListZonesResponse);
+  rpc SetTemperature(SetTemperatureRequest) returns (SetTemperatureResponse);
+}

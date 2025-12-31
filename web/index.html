@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GoHome</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+        background: #f6f1ea;
+        color: #1c1a17;
+      }
+      body {
+        margin: 0;
+        padding: 48px;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        background: #ffffff;
+        border: 1px solid #e3d8c7;
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: 0 12px 40px rgba(36, 27, 16, 0.08);
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 2.4rem;
+      }
+      p {
+        margin: 0 0 24px;
+        line-height: 1.6;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 12px;
+      }
+      a {
+        display: block;
+        padding: 14px 16px;
+        border-radius: 10px;
+        border: 1px solid #e3d8c7;
+        text-decoration: none;
+        color: inherit;
+        background: #fbf7f1;
+      }
+      a:hover {
+        background: #f1e7d8;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>GoHome</h1>
+      <p>All services are available behind Tailscale. Use the links below.</p>
+      <ul>
+        <li><a href="/grafana/">Grafana</a></li>
+        <li><a href="/vm/">VictoriaMetrics</a></li>
+        <li><a href="/gohome/health">GoHome health</a></li>
+      </ul>
+    </main>
+  </body>
+</html>
