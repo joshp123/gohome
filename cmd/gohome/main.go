@@ -21,7 +21,7 @@ func main() {
 	enabledPluginsFile := envOrDefault("GOHOME_ENABLED_PLUGINS_FILE", "/etc/gohome/enabled-plugins")
 
 	plugins := filterPlugins([]core.Plugin{
-		tado.Plugin{},
+		tado.NewPlugin(),
 	}, enabledPluginsFile)
 
 	grpcServer, err := server.NewGRPCServer(grpcAddr)

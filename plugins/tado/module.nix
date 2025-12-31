@@ -13,7 +13,13 @@ in
     tokenFile = mkOption {
       type = types.nullOr types.path;
       default = null;
-      description = "Path to Tado OAuth refresh token";
+      description = "Path to Tado OAuth refresh token JSON";
+    };
+
+    homeId = mkOption {
+      type = types.nullOr types.int;
+      default = null;
+      description = "Optional homeId override (if /me contains multiple homes)";
     };
   };
 
