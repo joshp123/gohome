@@ -11,10 +11,9 @@ in
     services.victoriametrics = {
       enable = true;
       retentionPeriod = "100y";
+      listenAddress = "127.0.0.1:8428";
       extraOptions = [
-        "-storageDataPath=/var/lib/victoriametrics"
-        "-httpListenAddr=127.0.0.1:8428"
-        "-httpPathPrefix=/vm"
+        "-http.pathPrefix=/vm"
       ];
     };
   };

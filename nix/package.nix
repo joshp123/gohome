@@ -1,10 +1,20 @@
-{ lib, buildGoModule, version, buildTags ? [ ], buildCommit ? "unknown" }:
+{ lib, buildGoModule, protobuf, protoc-gen-go, protoc-gen-go-grpc, version, buildTags ? [ ], buildCommit ? "unknown" }:
 
 buildGoModule {
   pname = "gohome";
   inherit version;
   src = ../.;
-  vendorHash = null;
+  vendorHash = "sha256-7pDswPryddKO4spA9PtBJWRZuWuZoWVlD+0o+B1SKhk=";
+  nativeBuildInputs = [
+    protobuf
+    protoc-gen-go
+    protoc-gen-go-grpc
+  ];
+
+  preBuild = ''
+    bash ./tools/generate.sh
+  '';
+
   subPackages = [
     "cmd/gohome"
     "cmd/gohome-cli"
