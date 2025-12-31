@@ -7,11 +7,6 @@ terraform {
   }
 }
 
-variable "hcloud_token" {
-  type      = string
-  sensitive = true
-}
-
 provider "hcloud" {
   token = var.hcloud_token
 }
@@ -25,7 +20,7 @@ resource "hcloud_server" "gohome" {
   name        = "gohome"
   server_type = "cax11"
   image       = "ubuntu-24.04"
-  location    = "fsn1"
+  location    = "nbg1"
   ssh_keys    = [hcloud_ssh_key.deploy.id]
 
   user_data = file("${path.module}/nixos-infect.sh")

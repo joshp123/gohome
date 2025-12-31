@@ -5,6 +5,10 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     agenix.url = "github:ryantm/agenix";
+    secrets = {
+      url = "git+ssh://git@github.com/joshp123/nix-secrets";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, flake-utils, agenix, ... }@inputs:
