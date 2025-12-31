@@ -20,9 +20,7 @@ in
 
       virtualHosts."gohome" = {
         listen = [ { addr = "0.0.0.0"; port = 80; } ];
-        serverAliases = [
-          "gohome"
-        ];
+        default = true;
         locations."/" = {
           root = cfg.webRoot;
           tryFiles = "$uri /index.html";

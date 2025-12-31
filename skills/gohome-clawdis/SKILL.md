@@ -77,7 +77,7 @@ Grafana is proxied under:
 ${GOHOME_HTTP_BASE}/grafana/
 ```
 
-Use the FQDN (`gohome`) to avoid browser rewriting.
+Use MagicDNS (`gohome`) or set `GOHOME_HOST` to the tailnet FQDN if needed.
 
 ## Stateful / destructive actions (require explicit approval)
 
@@ -93,4 +93,3 @@ GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli call \
 
 - If DNS fails, verify MagicDNS is enabled and run `tailscale status`.
 - If metrics are missing, check `gohome_tado_scrape_success` and token validity.
-
