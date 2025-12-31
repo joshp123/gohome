@@ -18,6 +18,11 @@
           src = ./.;
           vendorHash = null; # Update after go mod tidy
 
+          subPackages = [
+            "cmd/gohome"
+            "cmd/gohome-cli"
+          ];
+
           nativeBuildInputs = [
             pkgs.protobuf
             pkgs.protoc-gen-go
