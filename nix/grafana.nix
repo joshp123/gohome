@@ -24,8 +24,15 @@ in
           {
             name = "VictoriaMetrics";
             type = "prometheus";
-            url = "http://127.0.0.1:8428";
+            url = "http://127.0.0.1:8428/vm";
             isDefault = true;
+          }
+        ];
+
+        dashboards.settings.providers = [
+          {
+            name = "GoHome";
+            options.path = "/var/lib/gohome/dashboards";
           }
         ];
       };
