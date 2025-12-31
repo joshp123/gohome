@@ -33,7 +33,7 @@ in
     networking.firewall = {
       enable = true;
       trustedInterfaces = [ "tailscale0" ];
-      allowedTCPPorts = [ 80 ];
+      allowedTCPPorts = [ ];
     };
   };
 }

@@ -16,29 +16,10 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in
       {
-        packages.default = pkgs.buildGoModule {
-          pname = "gohome";
+        packages.default = pkgs.callPackage ./nix/package.nix {
           version = "0.1.0";
-          src = ./.;
-          vendorHash = null; # Update after go mod tidy
-
-          subPackages = [
-            "cmd/gohome"
-            "cmd/gohome-cli"
-          ];
-
-          nativeBuildInputs = [
-            pkgs.protobuf
-            pkgs.protoc-gen-go
-            pkgs.protoc-gen-go-grpc
-          ];
-
-          meta = with pkgs.lib; {
-            description = "Nix-native home automation";
-            homepage = "https://github.com/joshp123/gohome";
-            license = licenses.agpl3Plus;
-            maintainers = [ ];
-          };
+          buildTags = [ "gohome_plugin_tado" ];
+          buildCommit = self.rev or "dirty";
         };
 
         devShells.default = pkgs.mkShell {

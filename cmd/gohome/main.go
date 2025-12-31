@@ -8,11 +8,16 @@ import (
 	"strings"
 
 	"github.com/joshp123/gohome/internal/core"
+	"github.com/joshp123/gohome/internal/plugins"
 	"github.com/joshp123/gohome/internal/router"
 	"github.com/joshp123/gohome/internal/server"
-	"github.com/joshp123/gohome/plugins/tado"
 
 	"github.com/prometheus/client_golang/prometheus"
+)
+
+var (
+	buildVersion = "dev"
+	buildCommit  = "unknown"
 )
 
 func main() {
@@ -22,13 +27,18 @@ func main() {
 	dashboardDir := os.Getenv("GOHOME_DASHBOARD_DIR")
 
 	enabled, allowAll := readEnabledPlugins(enabledPluginsFile)
-	plugins := buildPlugins(enabled, allowAll)
+	compiledPlugins := plugins.Compiled()
 
-	if err := core.ValidatePlugins(plugins); err != nil {
+	if err := core.ValidatePlugins(compiledPlugins); err != nil {
 		log.Fatalf("plugin validation: %v", err)
 	}
+	if err := core.ValidateEnabledPlugins(compiledPlugins, enabled, allowAll); err != nil {
+		log.Fatalf("plugin enablement: %v", err)
+	}
 
-	if err := core.WriteDashboards(dashboardDir, plugins); err != nil {
+	activePlugins := core.FilterPlugins(compiledPlugins, enabled, allowAll)
+
+	if err := core.WriteDashboards(dashboardDir, activePlugins); err != nil {
 		log.Fatalf("write dashboards: %v", err)
 	}
 
@@ -37,18 +47,22 @@ func main() {
 		log.Fatalf("grpc listen: %v", err)
 	}
 
-	router.RegisterPlugins(grpcServer.Server, plugins)
+	router.RegisterPlugins(grpcServer.Server, activePlugins)
 
-	metricsRegistry := core.MetricsRegistry(plugins)
+	metricsRegistry := core.MetricsRegistry(activePlugins)
 	metricsRegistry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
 		Name: "gohome_build_info",
 		Help: "Build information",
+		ConstLabels: prometheus.Labels{
+			"version": buildVersion,
+			"commit":  buildCommit,
+		},
 	}, func() float64 { return 1 }))
 
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/health", server.HealthHandler)
 	httpMux.Handle("/metrics", server.MetricsHandler(metricsRegistry))
-	httpMux.Handle("/dashboards/", server.DashboardsHandler(core.DashboardsMap(plugins)))
+	httpMux.Handle("/dashboards/", server.DashboardsHandler(core.DashboardsMap(activePlugins)))
 
 	httpServer := server.NewHTTPServer(httpAddr, httpMux)
 
@@ -68,14 +82,6 @@ func envOrDefault(key, fallback string) string {
 		return value
 	}
 	return fallback
-}
-
-func buildPlugins(enabled map[string]bool, allowAll bool) []core.Plugin {
-	plugins := make([]core.Plugin, 0)
-	if allowAll || enabled["tado"] {
-		plugins = append(plugins, tado.NewPlugin())
-	}
-	return plugins
 }
 
 func readEnabledPlugins(path string) (map[string]bool, bool) {

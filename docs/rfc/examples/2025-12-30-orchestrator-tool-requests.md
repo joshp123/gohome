@@ -258,7 +258,7 @@ Advance is allowed only if all required slots are satisfied.
 
 1) User writes intent seed: "Reply to Dec 9 letter; challenge written commitments."
 2) User pins the Dec 9 letter from Vault.
-3) Model proposes vault.search for Monica email; auto-runs.
+3) Model proposes vault.search for the team email; auto-runs.
 4) Evidence checklist completes; user advances.
 5) Model suggests claim->evidence bindings; user confirms.
 6) Model proposes lawbot.search for 7:611 BW; auto-runs.
