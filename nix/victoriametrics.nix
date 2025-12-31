@@ -14,6 +14,7 @@ in
       extraOptions = [
         "-storageDataPath=/var/lib/victoriametrics"
         "-httpListenAddr=127.0.0.1:8428"
+        "-httpPathPrefix=/vm"
       ];
     };
   };
