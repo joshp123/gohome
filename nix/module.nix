@@ -11,11 +11,17 @@ let
 
   enabledPlugins = builtins.attrNames (filterAttrs (_: v: v.enable or false) cfg.plugins);
 
+  tadoEnv = optionalString (cfg.plugins.tado.enable or false) ''
+    GOHOME_TADO_TOKEN_FILE=${cfg.plugins.tado.tokenFile}
+  '' + optionalString (cfg.plugins.tado.enable or false && cfg.plugins.tado.homeId != null) ''
+    GOHOME_TADO_HOME_ID=${toString cfg.plugins.tado.homeId}
+  '';
+
   envFile = pkgs.writeText "gohome-env" ''
     GOHOME_GRPC_ADDR=${cfg.listenAddress}:${toString cfg.grpcPort}
     GOHOME_HTTP_ADDR=${cfg.listenAddress}:${toString cfg.httpPort}
     GOHOME_ENABLED_PLUGINS_FILE=/etc/gohome/enabled-plugins
-  '';
+  '' + tadoEnv;
 
 in
 {

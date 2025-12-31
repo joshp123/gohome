@@ -15,7 +15,26 @@ var agentsMD string
 var dashboardJSON []byte
 
 // Plugin implements the GoHome plugin contract.
-type Plugin struct{}
+type Plugin struct {
+	client        *Client
+	health        core.HealthStatus
+	healthMessage string
+}
+
+// NewPlugin constructs a Tado plugin from environment configuration.
+func NewPlugin() Plugin {
+	cfg, err := LoadConfigFromEnv()
+	if err != nil {
+		return Plugin{health: core.HealthError, healthMessage: err.Error()}
+	}
+
+	client, err := NewClient(cfg)
+	if err != nil {
+		return Plugin{health: core.HealthError, healthMessage: err.Error()}
+	}
+
+	return Plugin{client: client, health: core.HealthHealthy}
+}
 
 func (p Plugin) ID() string {
 	return "tado"
@@ -39,17 +58,20 @@ func (p Plugin) Dashboards() []core.Dashboard {
 }
 
 func (p Plugin) RegisterGRPC(server *grpc.Server) {
-	RegisterTadoService(server)
+	RegisterTadoService(server, p.client)
 }
 
 func (p Plugin) Collectors() []prometheus.Collector {
-	return nil
+	if p.client == nil {
+		return nil
+	}
+	return []prometheus.Collector{NewMetricsCollector(p.client)}
 }
 
 func (p Plugin) Health() core.HealthStatus {
-	return core.HealthHealthy
+	return p.health
 }
 
 func (p Plugin) HealthMessage() string {
-	return ""
+	return p.healthMessage
 }
