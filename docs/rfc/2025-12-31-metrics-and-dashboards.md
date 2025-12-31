@@ -1,7 +1,7 @@
 # RFC: Metrics as Database + Plugin Dashboards
 
 - Date: 2025-12-31
-- Status: Draft
+- Status: Implemented
 - Audience: plugin authors, operators, observability owners
 
 ## 1) Narrative: what we are building and why

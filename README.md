@@ -46,7 +46,7 @@ Pre‑alpha. Building in public.
 nix develop -c ./tools/generate.sh
 
 # Run server
-go run ./cmd/gohome
+go run -tags gohome_plugin_tado ./cmd/gohome
 
 # Discover via CLI
 go run ./cmd/gohome-cli plugins list

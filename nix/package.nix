@@ -1,4 +1,4 @@
-{ lib, buildGoModule, version }:
+{ lib, buildGoModule, version, buildTags ? [ ], buildCommit ? "unknown" }:
 
 buildGoModule {
   pname = "gohome";
@@ -8,6 +8,12 @@ buildGoModule {
   subPackages = [
     "cmd/gohome"
     "cmd/gohome-cli"
+  ];
+
+  tags = buildTags;
+  ldflags = [
+    "-X main.buildVersion=${version}"
+    "-X main.buildCommit=${buildCommit}"
   ];
 
   meta = with lib; {

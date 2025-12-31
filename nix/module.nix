@@ -5,11 +5,14 @@ with lib;
 let
   cfg = config.services.gohome;
 
+  enabledPlugins = builtins.attrNames (filterAttrs (_: v: v.enable or false) cfg.plugins);
+  pluginTags = map (name: "gohome_plugin_${name}") enabledPlugins;
+
   gohomePkg = pkgs.callPackage ./package.nix {
     version = cfg.packageVersion;
+    buildTags = pluginTags;
+    buildCommit = config.system.configurationRevision or "unknown";
   };
-
-  enabledPlugins = builtins.attrNames (filterAttrs (_: v: v.enable or false) cfg.plugins);
 
   tadoEnv = optionalString (cfg.plugins.tado.enable or false) ''
     GOHOME_TADO_TOKEN_FILE=${cfg.plugins.tado.tokenFile}

@@ -1,7 +1,7 @@
 # RFC: Core Router + Compile-Time Plugin Contract
 
 - Date: 2025-12-31
-- Status: Draft
+- Status: Implemented
 - Audience: engineers, operators, future plugin authors
 
 ## 1) Narrative: what we are building and why

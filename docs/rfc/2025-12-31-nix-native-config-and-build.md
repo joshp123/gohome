@@ -1,7 +1,7 @@
 # RFC: Nix‑Native Configuration and Build Composition
 
 - Date: 2025-12-31
-- Status: Draft
+- Status: Implemented
 - Audience: operators, infra engineers, plugin authors
 
 ## 1) Narrative: what we are building and why
