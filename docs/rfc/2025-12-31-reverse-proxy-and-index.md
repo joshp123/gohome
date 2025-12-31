@@ -1,7 +1,7 @@
 # RFC: Reverse Proxy + Index Landing Page
 
 - Date: 2025-12-31
-- Status: Draft
+- Status: Implemented
 - Audience: operators, users, infra engineers
 
 ## 1) Narrative: what we are building and why

@@ -29,3 +29,42 @@ func ValidatePlugins(plugins []Plugin) error {
 	}
 	return nil
 }
+
+// ValidateEnabledPlugins ensures enabled plugin IDs exist in the compiled list.
+func ValidateEnabledPlugins(compiled []Plugin, enabled map[string]bool, allowAll bool) error {
+	if allowAll || len(enabled) == 0 {
+		return nil
+	}
+
+	compiledIDs := make(map[string]bool, len(compiled))
+	for _, plugin := range compiled {
+		compiledIDs[plugin.ID()] = true
+	}
+
+	for id := range enabled {
+		if !compiledIDs[id] {
+			return fmt.Errorf("enabled plugin %q is not compiled into this build", id)
+		}
+	}
+
+	return nil
+}
+
+// FilterPlugins selects the active plugins based on the enabled set.
+func FilterPlugins(compiled []Plugin, enabled map[string]bool, allowAll bool) []Plugin {
+	if allowAll {
+		return compiled
+	}
+	if len(enabled) == 0 {
+		return nil
+	}
+
+	active := make([]Plugin, 0, len(compiled))
+	for _, plugin := range compiled {
+		if enabled[plugin.ID()] {
+			active = append(active, plugin)
+		}
+	}
+
+	return active
+}

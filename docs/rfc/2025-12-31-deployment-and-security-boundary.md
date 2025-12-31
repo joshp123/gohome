@@ -1,7 +1,7 @@
 # RFC: Deployment + Security Boundary (Hetzner + Tailscale Only)
 
 - Date: 2025-12-31
-- Status: Draft
+- Status: Implemented
 - Audience: operators, infra engineers, security reviewers
 
 ## 1) Narrative: what we are building and why
