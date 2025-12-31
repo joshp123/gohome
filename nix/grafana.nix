@@ -14,6 +14,7 @@ in
         server = {
           http_addr = "127.0.0.1";
           http_port = 3000;
+          domain = config.networking.hostName;
           root_url = "%(protocol)s://%(domain)s/grafana/";
           serve_from_sub_path = true;
         };
