@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package gohome.registry.v1;
+
+option go_package = "github.com/elliot-alderson/gohome/proto/gen/registry/v1;registryv1";
+
+message ListPluginsRequest {}
+
+message PluginSummary {
+  string plugin_id = 1;
+  string display_name = 2;
+  string version = 3;
+  string status = 4; // HEALTHY/DEGRADED/ERROR
+}
+
+message ListPluginsResponse {
+  repeated PluginSummary plugins = 1;
+}
+
+message DescribePluginRequest {
+  string plugin_id = 1;
+}
+
+message Dashboard {
+  string name = 1;
+  string path = 2;
+}
+
+message PluginDescriptor {
+  string plugin_id = 1;
+  string display_name = 2;
+  string version = 3;
+  repeated string services = 4;
+  string agents_md = 5;
+  repeated Dashboard dashboards = 6;
+  string status = 7;
+  string health_message = 8;
+}
+
+message DescribePluginResponse {
+  PluginDescriptor plugin = 1;
+}
+
+message WatchPluginsRequest {}
+
+message PluginEvent {
+  string plugin_id = 1;
+  string status = 2;
+}
+
+service Registry {
+  rpc ListPlugins(ListPluginsRequest) returns (ListPluginsResponse);
+  rpc DescribePlugin(DescribePluginRequest) returns (DescribePluginResponse);
+  rpc WatchPlugins(WatchPluginsRequest) returns (stream PluginEvent);
+}
