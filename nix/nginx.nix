@@ -25,7 +25,7 @@ in
           root = cfg.webRoot;
           tryFiles = "$uri /index.html";
         };
-        locations."/grafana/".proxyPass = "http://127.0.0.1:3000/";
+        locations."/grafana/".proxyPass = "http://127.0.0.1:3000";
         locations."/vm/".proxyPass = "http://127.0.0.1:8428";
         locations."/gohome/".proxyPass = "http://127.0.0.1:${toString cfg.httpPort}/";
       };
