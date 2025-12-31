@@ -21,6 +21,7 @@ let
     GOHOME_GRPC_ADDR=${cfg.listenAddress}:${toString cfg.grpcPort}
     GOHOME_HTTP_ADDR=${cfg.listenAddress}:${toString cfg.httpPort}
     GOHOME_ENABLED_PLUGINS_FILE=/etc/gohome/enabled-plugins
+    GOHOME_DASHBOARD_DIR=/var/lib/gohome/dashboards
   '' + tadoEnv;
 
 in
@@ -29,6 +30,7 @@ in
     ./nginx.nix
     ./grafana.nix
     ./victoriametrics.nix
+    ./tailscale.nix
     ../plugins/tado/module.nix
   ];
 
@@ -94,5 +96,9 @@ in
     };
 
     environment.etc."gohome/enabled-plugins".text = builtins.concatStringsSep "\n" enabledPlugins;
+
+    systemd.tmpfiles.rules = [
+      "d /var/lib/gohome/dashboards 0755 gohome gohome - -"
+    ];
   };
 }
