@@ -61,8 +61,8 @@ func LoadConfigFromEnv() (Config, error) {
 		return Config{}, fmt.Errorf("parse token file: %w", err)
 	}
 
-	if token.ClientID == "" || token.ClientSecret == "" || token.RefreshToken == "" {
-		return Config{}, fmt.Errorf("token file missing client_id, client_secret, or refresh_token")
+	if token.ClientID == "" || token.RefreshToken == "" {
+		return Config{}, fmt.Errorf("token file missing client_id or refresh_token")
 	}
 
 	cfg.ClientID = token.ClientID
