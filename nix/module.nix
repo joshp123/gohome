@@ -11,7 +11,10 @@ let
   gohomePkg = pkgs.callPackage ./package.nix {
     version = cfg.packageVersion;
     buildTags = pluginTags;
-    buildCommit = config.system.configurationRevision or "unknown";
+    buildCommit =
+      if config.system.configurationRevision == null
+      then "unknown"
+      else config.system.configurationRevision;
   };
 
   tadoEnv = optionalString (cfg.plugins.tado.enable or false) ''
@@ -34,7 +37,6 @@ in
     ./grafana.nix
     ./victoriametrics.nix
     ./tailscale.nix
-    ../plugins/tado/module.nix
   ];
 
   options.services.gohome = {
@@ -64,19 +66,31 @@ in
       description = "HTTP port (health/metrics/dashboards)";
     };
 
-    plugins = mkOption {
-      type = types.attrsOf (types.submodule ({ name, ... }: {
-        freeformType = types.attrs;
-        options = {
-          enable = mkEnableOption "GoHome plugin ${name}";
-        };
-      }));
-      default = { };
-      description = "Plugin enablement set";
+    plugins.tado = {
+      enable = mkEnableOption "Tado plugin";
+
+      tokenFile = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Path to Tado OAuth refresh token JSON";
+      };
+
+      homeId = mkOption {
+        type = types.nullOr types.int;
+        default = null;
+        description = "Optional homeId override (if /me contains multiple homes)";
+      };
     };
   };
 
   config = mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = !(cfg.plugins.tado.enable or false) || cfg.plugins.tado.tokenFile != null;
+        message = "services.gohome.plugins.tado.tokenFile is required when tado is enabled";
+      }
+    ];
+
     users.users.gohome = {
       isSystemUser = true;
       group = "gohome";

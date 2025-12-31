@@ -27,3 +27,8 @@ credentials.json
 
 # Generated proto
 /proto/gen/
+
+# OpenTofu
+/infra/tofu/.terraform/
+/infra/tofu/terraform.tfstate
+/infra/tofu/terraform.tfstate.backup
