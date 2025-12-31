@@ -19,10 +19,15 @@ func main() {
 	grpcAddr := envOrDefault("GOHOME_GRPC_ADDR", ":9000")
 	httpAddr := envOrDefault("GOHOME_HTTP_ADDR", ":8080")
 	enabledPluginsFile := envOrDefault("GOHOME_ENABLED_PLUGINS_FILE", "/etc/gohome/enabled-plugins")
+	dashboardDir := os.Getenv("GOHOME_DASHBOARD_DIR")
 
 	plugins := filterPlugins([]core.Plugin{
 		tado.NewPlugin(),
 	}, enabledPluginsFile)
+
+	if err := core.WriteDashboards(dashboardDir, plugins); err != nil {
+		log.Fatalf("write dashboards: %v", err)
+	}
 
 	grpcServer, err := server.NewGRPCServer(grpcAddr)
 	if err != nil {
