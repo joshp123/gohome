@@ -5,6 +5,10 @@ buildGoModule {
   inherit version;
   src = ../.;
   vendorHash = null;
+  subPackages = [
+    "cmd/gohome"
+    "cmd/gohome-cli"
+  ];
 
   meta = with lib; {
     description = "Nix-native home automation";

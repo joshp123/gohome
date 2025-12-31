@@ -45,8 +45,11 @@ Pre‑alpha. Building in public.
 # Generate protobufs (requires nix)
 nix develop -c ./tools/generate.sh
 
-# Run
+# Run server
 go run ./cmd/gohome
+
+# Discover via CLI
+go run ./cmd/gohome-cli plugins list
 ```
 
 ## Architecture (MVP)
