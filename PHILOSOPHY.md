@@ -169,7 +169,7 @@ Clawdis (ZFC flow):
 1. Connects to GoHome
 2. Fetches available services/methods (gRPC reflection)
 3. On user message: AI decides which method to call
-4. Execute mechanically, return result
+4. Execute mechanically
 
 ### Natural Language Routing (ZFC-Compliant)
 
@@ -288,7 +288,7 @@ HA source: `homeassistant/components/tado/`
 ### Example: Porting Daikin
 
 **Existing assets:**
-- Fork with fixes: `github.com/elliot-alderson/daikin_onecta` (branch `homelab/fan-direction`)
+- Fork with fixes: `github.com/sample-org/daikin_onecta` (branch `homelab/fan-direction`)
 
 **Porting steps:**
 1. **API**: Daikin Onecta cloud API - credentials in agenix
