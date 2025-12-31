@@ -9,7 +9,7 @@ import (
 
 const (
 	defaultBaseURL = "https://my.tado.com/api/v2"
-	defaultAuthURL = "https://auth.tado.com/oauth/token"
+	defaultAuthURL = "https://login.tado.com/oauth2/token"
 )
 
 // Config defines runtime configuration for the Tado client.
