@@ -5,7 +5,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	v1 "github.com/elliot-alderson/gohome/proto/gen/plugins/tado/v1"
+	v1 "github.com/joshp123/gohome/proto/gen/plugins/tado/v1"
 )
 
 type service struct {

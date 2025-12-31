@@ -8,7 +8,7 @@ buildGoModule {
 
   meta = with lib; {
     description = "Nix-native home automation";
-    homepage = "https://github.com/elliot-alderson/gohome";
+    homepage = "https://github.com/joshp123/gohome";
     license = licenses.agpl3Plus;
     maintainers = [ ];
   };
