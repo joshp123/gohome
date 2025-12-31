@@ -21,9 +21,12 @@ func main() {
 	enabledPluginsFile := envOrDefault("GOHOME_ENABLED_PLUGINS_FILE", "/etc/gohome/enabled-plugins")
 	dashboardDir := os.Getenv("GOHOME_DASHBOARD_DIR")
 
-	plugins := filterPlugins([]core.Plugin{
-		tado.NewPlugin(),
-	}, enabledPluginsFile)
+	enabled, allowAll := readEnabledPlugins(enabledPluginsFile)
+	plugins := buildPlugins(enabled, allowAll)
+
+	if err := core.ValidatePlugins(plugins); err != nil {
+		log.Fatalf("plugin validation: %v", err)
+	}
 
 	if err := core.WriteDashboards(dashboardDir, plugins); err != nil {
 		log.Fatalf("write dashboards: %v", err)
@@ -67,25 +70,18 @@ func envOrDefault(key, fallback string) string {
 	return fallback
 }
 
-func filterPlugins(all []core.Plugin, enabledFile string) []core.Plugin {
-	enabled, err := readEnabledPlugins(enabledFile)
-	if err != nil || len(enabled) == 0 {
-		return all
+func buildPlugins(enabled map[string]bool, allowAll bool) []core.Plugin {
+	plugins := make([]core.Plugin, 0)
+	if allowAll || enabled["tado"] {
+		plugins = append(plugins, tado.NewPlugin())
 	}
-
-	filtered := make([]core.Plugin, 0, len(all))
-	for _, plugin := range all {
-		if enabled[plugin.ID()] {
-			filtered = append(filtered, plugin)
-		}
-	}
-	return filtered
+	return plugins
 }
 
-func readEnabledPlugins(path string) (map[string]bool, error) {
+func readEnabledPlugins(path string) (map[string]bool, bool) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, true
 	}
 	defer file.Close()
 
@@ -98,5 +94,10 @@ func readEnabledPlugins(path string) (map[string]bool, error) {
 		}
 		result[line] = true
 	}
-	return result, scanner.Err()
+
+	if err := scanner.Err(); err != nil {
+		return nil, true
+	}
+
+	return result, false
 }
