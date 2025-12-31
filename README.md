@@ -21,7 +21,7 @@ Pre‑alpha. Building in public.
 ```nix
 # flake.nix
 {
-  inputs.gohome.url = "github:elliot-alderson/gohome";
+  inputs.gohome.url = "github:joshp123/gohome";
 
   outputs = { self, nixpkgs, gohome }: {
     nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {

@@ -1,14 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
-	"github.com/elliot-alderson/gohome/internal/core"
-	"github.com/elliot-alderson/gohome/internal/router"
-	"github.com/elliot-alderson/gohome/internal/server"
-	"github.com/elliot-alderson/gohome/plugins/tado"
+	"github.com/joshp123/gohome/internal/core"
+	"github.com/joshp123/gohome/internal/router"
+	"github.com/joshp123/gohome/internal/server"
+	"github.com/joshp123/gohome/plugins/tado"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -16,10 +18,11 @@ import (
 func main() {
 	grpcAddr := envOrDefault("GOHOME_GRPC_ADDR", ":9000")
 	httpAddr := envOrDefault("GOHOME_HTTP_ADDR", ":8080")
+	enabledPluginsFile := envOrDefault("GOHOME_ENABLED_PLUGINS_FILE", "/etc/gohome/enabled-plugins")
 
-	plugins := []core.Plugin{
+	plugins := filterPlugins([]core.Plugin{
 		tado.Plugin{},
-	}
+	}, enabledPluginsFile)
 
 	grpcServer, err := server.NewGRPCServer(grpcAddr)
 	if err != nil {
@@ -57,4 +60,38 @@ func envOrDefault(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func filterPlugins(all []core.Plugin, enabledFile string) []core.Plugin {
+	enabled, err := readEnabledPlugins(enabledFile)
+	if err != nil || len(enabled) == 0 {
+		return all
+	}
+
+	filtered := make([]core.Plugin, 0, len(all))
+	for _, plugin := range all {
+		if enabled[plugin.ID()] {
+			filtered = append(filtered, plugin)
+		}
+	}
+	return filtered
+}
+
+func readEnabledPlugins(path string) (map[string]bool, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	result := make(map[string]bool)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		result[line] = true
+	}
+	return result, scanner.Err()
 }

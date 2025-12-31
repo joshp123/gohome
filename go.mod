@@ -1,4 +1,4 @@
-module github.com/elliot-alderson/gohome
+module github.com/joshp123/gohome
 
 go 1.24.0
 
