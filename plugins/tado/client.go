@@ -259,7 +259,9 @@ func (c *Client) refreshLocked(ctx context.Context) error {
 	data.Set("grant_type", "refresh_token")
 	data.Set("refresh_token", c.refreshToken)
 	data.Set("client_id", c.clientID)
-	data.Set("client_secret", c.clientSecret)
+	if c.clientSecret != "" {
+		data.Set("client_secret", c.clientSecret)
+	}
 	if c.scope != "" {
 		data.Set("scope", c.scope)
 	}

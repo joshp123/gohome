@@ -23,12 +23,12 @@ let
     GOHOME_TADO_HOME_ID=${toString cfg.plugins.tado.homeId}
   '';
 
-  envFile = pkgs.writeText "gohome-env" ''
+  envFile = pkgs.writeText "gohome-env" (''
     GOHOME_GRPC_ADDR=${cfg.listenAddress}:${toString cfg.grpcPort}
     GOHOME_HTTP_ADDR=${cfg.listenAddress}:${toString cfg.httpPort}
     GOHOME_ENABLED_PLUGINS_FILE=/etc/gohome/enabled-plugins
     GOHOME_DASHBOARD_DIR=/var/lib/gohome/dashboards
-  '' + tadoEnv;
+  '' + tadoEnv);
 
 in
 {
