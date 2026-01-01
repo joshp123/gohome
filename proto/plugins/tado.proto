@@ -22,6 +22,11 @@ message SetTemperatureRequest {
 
 message SetTemperatureResponse {}
 
+message TadoConfig {
+  string bootstrap_file = 1;
+  optional int32 home_id = 2;
+}
+
 service TadoService {
   rpc ListZones(ListZonesRequest) returns (ListZonesResponse);
   rpc SetTemperature(SetTemperatureRequest) returns (SetTemperatureResponse);

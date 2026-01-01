@@ -10,6 +10,7 @@ Nix‑native home automation. Replace Home Assistant with a deterministic Go sys
 - Nix is source of truth
 - ZFC: AI reasons, code executes
 - Test in prod, rollback via Nix
+- Sane, opinionated defaults; batteries included
 
 ## Non‑negotiables
 
@@ -43,4 +44,3 @@ Nix‑native home automation. Replace Home Assistant with a deterministic Go sys
 
 - `PHILOSOPHY.md`
 - `docs/rfc/INDEX.md`
-

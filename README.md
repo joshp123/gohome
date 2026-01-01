@@ -6,7 +6,7 @@
 
 GoHome is a **Nix‑native** home automation server.
 
-- Config via NixOS modules (no YAML)
+- Config via NixOS modules (no YAML, no env vars)
 - Control via gRPC + CLI (proto/registry discovery)
 - State via VictoriaMetrics
 - Dashboards via Grafana
@@ -30,7 +30,15 @@ Pre‑alpha. Building in public.
         {
           services.gohome = {
             enable = true;
-            plugins.tado.enable = true;
+            oauth = {
+              blobEndpoint = "https://s3.eu-central-1.amazonaws.com";
+              blobBucket = "gohome-oauth-homelab-eu-central-1";
+              blobAccessKeyFile = config.age.secrets.gohome-oauth-blob-access-key.path;
+              blobSecretKeyFile = config.age.secrets.gohome-oauth-blob-secret-key.path;
+            };
+            plugins.tado = {
+              bootstrapFile = config.age.secrets.tado-token.path;
+            };
           };
         }
       ];

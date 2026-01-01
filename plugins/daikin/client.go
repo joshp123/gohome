@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/joshp123/gohome/internal/oauth"
+	configv1 "github.com/joshp123/gohome/proto/gen/config/v1"
 )
 
 const gatewayCacheTTL = 10 * time.Minute
@@ -43,8 +44,8 @@ type Client struct {
 	rateLimits     RateLimits
 }
 
-func NewClient(cfg Config, decl oauth.Declaration) (*Client, error) {
-	blobStore, err := oauth.NewS3StoreFromEnv()
+func NewClient(cfg Config, decl oauth.Declaration, oauthCfg *configv1.OAuthConfig) (*Client, error) {
+	blobStore, err := oauth.NewS3Store(oauthCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -55,8 +56,13 @@ func NewClient(cfg Config, decl oauth.Declaration) (*Client, error) {
 	}
 	manager.Start(context.Background())
 
+	baseURL := strings.TrimSpace(cfg.BaseURL)
+	if baseURL == "" {
+		baseURL = defaultBaseURL
+	}
+
 	return &Client{
-		baseURL:    cfg.BaseURL,
+		baseURL:    baseURL,
 		oauth:      manager,
 		httpClient: &http.Client{Timeout: 15 * time.Second},
 	}, nil

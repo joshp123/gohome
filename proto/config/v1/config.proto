@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package gohome.config.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/config/v1;configv1";
+
+import "proto/plugins/tado.proto";
+import "proto/plugins/daikin.proto";
+
+message CoreConfig {
+  string grpc_addr = 1;
+  string http_addr = 2;
+  string dashboard_dir = 3;
+}
+
+message OAuthConfig {
+  string blob_endpoint = 1;
+  string blob_bucket = 2;
+  string blob_prefix = 3;
+  string blob_access_key_file = 4;
+  string blob_secret_key_file = 5;
+  string blob_region = 6;
+}
+
+message Config {
+  uint32 schema_version = 1;
+  CoreConfig core = 2;
+  OAuthConfig oauth = 3;
+  gohome.plugins.tado.v1.TadoConfig tado = 10;
+  gohome.plugins.daikin.v1.DaikinConfig daikin = 11;
+}

@@ -51,6 +51,10 @@ message SetTemperatureRequest {
 
 message SetTemperatureResponse {}
 
+message DaikinConfig {
+  string bootstrap_file = 1;
+}
+
 service DaikinService {
   rpc ListUnits(ListUnitsRequest) returns (ListUnitsResponse);
   rpc GetUnitState(GetUnitStateRequest) returns (GetUnitStateResponse);

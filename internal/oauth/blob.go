@@ -13,6 +13,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	configv1 "github.com/joshp123/gohome/proto/gen/config/v1"
 )
 
 var ErrBlobNotFound = errors.New("oauth blob not found")
@@ -29,13 +30,17 @@ type S3Store struct {
 	prefix string
 }
 
-func NewS3StoreFromEnv() (*S3Store, error) {
-	endpoint := strings.TrimSpace(os.Getenv("GOHOME_OAUTH_BLOB_ENDPOINT"))
-	bucket := strings.TrimSpace(os.Getenv("GOHOME_OAUTH_BLOB_BUCKET"))
-	prefix := strings.TrimSpace(os.Getenv("GOHOME_OAUTH_BLOB_PREFIX"))
-	accessKeyFile := strings.TrimSpace(os.Getenv("GOHOME_OAUTH_BLOB_ACCESS_KEY_FILE"))
-	secretKeyFile := strings.TrimSpace(os.Getenv("GOHOME_OAUTH_BLOB_SECRET_KEY_FILE"))
-	region := strings.TrimSpace(os.Getenv("GOHOME_OAUTH_BLOB_REGION"))
+func NewS3Store(cfg *configv1.OAuthConfig) (*S3Store, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("missing oauth config")
+	}
+
+	endpoint := strings.TrimSpace(cfg.BlobEndpoint)
+	bucket := strings.TrimSpace(cfg.BlobBucket)
+	prefix := strings.TrimSpace(cfg.BlobPrefix)
+	accessKeyFile := strings.TrimSpace(cfg.BlobAccessKeyFile)
+	secretKeyFile := strings.TrimSpace(cfg.BlobSecretKeyFile)
+	region := strings.TrimSpace(cfg.BlobRegion)
 
 	if endpoint == "" || bucket == "" || accessKeyFile == "" || secretKeyFile == "" {
 		return nil, fmt.Errorf("missing blob configuration")
