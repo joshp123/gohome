@@ -1,0 +1,26 @@
+{
+  "grants": [
+    {
+      "src": ["*"],
+      "dst": ["*"],
+      "ip": ["*"]
+    }
+  ],
+  "ssh": [
+    {
+      "action": "check",
+      "src": ["autogroup:member"],
+      "dst": ["autogroup:self"],
+      "users": ["autogroup:nonroot", "root"]
+    },
+    {
+      "action": "accept",
+      "src": ["autogroup:admin"],
+      "dst": ["tag:gohome"],
+      "users": ["autogroup:nonroot", "root"]
+    }
+  ],
+  "tagOwners": {
+    "tag:gohome": ["autogroup:admin"]
+  }
+}

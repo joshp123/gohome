@@ -29,8 +29,20 @@
 
   services.gohome = {
     enable = true;
+
+    oauth = {
+      blobEndpoint = "https://s3.eu-central-1.amazonaws.com";
+      blobBucket = "gohome-oauth-homelab-eu-central-1";
+      blobPrefix = "gohome/oauth";
+      blobAccessKeyFile = config.age.secrets.gohome-oauth-blob-access-key.path;
+      blobSecretKeyFile = config.age.secrets.gohome-oauth-blob-secret-key.path;
+      blobRegion = "eu-central-1";
+    };
+
     plugins.tado.enable = true;
-    plugins.tado.tokenFile = config.age.secrets.tado-token.path;
+    plugins.tado.bootstrapFile = config.age.secrets.tado-token.path;
+    plugins.daikin.enable = true;
+    plugins.daikin.bootstrapFile = config.age.secrets.daikin-bootstrap.path;
     tailscale.authKeyFile = config.age.secrets.tailscale-authkey.path;
   };
 }
