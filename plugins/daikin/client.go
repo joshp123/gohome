@@ -15,7 +15,7 @@ import (
 	"github.com/joshp123/gohome/internal/oauth"
 )
 
-const gatewayCacheTTL = 5 * time.Minute
+const gatewayCacheTTL = 10 * time.Minute
 
 // RateLimits captures Daikin API rate limit headers.
 type RateLimits struct {
@@ -39,6 +39,7 @@ type Client struct {
 	lastPatch      time.Time
 	lastGatewayAt  time.Time
 	lastGatewayRaw []json.RawMessage
+	cooldownUntil  time.Time
 	rateLimits     RateLimits
 }
 
@@ -165,6 +166,16 @@ func (c *Client) gatewayDevicesRaw(ctx context.Context) ([]json.RawMessage, erro
 		cached := cloneRawMessages(c.lastGatewayRaw)
 		c.cloudMu.Unlock()
 		return cached, nil
+	}
+	if time.Now().Before(c.cooldownUntil) {
+		if len(c.lastGatewayRaw) > 0 {
+			cached := cloneRawMessages(c.lastGatewayRaw)
+			c.cloudMu.Unlock()
+			return cached, nil
+		}
+		until := c.cooldownUntil
+		c.cloudMu.Unlock()
+		return nil, fmt.Errorf("daikin api rate limited until %s", until.UTC().Format(time.RFC3339))
 	}
 	if time.Since(c.lastGatewayAt) < gatewayCacheTTL && len(c.lastGatewayRaw) > 0 {
 		cached := cloneRawMessages(c.lastGatewayRaw)
@@ -294,6 +305,11 @@ func (c *Client) updateRateLimits(resp *http.Response) {
 		ResetAfter:      headerInt(resp, "ratelimit-reset"),
 		LastStatusCode:  resp.StatusCode,
 		LastStatusText:  resp.Status,
+	}
+	if resp.StatusCode == http.StatusTooManyRequests && c.rateLimits.RetryAfter > 0 {
+		c.cooldownUntil = time.Now().Add(time.Duration(c.rateLimits.RetryAfter) * time.Second)
+	} else if resp.StatusCode != http.StatusTooManyRequests {
+		c.cooldownUntil = time.Time{}
 	}
 }
 
