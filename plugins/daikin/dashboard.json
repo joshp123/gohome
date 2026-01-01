@@ -249,6 +249,46 @@
       "datasource": "VictoriaMetrics",
       "fieldConfig": {
         "defaults": {
+          "unit": "percent"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Humidity"
+            },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#C0C6CF" } },
+              { "id": "custom.lineWidth", "value": 2 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 16 },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "expr": "gohome_daikin_room_humidity_percent{unit_name=~\"$unit\"}",
+          "legendFormat": "Humidity",
+          "refId": "A"
+        }
+      ],
+      "title": "$unit room humidity",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -260,7 +300,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 22 },
       "id": 6,
       "options": {
         "reduceOptions": {
