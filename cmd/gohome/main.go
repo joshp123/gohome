@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bufio"
+	"flag"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
+	"github.com/joshp123/gohome/internal/config"
 	"github.com/joshp123/gohome/internal/core"
 	"github.com/joshp123/gohome/internal/plugins"
 	"github.com/joshp123/gohome/internal/router"
@@ -26,28 +26,33 @@ func main() {
 		return
 	}
 
-	grpcAddr := envOrDefault("GOHOME_GRPC_ADDR", ":9000")
-	httpAddr := envOrDefault("GOHOME_HTTP_ADDR", ":8080")
-	enabledPluginsFile := envOrDefault("GOHOME_ENABLED_PLUGINS_FILE", "/etc/gohome/enabled-plugins")
-	dashboardDir := os.Getenv("GOHOME_DASHBOARD_DIR")
+	flags := flag.NewFlagSet("gohome", flag.ExitOnError)
+	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
+	_ = flags.Parse(os.Args[1:])
 
-	enabled, allowAll := readEnabledPlugins(enabledPluginsFile)
-	compiledPlugins := plugins.Compiled()
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
+
+	compiledPlugins := plugins.Compiled(cfg)
 
 	if err := core.ValidatePlugins(compiledPlugins); err != nil {
 		log.Fatalf("plugin validation: %v", err)
 	}
-	if err := core.ValidateEnabledPlugins(compiledPlugins, enabled, allowAll); err != nil {
+
+	enabled := config.EnabledPlugins(cfg)
+	if err := core.ValidateEnabledPlugins(compiledPlugins, enabled, false); err != nil {
 		log.Fatalf("plugin enablement: %v", err)
 	}
 
-	activePlugins := core.FilterPlugins(compiledPlugins, enabled, allowAll)
+	activePlugins := core.FilterPlugins(compiledPlugins, enabled, false)
 
-	if err := core.WriteDashboards(dashboardDir, activePlugins); err != nil {
+	if err := core.WriteDashboards(cfg.Core.DashboardDir, activePlugins); err != nil {
 		log.Fatalf("write dashboards: %v", err)
 	}
 
-	grpcServer, err := server.NewGRPCServer(grpcAddr)
+	grpcServer, err := server.NewGRPCServer(cfg.Core.GrpcAddr)
 	if err != nil {
 		log.Fatalf("grpc listen: %v", err)
 	}
@@ -69,7 +74,7 @@ func main() {
 	httpMux.Handle("/metrics", server.MetricsHandler(metricsRegistry))
 	httpMux.Handle("/dashboards/", server.DashboardsHandler(core.DashboardsMap(activePlugins)))
 
-	httpServer := server.NewHTTPServer(httpAddr, httpMux)
+	httpServer := server.NewHTTPServer(cfg.Core.HttpAddr, httpMux)
 
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil {
@@ -80,35 +85,4 @@ func main() {
 	if err := grpcServer.Serve(); err != nil {
 		log.Fatalf("grpc serve: %v", err)
 	}
-}
-
-func envOrDefault(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
-func readEnabledPlugins(path string) (map[string]bool, bool) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, true
-	}
-	defer file.Close()
-
-	result := make(map[string]bool)
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		result[line] = true
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, true
-	}
-
-	return result, false
 }

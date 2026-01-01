@@ -39,10 +39,10 @@
       blobRegion = "eu-central-1";
     };
 
-    plugins.tado.enable = true;
-    plugins.tado.bootstrapFile = config.age.secrets.tado-token.path;
-    plugins.daikin.enable = true;
-    plugins.daikin.bootstrapFile = config.age.secrets.daikin-bootstrap.path;
+    plugins.tado = {
+      bootstrapFile = config.age.secrets.tado-token.path;
+    };
+
     tailscale.authKeyFile = config.age.secrets.tailscale-authkey.path;
   };
 }

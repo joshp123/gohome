@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/joshp123/gohome/internal/oauth"
+	configv1 "github.com/joshp123/gohome/proto/gen/config/v1"
 )
 
 // Client talks to the Tado REST API.
@@ -19,11 +20,11 @@ type Client struct {
 	oauth   *oauth.Manager
 
 	httpClient *http.Client
-	homeID     int
+	homeID     *int
 }
 
-func NewClient(cfg Config, decl oauth.Declaration) (*Client, error) {
-	blobStore, err := oauth.NewS3StoreFromEnv()
+func NewClient(cfg Config, decl oauth.Declaration, oauthCfg *configv1.OAuthConfig) (*Client, error) {
+	blobStore, err := oauth.NewS3Store(oauthCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -41,8 +42,13 @@ func NewClientWithStore(cfg Config, decl oauth.Declaration, blobStore oauth.Blob
 	}
 	manager.Start(context.Background())
 
+	baseURL := strings.TrimSpace(cfg.BaseURL)
+	if baseURL == "" {
+		baseURL = defaultBaseURL
+	}
+
 	return &Client{
-		baseURL:    cfg.BaseURL,
+		baseURL:    baseURL,
 		oauth:      manager,
 		httpClient: &http.Client{Timeout: 15 * time.Second},
 		homeID:     cfg.HomeID,
@@ -50,13 +56,14 @@ func NewClientWithStore(cfg Config, decl oauth.Declaration, blobStore oauth.Blob
 }
 
 func (c *Client) HomeID(ctx context.Context) (int, error) {
-	if c.homeID != 0 {
-		return c.homeID, nil
+	if c.homeID != nil {
+		return *c.homeID, nil
 	}
 
 	var resp struct {
 		Homes []struct {
-			ID int `json:"id"`
+			ID   int    `json:"id"`
+			Name string `json:"name"`
 		} `json:"homes"`
 	}
 
@@ -66,9 +73,20 @@ func (c *Client) HomeID(ctx context.Context) (int, error) {
 	if len(resp.Homes) == 0 {
 		return 0, fmt.Errorf("no homes found in /me response")
 	}
+	if len(resp.Homes) > 1 {
+		labels := make([]string, 0, len(resp.Homes))
+		for _, home := range resp.Homes {
+			if home.Name != "" {
+				labels = append(labels, fmt.Sprintf("%d (%s)", home.ID, home.Name))
+				continue
+			}
+			labels = append(labels, fmt.Sprintf("%d", home.ID))
+		}
+		return 0, fmt.Errorf("multiple homes found: %s (set home_id override)", strings.Join(labels, ", "))
+	}
 
-	c.homeID = resp.Homes[0].ID
-	return c.homeID, nil
+	c.homeID = &resp.Homes[0].ID
+	return *c.homeID, nil
 }
 
 func (c *Client) Zones(ctx context.Context) ([]Zone, error) {

@@ -5,6 +5,8 @@ import (
 
 	"github.com/joshp123/gohome/internal/core"
 	"github.com/joshp123/gohome/internal/oauth"
+	configv1 "github.com/joshp123/gohome/proto/gen/config/v1"
+	tadov1 "github.com/joshp123/gohome/proto/gen/plugins/tado/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 )
@@ -22,20 +24,24 @@ type Plugin struct {
 	healthMessage string
 }
 
-// NewPlugin constructs a Tado plugin from environment configuration.
-func NewPlugin() Plugin {
-	cfg, err := LoadConfigFromEnv()
+// NewPlugin constructs a Tado plugin from config.
+func NewPlugin(cfg *tadov1.TadoConfig, oauthCfg *configv1.OAuthConfig) (Plugin, bool) {
+	if cfg == nil {
+		return Plugin{}, false
+	}
+
+	runtimeCfg, err := ConfigFromProto(cfg)
 	if err != nil {
-		return Plugin{health: core.HealthError, healthMessage: err.Error()}
+		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
 	}
 
 	decl := Plugin{}.OAuthDeclaration()
-	client, err := NewClient(cfg, decl)
+	client, err := NewClient(runtimeCfg, decl, oauthCfg)
 	if err != nil {
-		return Plugin{health: core.HealthError, healthMessage: err.Error()}
+		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
 	}
 
-	return Plugin{client: client, health: core.HealthHealthy}
+	return Plugin{client: client, health: core.HealthHealthy}, true
 }
 
 func (p Plugin) ID() string {

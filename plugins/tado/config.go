@@ -2,8 +2,8 @@ package tado
 
 import (
 	"fmt"
-	"os"
-	"strconv"
+
+	tadov1 "github.com/joshp123/gohome/proto/gen/plugins/tado/v1"
 )
 
 const (
@@ -14,34 +14,29 @@ const (
 type Config struct {
 	BaseURL       string
 	BootstrapFile string
-	HomeID        int
+	HomeID        *int
 }
 
-// LoadConfigFromEnv builds a config from environment variables and bootstrap file.
-func LoadConfigFromEnv() (Config, error) {
-	cfg := Config{
-		BaseURL:       envOrDefault("GOHOME_TADO_BASE_URL", defaultBaseURL),
-		BootstrapFile: os.Getenv("GOHOME_TADO_BOOTSTRAP_FILE"),
+func ConfigFromProto(cfg *tadov1.TadoConfig) (Config, error) {
+	if cfg == nil {
+		return Config{}, fmt.Errorf("tado config is required")
 	}
-
 	if cfg.BootstrapFile == "" {
-		return Config{}, fmt.Errorf("GOHOME_TADO_BOOTSTRAP_FILE is required")
+		return Config{}, fmt.Errorf("tado bootstrap_file is required")
 	}
 
-	if homeID := os.Getenv("GOHOME_TADO_HOME_ID"); homeID != "" {
-		parsed, err := strconv.Atoi(homeID)
-		if err != nil {
-			return Config{}, fmt.Errorf("invalid GOHOME_TADO_HOME_ID: %w", err)
+	var homeID *int
+	if cfg.HomeId != nil {
+		value := int(cfg.GetHomeId())
+		if value <= 0 {
+			return Config{}, fmt.Errorf("tado home_id must be positive")
 		}
-		cfg.HomeID = parsed
+		homeID = &value
 	}
 
-	return cfg, nil
-}
-
-func envOrDefault(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
+	return Config{
+		BaseURL:       defaultBaseURL,
+		BootstrapFile: cfg.BootstrapFile,
+		HomeID:        homeID,
+	}, nil
 }
