@@ -18,7 +18,13 @@ export GOHOME_HTTP_BASE="http://${GOHOME_HOST}"
 export GOHOME_GRPC_ADDR="${GOHOME_HOST}:9000"
 ```
 
-Use the CLI directly from the repo:
+Use the repo-shipped CLI binary (preferred):
+
+```sh
+./bin/gohome-cli services
+```
+
+Use the CLI from source if needed:
 
 ```sh
 go run ./cmd/gohome-cli services
