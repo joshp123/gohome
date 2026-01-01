@@ -4,7 +4,7 @@ buildGoModule {
   pname = "gohome";
   inherit version;
   src = ../.;
-  vendorHash = "sha256-7pDswPryddKO4spA9PtBJWRZuWuZoWVlD+0o+B1SKhk=";
+  vendorHash = null;
   nativeBuildInputs = [
     protobuf
     protoc-gen-go
