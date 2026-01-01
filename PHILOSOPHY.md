@@ -88,6 +88,7 @@ packages.gohome = gohome.override {
 - Nix handles composition
 - No runtime plugin discovery complexity
 - Add plugin = rebuild binary
+- **Single‑instance only**: multi‑instance deployments are unsupported.
 
 ### 5. API-First, UI-Never
 
@@ -289,7 +290,7 @@ HA source: `homeassistant/components/tado/`
 3. **Protobuf**: `TadoService` with `GetZones`, `SetTemperature`, `Boost`, etc.
 4. **Metrics**: `gohome_tado_temperature_celsius`, `gohome_tado_humidity_percent`, etc.
 5. **Dashboard**: Adapt existing Grafana dashboard from homelab branch
-6. **Nix**: `plugins.tado.enable`, `plugins.tado.tokenFile`
+6. **Nix**: `plugins.tado.enable`, `plugins.tado.bootstrapFile`
 
 ### Example: Porting Daikin
 
@@ -303,7 +304,7 @@ HA source: `homeassistant/components/tado/`
 2. **Go client**: Port from Python integration
 3. **Protobuf**: `DaikinService` with `GetUnits`, `SetTemperature`, `SetMode`, etc.
 4. **Metrics**: `gohome_daikin_temperature_celsius`, `gohome_daikin_mode`, etc.
-5. **Nix**: `plugins.daikin.enable`, `plugins.daikin.credentialsFile`
+5. **Nix**: `plugins.daikin.enable`, `plugins.daikin.bootstrapFile`
 
 ## Why We're Better Than Home Assistant
 
