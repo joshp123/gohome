@@ -1,6 +1,7 @@
 # Binaries
 /gohome
 *.exe
+/bin/gohome-cli
 
 # Go
 /vendor/

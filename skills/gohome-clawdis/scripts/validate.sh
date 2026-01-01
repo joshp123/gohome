@@ -10,6 +10,10 @@ run_cli() {
     GOHOME_GRPC_ADDR="${GOHOME_GRPC_ADDR}" gohome-cli "$@"
     return
   fi
+  if [ -x "./bin/gohome-cli" ]; then
+    GOHOME_GRPC_ADDR="${GOHOME_GRPC_ADDR}" ./bin/gohome-cli "$@"
+    return
+  fi
   if [ -x "./result/bin/gohome-cli" ]; then
     GOHOME_GRPC_ADDR="${GOHOME_GRPC_ADDR}" ./result/bin/gohome-cli "$@"
     return
