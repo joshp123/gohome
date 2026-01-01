@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/joshp123/gohome/internal/oauth"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 )
@@ -33,6 +34,7 @@ type Plugin interface {
 	ID() string
 	Manifest() Manifest
 	AgentsMD() string
+	OAuthDeclaration() oauth.Declaration
 	Dashboards() []Dashboard
 	RegisterGRPC(*grpc.Server)
 	Collectors() []prometheus.Collector

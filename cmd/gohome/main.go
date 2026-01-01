@@ -21,6 +21,11 @@ var (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "oauth" {
+		oauthMain(os.Args[2:])
+		return
+	}
+
 	grpcAddr := envOrDefault("GOHOME_GRPC_ADDR", ":9000")
 	httpAddr := envOrDefault("GOHOME_HTTP_ADDR", ":8080")
 	enabledPluginsFile := envOrDefault("GOHOME_ENABLED_PLUGINS_FILE", "/etc/gohome/enabled-plugins")

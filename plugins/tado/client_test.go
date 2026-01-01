@@ -5,9 +5,34 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/joshp123/gohome/internal/oauth"
 )
+
+type memoryBlobStore struct {
+	data map[string][]byte
+}
+
+func (m *memoryBlobStore) Load(_ context.Context, provider string) ([]byte, error) {
+	if m.data != nil {
+		if data, ok := m.data[provider]; ok {
+			return data, nil
+		}
+	}
+	return nil, oauth.ErrBlobNotFound
+}
+
+func (m *memoryBlobStore) Save(_ context.Context, provider string, data []byte) error {
+	if m.data == nil {
+		m.data = make(map[string][]byte)
+	}
+	m.data[provider] = data
+	return nil
+}
 
 func TestClientFlow(t *testing.T) {
 	var tokenRequests int
@@ -20,8 +45,12 @@ func TestClientFlow(t *testing.T) {
 			if r.Method != http.MethodPost {
 				t.Fatalf("expected POST to /token, got %s", r.Method)
 			}
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), "refresh_token=refresh-token") {
+				t.Fatalf("expected refresh_token in request, got %s", string(body))
+			}
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"access_token":"test-token","expires_in":3600}`)
+			_, _ = io.WriteString(w, `{"access_token":"test-token","refresh_token":"new-refresh","expires_in":3600,"token_type":"Bearer"}`)
 			return
 		case "/me":
 			assertAuth(t, r)
@@ -36,7 +65,7 @@ func TestClientFlow(t *testing.T) {
 		case "/homes/1/zoneStates":
 			assertAuth(t, r)
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"zoneStates":{"2":{"sensorDataPoints":{"insideTemperature":{"celsius":21.5},"humidity":{"percentage":40.2}}}}}`)
+			_, _ = io.WriteString(w, `{"zoneStates":{"2":{"sensorDataPoints":{"insideTemperature":{"celsius":21.5,"timestamp":"2024-08-04T09:20:08.370Z"},"humidity":{"percentage":40.2,"timestamp":"2024-08-04T09:20:08.370Z"}},"activityDataPoints":{"heatingPower":{"percentage":12.5}},"setting":{"power":"ON","temperature":{"celsius":20.0}},"overlayType":"MANUAL"}}}`)
 			return
 		case "/homes/1/zones/2/overlay":
 			assertAuth(t, r)
@@ -50,15 +79,34 @@ func TestClientFlow(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cfg := Config{
-		BaseURL:      server.URL,
-		AuthURL:      server.URL + "/token",
-		ClientID:     "client-id",
-		ClientSecret: "client-secret",
-		RefreshToken: "refresh-token",
+	tempDir := t.TempDir()
+	bootstrapPath := filepath.Join(tempDir, "bootstrap.json")
+	statePath := filepath.Join(tempDir, "state.json")
+
+	bootstrap := oauth.State{
+		SchemaVersion: oauth.SchemaVersion,
+		ClientID:      "client-id",
+		ClientSecret:  "client-secret",
+		RefreshToken:  "refresh-token",
+		Scope:         "offline_access",
+	}
+	if err := oauth.WriteState(bootstrapPath, bootstrap); err != nil {
+		t.Fatalf("write bootstrap: %v", err)
 	}
 
-	client, err := NewClient(cfg)
+	decl := oauth.Declaration{
+		Provider:  "tado",
+		TokenURL:  server.URL + "/token",
+		Scope:     "offline_access",
+		StatePath: statePath,
+	}
+
+	cfg := Config{
+		BaseURL:       server.URL,
+		BootstrapFile: bootstrapPath,
+	}
+
+	client, err := NewClientWithStore(cfg, decl, &memoryBlobStore{})
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
@@ -89,11 +137,33 @@ func TestClientFlow(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected state for zone 2")
 	}
-	if state.InsideTemperatureCelsius != 21.5 {
+	if state.InsideTemperatureCelsius == nil || *state.InsideTemperatureCelsius != 21.5 {
 		t.Fatalf("unexpected temperature: %v", state.InsideTemperatureCelsius)
 	}
-	if state.HumidityPercent != 40.2 {
+	if state.HumidityPercent == nil || *state.HumidityPercent != 40.2 {
 		t.Fatalf("unexpected humidity: %v", state.HumidityPercent)
+	}
+	if state.SetpointCelsius == nil || *state.SetpointCelsius != 20.0 {
+		t.Fatalf("unexpected setpoint: %v", state.SetpointCelsius)
+	}
+	if state.HeatingPowerPercent == nil || *state.HeatingPowerPercent != 12.5 {
+		t.Fatalf("unexpected heating power: %v", state.HeatingPowerPercent)
+	}
+	if state.PowerOn == nil || *state.PowerOn != true {
+		t.Fatalf("unexpected power state: %v", state.PowerOn)
+	}
+	if state.OverrideActive == nil || *state.OverrideActive != true {
+		t.Fatalf("unexpected override state: %v", state.OverrideActive)
+	}
+	if state.InsideTemperatureTimestamp == nil {
+		t.Fatalf("expected inside temperature timestamp")
+	}
+	expectedTime, err := time.Parse(time.RFC3339Nano, "2024-08-04T09:20:08.370Z")
+	if err != nil {
+		t.Fatalf("parse expected timestamp: %v", err)
+	}
+	if !state.InsideTemperatureTimestamp.Equal(expectedTime) {
+		t.Fatalf("unexpected timestamp: %s", state.InsideTemperatureTimestamp.UTC().Format(time.RFC3339Nano))
 	}
 
 	if err := client.SetZoneTemperature(ctx, 2, 20.0); err != nil {

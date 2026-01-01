@@ -4,6 +4,7 @@ import (
 	_ "embed"
 
 	"github.com/joshp123/gohome/internal/core"
+	"github.com/joshp123/gohome/internal/oauth"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 )
@@ -28,7 +29,8 @@ func NewPlugin() Plugin {
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}
 	}
 
-	client, err := NewClient(cfg)
+	decl := Plugin{}.OAuthDeclaration()
+	client, err := NewClient(cfg, decl)
 	if err != nil {
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}
 	}
@@ -51,6 +53,18 @@ func (p Plugin) Manifest() core.Manifest {
 
 func (p Plugin) AgentsMD() string {
 	return agentsMD
+}
+
+func (p Plugin) OAuthDeclaration() oauth.Declaration {
+	return oauth.Declaration{
+		Provider:       "tado",
+		Flow:           oauth.FlowDevice,
+		TokenURL:       "https://login.tado.com/oauth2/token",
+		DeviceAuthURL:  "https://login.tado.com/oauth2/device_authorize",
+		DeviceTokenURL: "https://login.tado.com/oauth2/token",
+		Scope:          "offline_access",
+		StatePath:      "/var/lib/gohome/tado-token.json",
+	}
 }
 
 func (p Plugin) Dashboards() []core.Dashboard {
