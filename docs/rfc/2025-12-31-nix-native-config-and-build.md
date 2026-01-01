@@ -62,7 +62,7 @@ services.gohome = {
   httpPort = 8080;
   plugins.tado = {
     enable = true;
-    tokenFile = config.age.secrets.tado-token.path;
+    bootstrapFile = config.age.secrets.tado-token.path;
   };
 };
 ```
