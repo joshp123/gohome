@@ -15,6 +15,7 @@ Assistant with a deterministic, compile-time plugin architecture:
 - Secrets are managed via agenix/sops and referenced as file paths.
 - There is no UI; Grafana is the only dashboard surface.
 - “If it compiles, it works” is the core philosophy.
+- Sane, opinionated defaults; batteries included.
 
 This RFC defines how runtime configuration is represented, validated, and loaded
 for the GoHome server and its plugins.
@@ -42,6 +43,7 @@ The goal is a **Nix-native, typed, single-file config** with no env var surface.
 - Secrets are file paths only (agenix/sops), never inline values.
 - Startup must fail fast on invalid/missing config.
 - Prefer minimal config with sensible defaults.
+- Sane, opinionated defaults; batteries included.
 
 ## 2) Goals / Non-goals
 
@@ -104,6 +106,7 @@ Validation rules:
 - `config.pb.go` (generated Go types)
 - `config.nix` (generated NixOS module options)
 - `/etc/gohome/config.pbtxt` (canonical, human-readable config)
+- `README.md` + `AGENTS.md` updated to reflect the new config contract
 
 ## 7) State machine (if applicable)
 
@@ -242,6 +245,7 @@ Tado `home_id`:
 3) Emit `/etc/gohome/config.pbtxt` and wire `cmd/gohome` to parse it.
 4) Migrate plugin config reads away from env vars.
 5) Remove env file and env reads entirely.
+6) Update `README.md` + `AGENTS.md` so new agents can self-bootstrap.
 
 ## 19) Open questions
 

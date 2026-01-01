@@ -2,7 +2,8 @@ package daikin
 
 import (
 	"fmt"
-	"os"
+
+	daikinv1 "github.com/joshp123/gohome/proto/gen/plugins/daikin/v1"
 )
 
 const (
@@ -15,23 +16,16 @@ type Config struct {
 	BootstrapFile string
 }
 
-// LoadConfigFromEnv builds a config from environment variables and bootstrap file.
-func LoadConfigFromEnv() (Config, error) {
-	cfg := Config{
-		BaseURL:       envOrDefault("GOHOME_DAIKIN_BASE_URL", defaultBaseURL),
-		BootstrapFile: os.Getenv("GOHOME_DAIKIN_BOOTSTRAP_FILE"),
+func ConfigFromProto(cfg *daikinv1.DaikinConfig) (Config, error) {
+	if cfg == nil {
+		return Config{}, fmt.Errorf("daikin config is required")
 	}
-
 	if cfg.BootstrapFile == "" {
-		return Config{}, fmt.Errorf("GOHOME_DAIKIN_BOOTSTRAP_FILE is required")
+		return Config{}, fmt.Errorf("daikin bootstrap_file is required")
 	}
 
-	return cfg, nil
-}
-
-func envOrDefault(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
+	return Config{
+		BaseURL:       defaultBaseURL,
+		BootstrapFile: cfg.BootstrapFile,
+	}, nil
 }

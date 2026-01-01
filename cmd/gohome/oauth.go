@@ -19,8 +19,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joshp123/gohome/internal/config"
 	"github.com/joshp123/gohome/internal/oauth"
 	"github.com/joshp123/gohome/internal/plugins"
+	configv1 "github.com/joshp123/gohome/proto/gen/config/v1"
 	"golang.org/x/oauth2"
 )
 
@@ -45,8 +47,8 @@ func oauthUsage() {
 	fmt.Println("gohome oauth <command> [args]")
 	fmt.Println("")
 	fmt.Println("Commands:")
-	fmt.Println("  auth-code --provider <id> --redirect-url <url> [--no-open]")
-	fmt.Println("  device --provider <id> [--no-open]")
+	fmt.Println("  auth-code --provider <id> --redirect-url <url> [--config <path>] [--no-open]")
+	fmt.Println("  device --provider <id> [--config <path>] [--no-open]")
 }
 
 func authCodeCmd(args []string) {
@@ -54,6 +56,7 @@ func authCodeCmd(args []string) {
 	provider := flags.String("provider", "", "OAuth provider ID")
 	redirectURL := flags.String("redirect-url", "", "Redirect URL")
 	bootstrapFile := flags.String("bootstrap-file", "", "Override bootstrap file path")
+	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
 	noOpen := flags.Bool("no-open", false, "Do not open the browser automatically")
 	timeout := flags.Duration("timeout", 5*time.Minute, "Timeout for auth flow")
 	_ = flags.Parse(args)
@@ -63,7 +66,12 @@ func authCodeCmd(args []string) {
 		os.Exit(2)
 	}
 
-	decl, err := lookupDeclaration(*provider)
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		fatal("oauth", err)
+	}
+
+	decl, err := lookupDeclaration(cfg, *provider)
 	if err != nil {
 		fatal("oauth", err)
 	}
@@ -80,7 +88,7 @@ func authCodeCmd(args []string) {
 		fatal("oauth", fmt.Errorf("provider %q missing scope", decl.Provider))
 	}
 
-	bootstrapPath, err := resolveBootstrapPath(*provider, *bootstrapFile)
+	bootstrapPath, err := resolveBootstrapPath(cfg, *provider, *bootstrapFile)
 	if err != nil {
 		fatal("oauth", err)
 	}
@@ -130,7 +138,7 @@ func authCodeCmd(args []string) {
 		fatal("oauth", fmt.Errorf("no refresh_token returned; check scope and redirect URL"))
 	}
 
-	if err := persistState(ctx, decl, bootstrap, token.RefreshToken); err != nil {
+	if err := persistState(ctx, decl, bootstrap, token.RefreshToken, cfg.Oauth); err != nil {
 		fatal("oauth", err)
 	}
 
@@ -141,6 +149,7 @@ func deviceCmd(args []string) {
 	flags := flag.NewFlagSet("device", flag.ExitOnError)
 	provider := flags.String("provider", "", "OAuth provider ID")
 	bootstrapFile := flags.String("bootstrap-file", "", "Override bootstrap file path")
+	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
 	noOpen := flags.Bool("no-open", false, "Do not open the browser automatically")
 	timeout := flags.Duration("timeout", 5*time.Minute, "Timeout for device flow")
 	_ = flags.Parse(args)
@@ -150,7 +159,12 @@ func deviceCmd(args []string) {
 		os.Exit(2)
 	}
 
-	decl, err := lookupDeclaration(*provider)
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		fatal("oauth", err)
+	}
+
+	decl, err := lookupDeclaration(cfg, *provider)
 	if err != nil {
 		fatal("oauth", err)
 	}
@@ -164,7 +178,7 @@ func deviceCmd(args []string) {
 		fatal("oauth", fmt.Errorf("provider %q missing scope", decl.Provider))
 	}
 
-	bootstrapPath, err := resolveBootstrapPath(*provider, *bootstrapFile)
+	bootstrapPath, err := resolveBootstrapPath(cfg, *provider, *bootstrapFile)
 	if err != nil {
 		fatal("oauth", err)
 	}
@@ -205,15 +219,15 @@ func deviceCmd(args []string) {
 		fatal("oauth", fmt.Errorf("no refresh_token returned; check scope and client id"))
 	}
 
-	if err := persistState(ctx, decl, bootstrap, token.RefreshToken); err != nil {
+	if err := persistState(ctx, decl, bootstrap, token.RefreshToken, cfg.Oauth); err != nil {
 		fatal("oauth", err)
 	}
 
 	fmt.Printf("Wrote refresh token state to %s and mirrored to blob.\n", decl.StatePath)
 }
 
-func persistState(ctx context.Context, decl oauth.Declaration, bootstrap oauth.Bootstrap, refreshToken string) error {
-	store, err := oauth.NewS3StoreFromEnv()
+func persistState(ctx context.Context, decl oauth.Declaration, bootstrap oauth.Bootstrap, refreshToken string, oauthCfg *configv1.OAuthConfig) error {
+	store, err := oauth.NewS3Store(oauthCfg)
 	if err != nil {
 		return err
 	}
@@ -236,9 +250,9 @@ func persistState(ctx context.Context, decl oauth.Declaration, bootstrap oauth.B
 	return store.Save(ctx, decl.Provider, payload)
 }
 
-func lookupDeclaration(provider string) (oauth.Declaration, error) {
+func lookupDeclaration(cfg *configv1.Config, provider string) (oauth.Declaration, error) {
 	available := make([]string, 0)
-	for _, plugin := range plugins.Compiled() {
+	for _, plugin := range plugins.Compiled(cfg) {
 		decl := plugin.OAuthDeclaration()
 		if decl.Provider != "" {
 			available = append(available, decl.Provider)
@@ -255,37 +269,11 @@ func lookupDeclaration(provider string) (oauth.Declaration, error) {
 	return oauth.Declaration{}, fmt.Errorf("unknown provider %q (available: %s)", provider, strings.Join(available, ", "))
 }
 
-func resolveBootstrapPath(provider, override string) (string, error) {
+func resolveBootstrapPath(cfg *configv1.Config, provider, override string) (string, error) {
 	if override != "" {
 		return override, nil
 	}
-
-	key := "GOHOME_" + strings.ToUpper(sanitizeProvider(provider)) + "_BOOTSTRAP_FILE"
-	value := strings.TrimSpace(os.Getenv(key))
-	if value == "" {
-		return "", fmt.Errorf("missing bootstrap file; set %s or pass --bootstrap-file", key)
-	}
-	return value, nil
-}
-
-func sanitizeProvider(provider string) string {
-	var b strings.Builder
-	for _, r := range provider {
-		if r >= 'a' && r <= 'z' {
-			b.WriteRune(r - 32)
-			continue
-		}
-		if r >= 'A' && r <= 'Z' {
-			b.WriteRune(r)
-			continue
-		}
-		if r >= '0' && r <= '9' {
-			b.WriteRune(r)
-			continue
-		}
-		b.WriteRune('_')
-	}
-	return b.String()
+	return config.BootstrapPathForProvider(cfg, provider)
 }
 
 func waitForAuthCode(ctx context.Context, redirectURL, state string) (string, error) {

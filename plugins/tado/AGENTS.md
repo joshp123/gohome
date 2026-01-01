@@ -25,15 +25,17 @@ Tado controls cloud‑connected thermostats and heating zones.
 
 ## Required Config
 
-Environment variables:
-- `GOHOME_TADO_BOOTSTRAP_FILE` (required; JSON with client_id/client_secret, optional refresh_token)
-- `GOHOME_TADO_HOME_ID` (optional override)
-- `GOHOME_OAUTH_BLOB_ENDPOINT` (required)
-- `GOHOME_OAUTH_BLOB_BUCKET` (required)
-- `GOHOME_OAUTH_BLOB_ACCESS_KEY_FILE` (required)
-- `GOHOME_OAUTH_BLOB_SECRET_KEY_FILE` (required)
-- `GOHOME_OAUTH_BLOB_PREFIX` (optional, default `gohome/oauth`)
-- `GOHOME_OAUTH_BLOB_REGION` (optional)
+Canonical config file: `/etc/gohome/config.pbtxt` (textproto).
+
+Fields:
+- `tado.bootstrap_file` (required; JSON with client_id/client_secret, optional refresh_token)
+- `tado.home_id` (optional override; auto-discovered if omitted)
+- `oauth.blob_endpoint` (required)
+- `oauth.blob_bucket` (required)
+- `oauth.blob_access_key_file` (required)
+- `oauth.blob_secret_key_file` (required)
+- `oauth.blob_prefix` (optional, default `gohome/oauth`)
+- `oauth.blob_region` (optional)
 
 Auth flow:
 - Device flow via `gohome oauth device --provider tado`
