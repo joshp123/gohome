@@ -15,6 +15,8 @@ import (
 	"github.com/joshp123/gohome/internal/oauth"
 )
 
+const gatewayCacheTTL = 5 * time.Minute
+
 // RateLimits captures Daikin API rate limit headers.
 type RateLimits struct {
 	Minute          int
@@ -160,6 +162,11 @@ func (c *Client) gatewayDevicesRaw(ctx context.Context) ([]json.RawMessage, erro
 
 	c.cloudMu.Lock()
 	if time.Since(c.lastPatch) < 10*time.Second && len(c.lastGatewayRaw) > 0 {
+		cached := cloneRawMessages(c.lastGatewayRaw)
+		c.cloudMu.Unlock()
+		return cached, nil
+	}
+	if time.Since(c.lastGatewayAt) < gatewayCacheTTL && len(c.lastGatewayRaw) > 0 {
 		cached := cloneRawMessages(c.lastGatewayRaw)
 		c.cloudMu.Unlock()
 		return cached, nil
