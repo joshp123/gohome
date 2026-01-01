@@ -1,6 +1,8 @@
 # GoHome
 
 > Home automation for people who hate home automation software.
+>
+> <sub>[skip to agent copypasta](#give-this-to-your-ai-agent)</sub>
 
 ![GoHome Grafana Dashboard](demo-grafana.png)
 
@@ -10,7 +12,7 @@
 
 - **Plugins self-declare everything.** Each plugin ships an `AGENTS.md` and proto definitions. Your agent discovers capabilities at compile time, not through trial and error.
 
-- **It's just a dumb API.** We expose gRPC endpoints. Your SOTA agent (Claude, GPT, whatever) figures out how to use them. We don't try to be smart.
+- **It's just a dumb API.** We expose gRPC endpoints and a CLI. Your SOTA agent (Claude, GPT, whatever) figures out how to use them. We don't try to be smart.
 
 - **Plugins bootstrap themselves.** Metrics shape, Grafana dashboards, OAuth flows - all declared by the plugin. Enable it in Nix, it just works.
 
@@ -32,7 +34,7 @@ GoHome is what happens when you give up on fixing Home Assistant and just write 
 
 ## The Stack
 
-1. **[Clawdis](https://github.com/joshp123/clawdis)** - AI agent gateway for Telegram/WhatsApp/etc. If you're not letting Claude control your house via chat in 2026, you're NGMI. This is how you talk to GoHome without touching a UI.
+1. **[Clawdis](https://github.com/steipete/clawdis)** - AI agent gateway for Telegram/WhatsApp/etc. If you're not letting Claude control your house via chat in 2026, you're NGMI. This is how you talk to GoHome without touching a UI.
 
 2. **A cheap VM** - I use [Hetzner](https://hetzner.com). It's cheaper than AWS, VMs are simple, no 47 services to configure. A €4/month box runs everything.
 
@@ -277,12 +279,20 @@ go run ./cmd/gohome-cli plugins list
 
 ## Status
 
-Pre-alpha. Building in public. Currently running my own heating.
+Pre-alpha. Built the MVP in 2 days over NYE (yes, including the party and phone calls). Currently running my own heating.
 
 ## Docs
 
 - [PHILOSOPHY.md](PHILOSOPHY.md) - why Nix, why Go, why not HA
 - [docs/rfc/INDEX.md](docs/rfc/INDEX.md) - technical decisions
+
+## Thanks
+
+This project stands on the shoulders of people who figured out agent-first development before it was cool:
+
+- **Steve Yegge** ([@Steve_Yegge](https://x.com/Steve_Yegge)) - [Zero-Framework Cognition](https://steve-yegge.blogspot.com/2025/01/zero-framework-cognition.html) changed how I think about AI interfaces. Stop building frameworks, start exposing dumb APIs.
+- **Peter Steinberger** ([@steipete](https://twitter.com/steipete)) - [Clawdis](https://github.com/steipete/clawdis) is the agent gateway that makes this all work. Also read [Shipping at Inference Speed](https://steipete.me/posts/2025/shipping-at-inference-speed).
+- **Mario Zechner** ([@badlogicgames](https://x.com/badlogicgames)) - [Pi](https://shittycodingagent.com) is the "shitty coding agent" that powers Clawdis. Turns out shitty is pretty good.
 
 ## License
 
