@@ -10,10 +10,10 @@ in
   options.services.gohome.plugins.tado = {
     enable = mkEnableOption "Tado plugin";
 
-    tokenFile = mkOption {
+    bootstrapFile = mkOption {
       type = types.nullOr types.path;
       default = null;
-      description = "Path to Tado OAuth refresh token JSON";
+      description = "Path to Tado OAuth credentials bootstrap JSON";
     };
 
     homeId = mkOption {
@@ -26,8 +26,8 @@ in
   config = mkIf cfg.enable {
     assertions = [
       {
-        assertion = cfg.tokenFile != null;
-        message = "services.gohome.plugins.tado.tokenFile is required";
+        assertion = cfg.bootstrapFile != null;
+        message = "services.gohome.plugins.tado.bootstrapFile is required";
       }
     ];
   };

@@ -6,41 +6,46 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/joshp123/gohome/internal/oauth"
 )
 
 // Client talks to the Tado REST API.
 type Client struct {
 	baseURL string
-	authURL string
-
-	clientID     string
-	clientSecret string
-	refreshToken string
-	scope        string
+	oauth   *oauth.Manager
 
 	httpClient *http.Client
-
-	mu          sync.Mutex
-	accessToken string
-	expiresAt   time.Time
-	homeID      int
+	homeID     int
 }
 
-func NewClient(cfg Config) (*Client, error) {
+func NewClient(cfg Config, decl oauth.Declaration) (*Client, error) {
+	blobStore, err := oauth.NewS3StoreFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	return NewClientWithStore(cfg, decl, blobStore)
+}
+
+func NewClientWithStore(cfg Config, decl oauth.Declaration, blobStore oauth.BlobStore) (*Client, error) {
+	if blobStore == nil {
+		return nil, fmt.Errorf("blob store is required")
+	}
+
+	manager, err := oauth.NewManager(decl, cfg.BootstrapFile, blobStore)
+	if err != nil {
+		return nil, err
+	}
+	manager.Start(context.Background())
+
 	return &Client{
-		baseURL:      cfg.BaseURL,
-		authURL:      cfg.AuthURL,
-		clientID:     cfg.ClientID,
-		clientSecret: cfg.ClientSecret,
-		refreshToken: cfg.RefreshToken,
-		scope:        cfg.Scope,
-		httpClient:   &http.Client{Timeout: 15 * time.Second},
-		homeID:       cfg.HomeID,
+		baseURL:    cfg.BaseURL,
+		oauth:      manager,
+		httpClient: &http.Client{Timeout: 15 * time.Second},
+		homeID:     cfg.HomeID,
 	}, nil
 }
 
@@ -98,12 +103,26 @@ func (c *Client) ZoneStates(ctx context.Context) (map[int]ZoneState, error) {
 		ZoneStates map[string]struct {
 			SensorDataPoints struct {
 				InsideTemperature struct {
-					Celsius float64 `json:"celsius"`
+					Celsius   *float64 `json:"celsius"`
+					Timestamp string   `json:"timestamp"`
 				} `json:"insideTemperature"`
 				Humidity struct {
-					Percentage float64 `json:"percentage"`
+					Percentage *float64 `json:"percentage"`
+					Timestamp  string   `json:"timestamp"`
 				} `json:"humidity"`
 			} `json:"sensorDataPoints"`
+			ActivityDataPoints struct {
+				HeatingPower struct {
+					Percentage *float64 `json:"percentage"`
+				} `json:"heatingPower"`
+			} `json:"activityDataPoints"`
+			Setting struct {
+				Power       string `json:"power"`
+				Temperature struct {
+					Celsius *float64 `json:"celsius"`
+				} `json:"temperature"`
+			} `json:"setting"`
+			OverlayType *string `json:"overlayType"`
 		} `json:"zoneStates"`
 	}
 
@@ -117,12 +136,54 @@ func (c *Client) ZoneStates(ctx context.Context) (map[int]ZoneState, error) {
 		if err != nil {
 			continue
 		}
-		states[id] = ZoneState{
-			InsideTemperatureCelsius: state.SensorDataPoints.InsideTemperature.Celsius,
-			HumidityPercent:          state.SensorDataPoints.Humidity.Percentage,
+		zoneState := ZoneState{
+			InsideTemperatureCelsius:   state.SensorDataPoints.InsideTemperature.Celsius,
+			InsideTemperatureTimestamp: parseTimestamp(state.SensorDataPoints.InsideTemperature.Timestamp),
+			HumidityPercent:            state.SensorDataPoints.Humidity.Percentage,
+			HumidityTimestamp:          parseTimestamp(state.SensorDataPoints.Humidity.Timestamp),
+			SetpointCelsius:            state.Setting.Temperature.Celsius,
+			HeatingPowerPercent:        state.ActivityDataPoints.HeatingPower.Percentage,
 		}
+		if state.Setting.Power != "" {
+			powerOn := strings.EqualFold(state.Setting.Power, "ON")
+			zoneState.PowerOn = &powerOn
+		}
+		if state.OverlayType != nil {
+			active := strings.TrimSpace(*state.OverlayType) != ""
+			zoneState.OverrideActive = &active
+		}
+		states[id] = zoneState
 	}
 	return states, nil
+}
+
+func (c *Client) Weather(ctx context.Context) (Weather, error) {
+	homeID, err := c.HomeID(ctx)
+	if err != nil {
+		return Weather{}, err
+	}
+
+	var resp struct {
+		SolarIntensity struct {
+			Percentage *float64 `json:"percentage"`
+			Timestamp  string   `json:"timestamp"`
+		} `json:"solarIntensity"`
+		OutsideTemperature struct {
+			Celsius   *float64 `json:"celsius"`
+			Timestamp string   `json:"timestamp"`
+		} `json:"outsideTemperature"`
+	}
+
+	if err := c.getJSON(ctx, fmt.Sprintf("/homes/%d/weather", homeID), &resp); err != nil {
+		return Weather{}, err
+	}
+
+	return Weather{
+		OutsideTemperatureCelsius:   resp.OutsideTemperature.Celsius,
+		OutsideTemperatureTimestamp: parseTimestamp(resp.OutsideTemperature.Timestamp),
+		SolarIntensityPercent:       resp.SolarIntensity.Percentage,
+		SolarIntensityTimestamp:     parseTimestamp(resp.SolarIntensity.Timestamp),
+	}, nil
 }
 
 func (c *Client) SetZoneTemperature(ctx context.Context, zoneID int, temperatureC float64) error {
@@ -140,8 +201,7 @@ func (c *Client) SetZoneTemperature(ctx context.Context, zoneID int, temperature
 			},
 		},
 		"termination": map[string]any{
-			"type":              "MANUAL",
-			"typeSkillBasedApp": "MANUAL",
+			"type": "MANUAL",
 		},
 	}
 
@@ -184,7 +244,7 @@ func (c *Client) putJSON(ctx context.Context, path string, payload any) error {
 }
 
 func (c *Client) doRequest(ctx context.Context, method, path string, body io.Reader) (*http.Response, error) {
-	accessToken, err := c.accessTokenFor(ctx)
+	accessToken, err := c.oauth.AccessToken(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -209,95 +269,19 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body io.Rea
 	}
 
 	resp.Body.Close()
-	if err := c.refresh(ctx, true); err != nil {
-		return nil, err
-	}
-
-	accessToken, err = c.accessTokenFor(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err = http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
-	if err != nil {
-		return nil, err
-	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Accept", "application/json")
-
-	return c.httpClient.Do(req)
+	c.oauth.TriggerRefresh(ctx)
+	return nil, fmt.Errorf("tado api unauthorized; refresh triggered")
 }
 
-func (c *Client) accessTokenFor(ctx context.Context) (string, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.accessToken != "" && time.Until(c.expiresAt) > time.Minute {
-		return c.accessToken, nil
-	}
-
-	if err := c.refreshLocked(ctx); err != nil {
-		return "", err
-	}
-	return c.accessToken, nil
-}
-
-func (c *Client) refresh(ctx context.Context, force bool) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if !force && c.accessToken != "" && time.Until(c.expiresAt) > time.Minute {
+func parseTimestamp(value string) *time.Time {
+	if value == "" {
 		return nil
 	}
-	return c.refreshLocked(ctx)
-}
-
-func (c *Client) refreshLocked(ctx context.Context) error {
-	data := url.Values{}
-	data.Set("grant_type", "refresh_token")
-	data.Set("refresh_token", c.refreshToken)
-	data.Set("client_id", c.clientID)
-	if c.clientSecret != "" {
-		data.Set("client_secret", c.clientSecret)
+	if ts, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return &ts
 	}
-	if c.scope != "" {
-		data.Set("scope", c.scope)
+	if ts, err := time.Parse(time.RFC3339, value); err == nil {
+		return &ts
 	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.authURL, strings.NewReader(data.Encode()))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("token refresh failed %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-	}
-
-	var token struct {
-		AccessToken  string `json:"access_token"`
-		TokenType    string `json:"token_type"`
-		ExpiresIn    int    `json:"expires_in"`
-		RefreshToken string `json:"refresh_token"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
-		return err
-	}
-
-	c.accessToken = token.AccessToken
-	c.expiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
-	if token.RefreshToken != "" {
-		c.refreshToken = token.RefreshToken
-	}
-
 	return nil
 }

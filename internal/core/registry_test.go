@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/joshp123/gohome/internal/oauth"
 	registryv1 "github.com/joshp123/gohome/proto/gen/registry/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
@@ -32,6 +33,15 @@ func (s stubPlugin) Manifest() Manifest {
 }
 
 func (s stubPlugin) AgentsMD() string { return s.agents }
+
+func (s stubPlugin) OAuthDeclaration() oauth.Declaration {
+	return oauth.Declaration{
+		Provider:  s.id,
+		TokenURL:  "https://example.com/token",
+		Scope:     "example",
+		StatePath: "/tmp/gohome-test.json",
+	}
+}
 
 func (s stubPlugin) Dashboards() []Dashboard { return s.dashboards }
 
