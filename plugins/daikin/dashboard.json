@@ -41,7 +41,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
       "id": 1,
       "options": {
         "reduceOptions": {
@@ -58,7 +58,113 @@
           "refId": "A"
         }
       ],
-      "title": "Daikin scrape status",
+      "title": "Scrape status",
+      "type": "stat"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 200 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 8,
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "gohome_daikin_last_status_code",
+          "refId": "A"
+        }
+      ],
+      "title": "Last HTTP status",
+      "type": "stat"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 9,
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "gohome_daikin_rate_limit_remaining{window=\"day\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Remaining (day)",
+      "type": "stat"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 10,
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "gohome_daikin_rate_limit_retry_after_seconds / 3600",
+          "refId": "A"
+        }
+      ],
+      "title": "Retry after",
       "type": "stat"
     },
     {
@@ -84,7 +190,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 4 },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 4 },
       "id": 2,
       "options": {
         "reduceOptions": {
@@ -128,7 +234,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 4 },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 4 },
       "id": 3,
       "options": {
         "reduceOptions": {
@@ -163,7 +269,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 4 },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 4 },
       "id": 4,
       "options": {
         "reduceOptions": {
@@ -264,7 +370,7 @@
           }
         ]
       },
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 16 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 16 },
       "id": 7,
       "options": {
         "legend": {
@@ -284,6 +390,58 @@
       ],
       "title": "$unit room humidity",
       "type": "timeseries"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": { "text": "ok" },
+                "1": { "text": "active" }
+              },
+              "type": "value"
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 16 },
+      "id": 11,
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "max by (unit_name) (gohome_daikin_error_state{unit_name=~\"$unit\"})",
+          "legendFormat": "Error",
+          "refId": "A"
+        },
+        {
+          "expr": "max by (unit_name) (gohome_daikin_warning_state{unit_name=~\"$unit\"})",
+          "legendFormat": "Warning",
+          "refId": "B"
+        },
+        {
+          "expr": "max by (unit_name) (gohome_daikin_caution_state{unit_name=~\"$unit\"})",
+          "legendFormat": "Caution",
+          "refId": "C"
+        },
+        {
+          "expr": "max by (unit_name) (gohome_daikin_holiday_mode_active{unit_name=~\"$unit\"})",
+          "legendFormat": "Holiday",
+          "refId": "D"
+        }
+      ],
+      "title": "$unit status flags",
+      "type": "stat"
     },
     {
       "datasource": "VictoriaMetrics",
