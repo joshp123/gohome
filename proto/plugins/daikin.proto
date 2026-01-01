@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package gohome.plugins.daikin.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/daikin/v1;daikinv1";
+
+message Unit {
+  string id = 1;
+  string name = 2;
+  string model = 3;
+  string climate_control_id = 4;
+}
+
+message ListUnitsRequest {}
+
+message ListUnitsResponse {
+  repeated Unit units = 1;
+}
+
+message GetUnitStateRequest {
+  string unit_id = 1;
+}
+
+message GetUnitStateResponse {
+  string json = 1;
+}
+
+message SetOnOffRequest {
+  string unit_id = 1;
+  string climate_control_id = 2;
+  string on_off_mode = 3;
+}
+
+message SetOnOffResponse {}
+
+message SetOperationModeRequest {
+  string unit_id = 1;
+  string climate_control_id = 2;
+  string operation_mode = 3;
+}
+
+message SetOperationModeResponse {}
+
+message SetTemperatureRequest {
+  string unit_id = 1;
+  string climate_control_id = 2;
+  string operation_mode = 3;
+  string setpoint = 4;
+  double temperature_celsius = 5;
+}
+
+message SetTemperatureResponse {}
+
+service DaikinService {
+  rpc ListUnits(ListUnitsRequest) returns (ListUnitsResponse);
+  rpc GetUnitState(GetUnitStateRequest) returns (GetUnitStateResponse);
+  rpc SetOnOff(SetOnOffRequest) returns (SetOnOffResponse);
+  rpc SetOperationMode(SetOperationModeRequest) returns (SetOperationModeResponse);
+  rpc SetTemperature(SetTemperatureRequest) returns (SetTemperatureResponse);
+}
