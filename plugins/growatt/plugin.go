@@ -1,7 +1,10 @@
 package growatt
 
 import (
+	"context"
 	_ "embed"
+	"log"
+	"time"
 
 	"github.com/joshp123/gohome/internal/core"
 	"github.com/joshp123/gohome/internal/oauth"
@@ -39,6 +42,19 @@ func NewPlugin(cfg *growattv1.GrowattConfig, _ *configv1.OAuthConfig) (Plugin, b
 	if err != nil {
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
 	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
+		plant, err := client.ResolvePlant(ctx, 0)
+		if err != nil {
+			log.Printf("growatt history bootstrap: resolve plant failed: %v", err)
+			return
+		}
+		if err := client.ImportEnergyHistory(ctx, plant); err != nil {
+			log.Printf("growatt history bootstrap failed: %v", err)
+		}
+	}()
 
 	return Plugin{client: client, health: core.HealthHealthy}, true
 }
