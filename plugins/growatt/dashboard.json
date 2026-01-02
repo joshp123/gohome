@@ -216,12 +216,12 @@
       },
       "targets": [
         {
-          "expr": "sum_over_time(gohome_growatt_energy_kwh{period=\"day\"}[7d])",
+          "expr": "gohome_growatt_total_energy_kwh",
           "legendFormat": "{{plant_name}}",
           "refId": "A"
         }
       ],
-      "title": "Week energy",
+      "title": "Total energy",
       "type": "stat"
     },
     {
@@ -327,7 +327,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 6,
         "x": 0,
         "y": 12
       },
@@ -365,8 +365,46 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 8,
+        "w": 6,
+        "x": 6,
+        "y": 12
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum_over_time(gohome_growatt_energy_kwh{period=\"day\"}[7d])",
+          "legendFormat": "{{plant_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Weekly energy (12w)",
+      "type": "timeseries",
+      "timeFrom": "12w"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwh",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 50,
+            "lineWidth": 0
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
         "y": 12
       },
       "id": 9,
@@ -403,8 +441,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
+        "w": 6,
+        "x": 18,
         "y": 12
       },
       "id": 10,
@@ -454,5 +492,5 @@
   "timezone": "",
   "title": "Growatt Overview",
   "uid": "growatt-overview",
-  "version": 12
+  "version": 13
 }
