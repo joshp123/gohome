@@ -127,17 +127,17 @@
       },
       "targets": [
         {
-          "expr": "gohome_tado_inside_temperature_celsius{zone_name=~\"$heating_room\"}",
+          "expr": "avg_over_time(gohome_tado_inside_temperature_celsius{zone_name=~\"$heating_room\"}[$__interval])",
           "legendFormat": "Inside",
           "refId": "A"
         },
         {
-          "expr": "gohome_tado_humidity_percent{zone_name=~\"$heating_room\"}",
+          "expr": "avg_over_time(gohome_tado_humidity_percent{zone_name=~\"$heating_room\"}[$__interval])",
           "legendFormat": "Humidity",
           "refId": "B"
         },
         {
-          "expr": "gohome_tado_heating_active_bool{zone_name=~\"$heating_room\"}",
+          "expr": "max_over_time(gohome_tado_heating_active_bool{zone_name=~\"$heating_room\"}[$__interval])",
           "legendFormat": "Heating active",
           "refId": "C"
         }
@@ -204,12 +204,12 @@
       "repeatDirection": "h",
       "targets": [
         {
-          "expr": "gohome_tado_inside_temperature_celsius{zone_name=~\"$room_sensors\"}",
+          "expr": "avg_over_time(gohome_tado_inside_temperature_celsius{zone_name=~\"$room_sensors\"}[$__interval])",
           "legendFormat": "Inside",
           "refId": "A"
         },
         {
-          "expr": "gohome_tado_humidity_percent{zone_name=~\"$room_sensors\"}",
+          "expr": "avg_over_time(gohome_tado_humidity_percent{zone_name=~\"$room_sensors\"}[$__interval])",
           "legendFormat": "Humidity",
           "refId": "B"
         }
