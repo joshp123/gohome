@@ -13,7 +13,7 @@ import (
 const (
 	growattMinFetchInterval = 5 * time.Minute
 	growattHistoryInterval  = 12 * time.Hour
-	growattHistoryTimeout   = 30 * time.Second
+	growattHistoryTimeout   = 8 * time.Minute
 	growattHistoryRetry     = 30 * time.Minute
 	growattHistoryRateRetry = 2 * time.Minute
 )
