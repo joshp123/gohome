@@ -103,11 +103,10 @@ func (c *Client) ImportEnergyHistory(ctx context.Context, plant Plant) error {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 
-	dayStart := today.AddDate(0, 0, -83)
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local).AddDate(0, -11, 0)
 	yearStart := time.Date(now.Year()-4, 1, 1, 0, 0, 0, 0, time.Local)
 
-	day, err := c.EnergyHistory(ctx, plant.ID, dayStart, today, "day")
+	day, err := c.dailyHistoryChunks(ctx, plant.ID, today, 12)
 	if err != nil {
 		return err
 	}
@@ -175,6 +174,35 @@ func escapeLabelValue(value string) string {
 	value = strings.ReplaceAll(value, "\n", "\\n")
 	value = strings.ReplaceAll(value, "\"", "\\\"")
 	return value
+}
+
+func (c *Client) dailyHistoryChunks(ctx context.Context, plantID int64, end time.Time, weeks int) ([]EnergyPoint, error) {
+	if weeks <= 0 {
+		return nil, nil
+	}
+
+	points := make([]EnergyPoint, 0, weeks*7)
+	seen := make(map[int64]struct{}, weeks*7)
+
+	for i := 0; i < weeks; i++ {
+		chunkEnd := end.AddDate(0, 0, -(i * 7))
+		chunkStart := chunkEnd.AddDate(0, 0, -6)
+
+		chunk, err := c.EnergyHistory(ctx, plantID, chunkStart, chunkEnd, "day")
+		if err != nil {
+			return nil, err
+		}
+		for _, point := range chunk {
+			key := point.Timestamp.Unix()
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			points = append(points, point)
+		}
+	}
+
+	return points, nil
 }
 
 func aggregateWeekly(points []EnergyPoint) []EnergyPoint {
