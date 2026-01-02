@@ -11,7 +11,10 @@ import (
 	"time"
 )
 
-const victoriaImportURL = "http://127.0.0.1:8428/vm/api/v1/import/prometheus"
+const (
+	victoriaImportURL = "http://127.0.0.1:8428/vm/api/v1/import/prometheus"
+	growattHistoryWeeks = 52
+)
 
 // EnergyPoint represents a dated energy reading.
 type EnergyPoint struct {
@@ -106,7 +109,7 @@ func (c *Client) ImportEnergyHistory(ctx context.Context, plant Plant) error {
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local).AddDate(0, -11, 0)
 	yearStart := time.Date(now.Year()-4, 1, 1, 0, 0, 0, 0, time.Local)
 
-	day, err := c.dailyHistoryChunks(ctx, plant.ID, today, 12)
+	day, err := c.dailyHistoryChunks(ctx, plant.ID, today, growattHistoryWeeks)
 	if err != nil {
 		return err
 	}
@@ -208,17 +211,6 @@ func (c *Client) dailyHistoryChunks(ctx context.Context, plantID int64, end time
 	}
 
 	return points, nil
-}
-
-func sleepWithContext(ctx context.Context, d time.Duration) error {
-	timer := time.NewTimer(d)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
 }
 
 func aggregateWeekly(points []EnergyPoint) []EnergyPoint {
