@@ -17,6 +17,8 @@ import (
 const (
 	apiPrefix  = "v1/"
 	timeLayout = "2006-01-02 15:04:05"
+	rateLimitRetries = 4
+	rateLimitBackoff = 20 * time.Second
 )
 
 // APIError surfaces Growatt error codes.
@@ -150,6 +152,22 @@ func (c *Client) EnergyOverview(ctx context.Context, plantID int64) (PlantEnergy
 }
 
 func (c *Client) getJSON(ctx context.Context, path string, params map[string]string, out any) error {
+	for attempt := 0; attempt <= rateLimitRetries; attempt++ {
+		err := c.getJSONOnce(ctx, path, params, out)
+		if err == nil {
+			return nil
+		}
+		if !isRateLimit(err) || attempt == rateLimitRetries {
+			return err
+		}
+		if err := sleepWithContext(ctx, rateLimitBackoff*time.Duration(attempt+1)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Client) getJSONOnce(ctx context.Context, path string, params map[string]string, out any) error {
 	endpoint := c.baseURL + apiPrefix + strings.TrimPrefix(path, "/")
 	reqURL, err := url.Parse(endpoint)
 	if err != nil {
