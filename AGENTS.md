@@ -44,3 +44,14 @@ Nix‑native home automation. Replace Home Assistant with a deterministic Go sys
 
 - `PHILOSOPHY.md`
 - `docs/rfc/INDEX.md`
+
+## Smoke Test (remote)
+
+Default host: `gohome` (matches `flake.nix` nixosConfigurations).
+
+Command:
+`scripts/deploy.sh gohome`
+
+Notes:
+- Runs `sudo nixos-rebuild switch` on the host and rolls back on failure.
+- Uses `curl http://localhost:8080/health` as the health check.
