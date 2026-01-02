@@ -379,7 +379,7 @@
       },
       "targets": [
         {
-          "expr": "sum_over_time(gohome_growatt_energy_kwh{period=\"day\"}[7d])",
+          "expr": "gohome_growatt_energy_kwh{period=\"week\"}",
           "legendFormat": "{{plant_name}}",
           "refId": "A"
         }
@@ -492,5 +492,5 @@
   "timezone": "",
   "title": "Growatt Overview",
   "uid": "growatt-overview",
-  "version": 13
+  "version": 14
 }
