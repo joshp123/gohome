@@ -25,6 +25,10 @@ func main() {
 		oauthMain(os.Args[2:])
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "backfill" {
+		backfillMain(os.Args[2:])
+		return
+	}
 
 	flags := flag.NewFlagSet("gohome", flag.ExitOnError)
 	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")

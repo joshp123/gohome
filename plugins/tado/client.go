@@ -23,6 +23,15 @@ type Client struct {
 	homeID     *int
 }
 
+type HTTPStatusError struct {
+	Status int
+	Body   string
+}
+
+func (e HTTPStatusError) Error() string {
+	return fmt.Sprintf("tado api error %d: %s", e.Status, strings.TrimSpace(e.Body))
+}
+
 func NewClient(cfg Config, decl oauth.Declaration, oauthCfg *configv1.OAuthConfig) (*Client, error) {
 	blobStore, err := oauth.NewS3Store(oauthCfg)
 	if err != nil {
@@ -224,6 +233,29 @@ func (c *Client) SetZoneTemperature(ctx context.Context, zoneID int, temperature
 	}
 
 	return c.putJSON(ctx, fmt.Sprintf("/homes/%d/zones/%d/overlay", homeID, zoneID), payload)
+}
+
+func (c *Client) DayReport(ctx context.Context, homeID, zoneID int, day time.Time) (dayReport, error) {
+	path := fmt.Sprintf("/homes/%d/zones/%d/dayReport?date=%s", homeID, zoneID, day.Format("2006-01-02"))
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return dayReport{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return dayReport{}, ErrDayReportNotFound
+	}
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return dayReport{}, HTTPStatusError{Status: resp.StatusCode, Body: string(body)}
+	}
+
+	var report dayReport
+	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
+		return dayReport{}, err
+	}
+	return report, nil
 }
 
 func (c *Client) getJSON(ctx context.Context, path string, out any) error {
