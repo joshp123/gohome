@@ -38,7 +38,7 @@ func (c *Client) EnergyHistory(ctx context.Context, plantID int64, start, end ti
 	}
 
 	if err := c.getJSON(ctx, "plant/energy", params, &data); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("energy history %s %s-%s: %w", unit, params["start_date"], params["end_date"], err)
 	}
 
 	points := make([]EnergyPoint, 0, len(data.Energys))
@@ -106,19 +106,21 @@ func (c *Client) ImportEnergyHistory(ctx context.Context, plant Plant) error {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 
-	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local).AddDate(0, -11, 0)
-	yearStart := time.Date(now.Year()-4, 1, 1, 0, 0, 0, 0, time.Local)
+	monthEnd := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
+	monthStart := monthEnd.AddDate(0, -11, 0)
+	yearEnd := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.Local)
+	yearStart := yearEnd.AddDate(-4, 0, 0)
 
 	day, err := c.dailyHistoryChunks(ctx, plant.ID, today, growattHistoryWeeks)
 	if err != nil {
 		return err
 	}
 	week := aggregateWeekly(day)
-	month, err := c.EnergyHistory(ctx, plant.ID, monthStart, today, "month")
+	month, err := c.EnergyHistory(ctx, plant.ID, monthStart, monthEnd, "month")
 	if err != nil {
 		return err
 	}
-	year, err := c.EnergyHistory(ctx, plant.ID, yearStart, today, "year")
+	year, err := c.EnergyHistory(ctx, plant.ID, yearStart, yearEnd, "year")
 	if err != nil {
 		return err
 	}
