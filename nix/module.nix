@@ -200,7 +200,15 @@ in
 
     users.groups.gohome = { };
 
-    systemd.services.gohome = {
+    systemd.services.gohome = let
+      secretChecks =
+        [
+          "${pkgs.coreutils}/bin/test -r ${cfg.oauth.blobAccessKeyFile}"
+          "${pkgs.coreutils}/bin/test -r ${cfg.oauth.blobSecretKeyFile}"
+        ]
+        ++ lib.optional (cfg.plugins.tado != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.tado.bootstrapFile}"
+        ++ lib.optional (cfg.plugins.daikin != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.daikin.bootstrapFile}";
+    in {
       description = "GoHome";
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
@@ -210,6 +218,8 @@ in
         Group = "gohome";
         ExecStart = "${gohomePkg}/bin/gohome";
         Restart = "on-failure";
+        ExecStartPre = secretChecks;
+        RequiresMountsFor = [ "/run/agenix" ];
       };
     };
 

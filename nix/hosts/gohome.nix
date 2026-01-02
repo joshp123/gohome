@@ -42,6 +42,9 @@
     plugins.tado = {
       bootstrapFile = config.age.secrets.tado-token.path;
     };
+    plugins.daikin = {
+      bootstrapFile = config.age.secrets.daikin-bootstrap.path;
+    };
 
     tailscale.authKeyFile = config.age.secrets.tailscale-authkey.path;
   };
