@@ -1,6 +1,7 @@
 package tado
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -35,16 +36,12 @@ type dayReport struct {
 
 type dataPointTemp struct {
 	Timestamp string `json:"timestamp"`
-	Value     struct {
-		Celsius float64 `json:"celsius"`
-	} `json:"value"`
+	Value     tempValue `json:"value"`
 }
 
 type dataPointHumidity struct {
 	Timestamp string `json:"timestamp"`
-	Value     struct {
-		Percentage float64 `json:"percentage"`
-	} `json:"value"`
+	Value     humidityValue `json:"value"`
 }
 
 type intervalString struct {
@@ -78,6 +75,50 @@ type sunnyInterval struct {
 	From  string `json:"from"`
 	To    string `json:"to"`
 	Value bool `json:"value"`
+}
+
+type tempValue struct {
+	Celsius float64
+}
+
+func (v *tempValue) UnmarshalJSON(data []byte) error {
+	var asNumber float64
+	if err := json.Unmarshal(data, &asNumber); err == nil {
+		v.Celsius = asNumber
+		return nil
+	}
+	var asObj struct {
+		Celsius *float64 `json:"celsius"`
+	}
+	if err := json.Unmarshal(data, &asObj); err != nil {
+		return err
+	}
+	if asObj.Celsius != nil {
+		v.Celsius = *asObj.Celsius
+	}
+	return nil
+}
+
+type humidityValue struct {
+	Percentage float64
+}
+
+func (v *humidityValue) UnmarshalJSON(data []byte) error {
+	var asNumber float64
+	if err := json.Unmarshal(data, &asNumber); err == nil {
+		v.Percentage = asNumber
+		return nil
+	}
+	var asObj struct {
+		Percentage *float64 `json:"percentage"`
+	}
+	if err := json.Unmarshal(data, &asObj); err != nil {
+		return err
+	}
+	if asObj.Percentage != nil {
+		v.Percentage = *asObj.Percentage
+	}
+	return nil
 }
 
 func parseDayReportTime(value string) (time.Time, error) {
