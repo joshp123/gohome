@@ -9,4 +9,5 @@ protoc \
   proto/registry.proto \
   proto/config/v1/config.proto \
   proto/plugins/tado.proto \
-  proto/plugins/daikin.proto
+  proto/plugins/daikin.proto \
+  proto/plugins/growatt.proto

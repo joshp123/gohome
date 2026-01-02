@@ -103,6 +103,9 @@ func Validate(cfg *configv1.Config) error {
 	if cfg.Daikin != nil && cfg.Daikin.BootstrapFile == "" {
 		return fmt.Errorf("daikin.bootstrap_file is required")
 	}
+	if cfg.Growatt != nil && cfg.Growatt.TokenFile == "" {
+		return fmt.Errorf("growatt.token_file is required")
+	}
 
 	return nil
 }
@@ -118,6 +121,9 @@ func EnabledPlugins(cfg *configv1.Config) map[string]bool {
 	}
 	if cfg.Daikin != nil {
 		enabled["daikin"] = true
+	}
+	if cfg.Growatt != nil {
+		enabled["growatt"] = true
 	}
 	return enabled
 }

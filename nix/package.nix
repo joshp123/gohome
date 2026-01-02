@@ -3,7 +3,18 @@
 buildGoModule {
   pname = "gohome";
   inherit version;
-  src = ../.;
+  src = lib.cleanSourceWith {
+    src = ../.;
+    filter = path: type:
+      let
+        rel = lib.removePrefix (toString ../.) (toString path);
+      in
+      lib.cleanSourceFilter path type
+      && !(lib.hasPrefix "/vendor" rel)
+      && !(lib.hasInfix "/infra/tofu/.terraform" rel)
+      && rel != "/infra/tofu/terraform.tfstate"
+      && rel != "/infra/tofu/terraform.tfstate.backup";
+  };
   vendorHash = "sha256-IXC1XgR/Xt8SUey37cFkwpoYidrPfT2YI90+ryG/S0I=";
   nativeBuildInputs = [
     protobuf

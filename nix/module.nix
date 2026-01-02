@@ -50,6 +50,14 @@ let
     daikin {
       bootstrap_file: ${textprotoString cfg.plugins.daikin.bootstrapFile}
     }
+  '' + optionalString (cfg.plugins.growatt != null) ''
+    growatt {
+      token_file: ${textprotoString cfg.plugins.growatt.tokenFile}
+      region: ${textprotoString (if cfg.plugins.growatt.region == null then "other_regions" else cfg.plugins.growatt.region)}
+  '' + optionalString (cfg.plugins.growatt.plantId != null) ''
+      plant_id: ${toString cfg.plugins.growatt.plantId}
+  '' + ''
+    }
   '';
 
 in
@@ -163,6 +171,31 @@ in
       default = null;
       description = "Daikin Onecta plugin config (presence enables the plugin)";
     };
+
+    plugins.growatt = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          tokenFile = mkOption {
+            type = types.path;
+            description = "Path to Growatt API token (read-only secret)";
+          };
+
+          region = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = "Growatt API region (other_regions, north_america, australia_new_zealand, china)";
+          };
+
+          plantId = mkOption {
+            type = types.nullOr types.int;
+            default = null;
+            description = "Optional Growatt plant_id (required if multiple plants)";
+          };
+        };
+      });
+      default = null;
+      description = "Growatt plugin config (presence enables the plugin)";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -191,6 +224,10 @@ in
         assertion = cfg.plugins.daikin == null || cfg.plugins.daikin.bootstrapFile != null;
         message = "services.gohome.plugins.daikin.bootstrapFile is required when daikin is enabled";
       }
+      {
+        assertion = cfg.plugins.growatt == null || cfg.plugins.growatt.tokenFile != null;
+        message = "services.gohome.plugins.growatt.tokenFile is required when growatt is enabled";
+      }
     ];
 
     users.users.gohome = {
@@ -207,7 +244,8 @@ in
           "${pkgs.coreutils}/bin/test -r ${cfg.oauth.blobSecretKeyFile}"
         ]
         ++ lib.optional (cfg.plugins.tado != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.tado.bootstrapFile}"
-        ++ lib.optional (cfg.plugins.daikin != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.daikin.bootstrapFile}";
+        ++ lib.optional (cfg.plugins.daikin != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.daikin.bootstrapFile}"
+        ++ lib.optional (cfg.plugins.growatt != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.growatt.tokenFile}";
     in {
       description = "GoHome";
       wantedBy = [ "multi-user.target" ];
