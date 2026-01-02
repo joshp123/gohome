@@ -103,7 +103,7 @@ func (c *Client) ImportEnergyHistory(ctx context.Context, plant Plant) error {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 
-	dayStart := today.AddDate(0, 0, -6)
+	dayStart := today.AddDate(0, 0, -83)
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local).AddDate(0, -11, 0)
 	yearStart := time.Date(now.Year()-4, 1, 1, 0, 0, 0, 0, time.Local)
 
@@ -111,6 +111,7 @@ func (c *Client) ImportEnergyHistory(ctx context.Context, plant Plant) error {
 	if err != nil {
 		return err
 	}
+	week := aggregateWeekly(day)
 	month, err := c.EnergyHistory(ctx, plant.ID, monthStart, today, "month")
 	if err != nil {
 		return err
@@ -120,7 +121,12 @@ func (c *Client) ImportEnergyHistory(ctx context.Context, plant Plant) error {
 		return err
 	}
 
-	return importEnergyPoints(ctx, plant, append(append(day, month...), year...))
+	points := make([]EnergyPoint, 0, len(day)+len(week)+len(month)+len(year))
+	points = append(points, day...)
+	points = append(points, week...)
+	points = append(points, month...)
+	points = append(points, year...)
+	return importEnergyPoints(ctx, plant, points)
 }
 
 func importEnergyPoints(ctx context.Context, plant Plant, points []EnergyPoint) error {
@@ -169,4 +175,41 @@ func escapeLabelValue(value string) string {
 	value = strings.ReplaceAll(value, "\n", "\\n")
 	value = strings.ReplaceAll(value, "\"", "\\\"")
 	return value
+}
+
+func aggregateWeekly(points []EnergyPoint) []EnergyPoint {
+	if len(points) == 0 {
+		return nil
+	}
+
+	type weekKey struct {
+		year int
+		week int
+	}
+
+	weekTotals := make(map[weekKey]float64)
+	for _, point := range points {
+		year, week := point.Timestamp.ISOWeek()
+		weekTotals[weekKey{year: year, week: week}] += point.EnergyKWh
+	}
+
+	weekly := make([]EnergyPoint, 0, len(weekTotals))
+	for key, energy := range weekTotals {
+		weekly = append(weekly, EnergyPoint{
+			Timestamp: isoWeekStart(key.year, key.week),
+			EnergyKWh: energy,
+			Period:    "week",
+		})
+	}
+	return weekly
+}
+
+func isoWeekStart(year, week int) time.Time {
+	anchor := time.Date(year, time.January, 4, 12, 0, 0, 0, time.Local)
+	weekday := int(anchor.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	monday := anchor.AddDate(0, 0, -(weekday - 1))
+	return monday.AddDate(0, 0, (week-1)*7)
 }
