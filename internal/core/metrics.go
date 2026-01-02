@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/joshp123/gohome/internal/oauth"
+	"github.com/joshp123/gohome/internal/rate"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -10,6 +11,9 @@ func MetricsRegistry(plugins []Plugin) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
 
 	for _, collector := range oauth.MetricsCollectors() {
+		registry.MustRegister(collector)
+	}
+	for _, collector := range rate.MetricsCollectors() {
 		registry.MustRegister(collector)
 	}
 

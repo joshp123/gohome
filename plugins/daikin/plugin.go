@@ -2,9 +2,11 @@ package daikin
 
 import (
 	_ "embed"
+	"time"
 
 	"github.com/joshp123/gohome/internal/core"
 	"github.com/joshp123/gohome/internal/oauth"
+	"github.com/joshp123/gohome/internal/rate"
 	configv1 "github.com/joshp123/gohome/proto/gen/config/v1"
 	daikinv1 "github.com/joshp123/gohome/proto/gen/plugins/daikin/v1"
 	"github.com/prometheus/client_golang/prometheus"
@@ -24,6 +26,8 @@ type Plugin struct {
 	healthMessage string
 }
 
+var _ rate.RateLimited = (*Plugin)(nil)
+
 // NewPlugin constructs a Daikin plugin from config.
 func NewPlugin(cfg *daikinv1.DaikinConfig, oauthCfg *configv1.OAuthConfig) (Plugin, bool) {
 	if cfg == nil {
@@ -36,7 +40,8 @@ func NewPlugin(cfg *daikinv1.DaikinConfig, oauthCfg *configv1.OAuthConfig) (Plug
 	}
 
 	decl := Plugin{}.OAuthDeclaration()
-	client, err := NewClient(runtimeCfg, decl, oauthCfg)
+	rateDecl := Plugin{}.RateLimits()
+	client, err := NewClient(runtimeCfg, decl, rateDecl, oauthCfg)
 	if err != nil {
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
 	}
@@ -70,6 +75,14 @@ func (p Plugin) OAuthDeclaration() oauth.Declaration {
 		Scope:        "openid onecta:basic.integration",
 		StatePath:    "/var/lib/gohome/daikin-credentials.json",
 	}
+}
+
+func (p Plugin) RateLimits() rate.Declaration {
+	return rate.Provider("daikin").
+		MaxRequestsPer(rate.Minute, 20).
+		MaxRequestsPer(rate.Day, 200).
+		CacheFor(10 * time.Minute).
+		ReadHeaders(rate.StandardHeaders())
 }
 
 func (p Plugin) Dashboards() []core.Dashboard {
