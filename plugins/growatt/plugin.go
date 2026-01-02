@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"log"
-	"time"
 
 	"github.com/joshp123/gohome/internal/core"
 	"github.com/joshp123/gohome/internal/oauth"
@@ -44,7 +43,7 @@ func NewPlugin(cfg *growattv1.GrowattConfig, _ *configv1.OAuthConfig) (Plugin, b
 	}
 
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), growattHistoryTimeout)
 		defer cancel()
 		plant, err := client.ResolvePlant(ctx, 0)
 		if err != nil {
