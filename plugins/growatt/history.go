@@ -200,9 +200,25 @@ func (c *Client) dailyHistoryChunks(ctx context.Context, plantID int64, end time
 			seen[key] = struct{}{}
 			points = append(points, point)
 		}
+		if i < weeks-1 {
+			if err := sleepWithContext(ctx, 25*time.Second); err != nil {
+				return points, err
+			}
+		}
 	}
 
 	return points, nil
+}
+
+func sleepWithContext(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func aggregateWeekly(points []EnergyPoint) []EnergyPoint {
