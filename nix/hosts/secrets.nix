@@ -36,5 +36,13 @@
         group = "gohome";
         mode = "0400";
       };
+    }
+    // lib.optionalAttrs (config.services.gohome.plugins.growatt != null) {
+      growatt-token = {
+        file = "${secrets}/gohome-growatt-token.age";
+        owner = "gohome";
+        group = "gohome";
+        mode = "0400";
+      };
     };
 }

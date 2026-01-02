@@ -7,6 +7,10 @@
   ];
 
   networking.hostName = "gohome";
+  networking.nameservers = [
+    "1.1.1.1"
+    "8.8.8.8"
+  ];
 
   boot.loader.systemd-boot.enable = false;
   boot.loader.grub = {
@@ -24,6 +28,16 @@
   ];
 
   age.identityPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 30d";
+  };
+  nix.optimise = {
+    automatic = true;
+    dates = [ "weekly" ];
+  };
 
   system.stateVersion = "23.05";
 
@@ -44,6 +58,11 @@
     };
     plugins.daikin = {
       bootstrapFile = config.age.secrets.daikin-bootstrap.path;
+    };
+    plugins.growatt = {
+      tokenFile = config.age.secrets.growatt-token.path;
+      region = "other_regions";
+      plantId = 960319;
     };
 
     tailscale.authKeyFile = config.age.secrets.tailscale-authkey.path;

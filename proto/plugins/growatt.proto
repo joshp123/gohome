@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package gohome.plugins.growatt.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/growatt/v1;growattv1";
+
+message ListPlantsRequest {}
+
+message Plant {
+  int64 plant_id = 1;
+  string name = 2;
+  int32 status = 3;
+}
+
+message ListPlantsResponse {
+  repeated Plant plants = 1;
+}
+
+message GetPlantStatusRequest {
+  int64 plant_id = 1;
+}
+
+message PlantStatus {
+  Plant plant = 1;
+  double current_power_watts = 2;
+  double today_energy_kwh = 3;
+  double monthly_energy_kwh = 4;
+  double yearly_energy_kwh = 5;
+  double total_energy_kwh = 6;
+  string last_update_time = 7;
+  string timezone = 8;
+}
+
+message GetPlantStatusResponse {
+  PlantStatus status = 1;
+}
+
+message GrowattConfig {
+  string token_file = 1;
+  string region = 2;
+  optional int64 plant_id = 3;
+}
+
+service GrowattService {
+  rpc ListPlants(ListPlantsRequest) returns (ListPlantsResponse);
+  rpc GetPlantStatus(GetPlantStatusRequest) returns (GetPlantStatusResponse);
+}
