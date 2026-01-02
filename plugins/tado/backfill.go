@@ -118,8 +118,14 @@ func filterZones(zones []Zone, names []string) []Zone {
 func dayReportSamples(report dayReport, zone Zone) []sample {
 	var samples []sample
 	labels := map[string]string{
+		"job":       "gohome",
+		"instance":  "gohome",
 		"zone_id":   strconv.Itoa(zone.ID),
 		"zone_name": zone.Name,
+	}
+	weatherLabels := map[string]string{
+		"job":      "gohome",
+		"instance": "gohome",
 	}
 
 	for _, pt := range report.MeasuredData.InsideTemperature.DataPoints {
@@ -211,6 +217,7 @@ func dayReportSamples(report dayReport, zone Zone) []sample {
 		if iv.Value.Temperature.Celsius != nil {
 			samples = append(samples, sample{
 				Name:      "gohome_tado_outside_temperature_celsius",
+				Labels:    weatherLabels,
 				Value:     *iv.Value.Temperature.Celsius,
 				Timestamp: ts,
 			})
@@ -228,6 +235,7 @@ func dayReportSamples(report dayReport, zone Zone) []sample {
 		}
 		samples = append(samples, sample{
 			Name:      "gohome_tado_solar_intensity_percent",
+			Labels:    weatherLabels,
 			Value:     value,
 			Timestamp: ts,
 		})
