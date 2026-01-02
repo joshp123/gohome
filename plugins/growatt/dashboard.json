@@ -379,12 +379,12 @@
       },
       "targets": [
         {
-          "expr": "gohome_growatt_energy_kwh{period=\"week\"}",
+          "expr": "sum_over_time(gohome_growatt_energy_kwh{period=\"day\"}[7d])",
           "legendFormat": "{{plant_name}}",
           "refId": "A"
         }
       ],
-      "title": "Weekly energy (12w)",
+      "title": "Weekly energy (rolling 7d)",
       "type": "timeseries",
       "timeFrom": "12w"
     },
@@ -492,5 +492,5 @@
   "timezone": "",
   "title": "Growatt Overview",
   "uid": "growatt-overview",
-  "version": 14
+  "version": 15
 }
