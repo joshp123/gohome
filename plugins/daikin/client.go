@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/joshp123/gohome/internal/oauth"
+	"github.com/joshp123/gohome/internal/rate"
 	configv1 "github.com/joshp123/gohome/proto/gen/config/v1"
 )
 
@@ -44,7 +45,7 @@ type Client struct {
 	rateLimits     RateLimits
 }
 
-func NewClient(cfg Config, decl oauth.Declaration, oauthCfg *configv1.OAuthConfig) (*Client, error) {
+func NewClient(cfg Config, decl oauth.Declaration, rateDecl rate.Declaration, oauthCfg *configv1.OAuthConfig) (*Client, error) {
 	blobStore, err := oauth.NewS3Store(oauthCfg)
 	if err != nil {
 		return nil, err
@@ -61,10 +62,12 @@ func NewClient(cfg Config, decl oauth.Declaration, oauthCfg *configv1.OAuthConfi
 		baseURL = defaultBaseURL
 	}
 
+	httpClient := rate.WrapHTTP(rateDecl, &http.Client{Timeout: 15 * time.Second})
+
 	return &Client{
 		baseURL:    baseURL,
 		oauth:      manager,
-		httpClient: &http.Client{Timeout: 15 * time.Second},
+		httpClient: httpClient,
 	}, nil
 }
 
