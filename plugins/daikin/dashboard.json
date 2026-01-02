@@ -41,7 +41,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 16 },
       "id": 1,
       "options": {
         "reduceOptions": {
@@ -76,7 +76,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 16 },
       "id": 8,
       "options": {
         "reduceOptions": {
@@ -111,7 +111,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 16 },
       "id": 9,
       "options": {
         "reduceOptions": {
@@ -147,7 +147,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 16 },
       "id": 10,
       "options": {
         "reduceOptions": {
@@ -190,7 +190,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 4 },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 20 },
       "id": 2,
       "options": {
         "reduceOptions": {
@@ -234,7 +234,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 4 },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 20 },
       "id": 3,
       "options": {
         "reduceOptions": {
@@ -269,7 +269,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 4 },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 20 },
       "id": 4,
       "options": {
         "reduceOptions": {
@@ -320,7 +320,7 @@
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 0 },
       "id": 5,
       "options": {
         "legend": {
@@ -343,12 +343,12 @@
           "refId": "B"
         },
         {
-          "expr": "gohome_daikin_setpoint_celsius{unit_name=~\"$unit\", setpoint=\"roomTemperature\"}",
-          "legendFormat": "Setpoint",
+          "expr": "gohome_daikin_setpoint_celsius{unit_name=~\"$unit\", setpoint=\"roomTemperature\"} * on(unit_id, unit_name, embedded_id, operation_mode) group_left() label_replace(gohome_daikin_operation_mode{unit_name=~\"$unit\"}, \"operation_mode\", \"$1\", \"mode\", \"(.*)\")",
+          "legendFormat": "Setpoint (active)",
           "refId": "C"
         }
       ],
-      "title": "$unit temperatures",
+      "title": "$unit temperatures (room/outdoor/setpoint)",
       "type": "timeseries"
     },
     {
@@ -370,7 +370,7 @@
           }
         ]
       },
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 24 },
       "id": 7,
       "options": {
         "legend": {
@@ -407,7 +407,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 16 },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 24 },
       "id": 11,
       "options": {
         "reduceOptions": {
@@ -416,7 +416,7 @@
           "values": false
         },
         "orientation": "horizontal",
-        "textMode": "value"
+        "textMode": "value_and_name"
       },
       "targets": [
         {
@@ -451,15 +451,15 @@
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
-              { "color": "orange", "value": 10 },
+              { "color": "orange", "value": 5 },
               { "color": "red", "value": 1 }
             ]
           }
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 22 },
-      "id": 6,
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 30 },
+      "id": 12,
       "options": {
         "reduceOptions": {
           "calcs": ["lastNotNull"],
@@ -472,16 +472,45 @@
       "targets": [
         {
           "expr": "gohome_daikin_rate_limit_remaining{window=\"minute\"}",
-          "legendFormat": "minute remaining",
           "refId": "A"
-        },
-        {
-          "expr": "gohome_daikin_rate_limit_remaining{window=\"day\"}",
-          "legendFormat": "day remaining",
-          "refId": "B"
         }
       ],
-      "title": "Daikin rate limit remaining",
+      "title": "Rate limit remaining (minute)",
+      "type": "stat"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 20 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 30 },
+      "id": 13,
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "gohome_daikin_rate_limit_remaining{window=\"day\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Rate limit remaining (day)",
       "type": "stat"
     }
   ],
