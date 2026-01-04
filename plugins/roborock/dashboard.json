@@ -142,8 +142,19 @@
     },
     {
       "datasource": null,
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 },
       "id": 7,
+      "options": {
+        "content": "### Live Map\n\n![map](http://localhost:8080/roborock/map.png?device_name=$map_device)\n\nIf the map is blank, ensure the vacuum has completed at least one run.",
+        "mode": "markdown"
+      },
+      "title": "Live Map",
+      "type": "text"
+    },
+    {
+      "datasource": null,
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 24 },
+      "id": 8,
       "options": {
         "content": "### Controls (gRPC)\nUse `ListDevices` to find the `device_id`.\n\n```\ngrpcurl -plaintext 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/ListDevices\n```\n\n#### Safe checks (no movement)\n```\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/GetStatus\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/Locate\n```\n\n#### Commands (movement)\n```\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/StartClean\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/Pause\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/Stop\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/Dock\n```\n\n#### Advanced\n```\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"fan_speed\":\"turbo\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/SetFanSpeed\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"mop_mode\":\"standard\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/SetMopMode\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"mop_intensity\":\"medium\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/SetMopIntensity\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"segments\":[1,2],\"repeats\":1}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/CleanSegment\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"zones\":[{\"x1\":25000,\"y1\":25000,\"x2\":26000,\"y2\":26000}],\"repeats\":1}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/CleanZone\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"x\":25000,\"y\":25000}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/GoTo\n```\n\nMovement commands require local TCP connectivity. Use with supervision.",
         "mode": "markdown"
@@ -167,6 +178,25 @@
         "label": "Device",
         "multi": true,
         "name": "device",
+        "options": [],
+        "query": {
+          "query": "label_values(gohome_roborock_battery_percent, device_name)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "All", "value": ".*" },
+        "datasource": null,
+        "definition": "label_values(gohome_roborock_battery_percent, device_name)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Map Device",
+        "multi": false,
+        "name": "map_device",
         "options": [],
         "query": {
           "query": "label_values(gohome_roborock_battery_percent, device_name)",

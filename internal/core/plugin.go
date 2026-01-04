@@ -1,6 +1,8 @@
 package core
 
 import (
+	"net/http"
+
 	"github.com/joshp123/gohome/internal/oauth"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
@@ -40,4 +42,9 @@ type Plugin interface {
 	Collectors() []prometheus.Collector
 	Health() HealthStatus
 	HealthMessage() string
+}
+
+// HTTPRegistrant allows plugins to expose HTTP handlers.
+type HTTPRegistrant interface {
+	RegisterHTTP(*http.ServeMux)
 }

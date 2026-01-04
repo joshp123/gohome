@@ -25,6 +25,7 @@ const (
 	ProtocolGeneralResp   MessageProtocol = 5
 	ProtocolRpcRequest    MessageProtocol = 101
 	ProtocolRpcResponse   MessageProtocol = 102
+	ProtocolMapResponse   MessageProtocol = 301
 )
 
 type RoborockMessage struct {
@@ -151,6 +152,39 @@ func encodeMessage(msg RoborockMessage, localKey string, connectNonce uint32, ac
 	_ = binary.Write(out, binary.BigEndian, uint32(len(frame)))
 	out.Write(frame)
 	return out.Bytes(), nil
+}
+
+func encodeMessageFrame(msg RoborockMessage, localKey string, connectNonce uint32, ackNonce *uint32) ([]byte, error) {
+	if msg.Timestamp == 0 {
+		msg.Timestamp = nowTimestamp()
+	}
+	if msg.Seq == 0 {
+		msg.Seq = uint32(nextInt(100000, 999999))
+	}
+	if msg.Random == 0 {
+		msg.Random = uint32(nextInt(10000, 99999))
+	}
+
+	payload, err := encryptPayload(msg, localKey, connectNonce, ackNonce)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := &bytes.Buffer{}
+	buf.Write([]byte(msg.Version))
+	_ = binary.Write(buf, binary.BigEndian, msg.Seq)
+	_ = binary.Write(buf, binary.BigEndian, msg.Random)
+	_ = binary.Write(buf, binary.BigEndian, msg.Timestamp)
+	_ = binary.Write(buf, binary.BigEndian, uint16(msg.Protocol))
+	if payload == nil {
+		_ = binary.Write(buf, binary.BigEndian, uint16(0))
+	} else {
+		_ = binary.Write(buf, binary.BigEndian, uint16(len(payload)))
+		buf.Write(payload)
+	}
+	checksum := crc32sum(buf.Bytes())
+	_ = binary.Write(buf, binary.BigEndian, checksum)
+	return buf.Bytes(), nil
 }
 
 func decodeMessage(frame []byte, localKey string, connectNonce uint32, ackNonce *uint32) (RoborockMessage, error) {
