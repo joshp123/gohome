@@ -24,9 +24,13 @@ type mapImage struct {
 }
 
 func parseMapImage(raw []byte) (mapImage, error) {
-	data, err := gzipDecompress(raw)
-	if err != nil {
-		return mapImage{}, err
+	data := raw
+	if len(raw) >= 2 && raw[0] == 0x1f && raw[1] == 0x8b {
+		decompressed, err := gzipDecompress(raw)
+		if err != nil {
+			return mapImage{}, err
+		}
+		data = decompressed
 	}
 
 	imageBlock, robotPos, carpetMap, err := extractMapImageBlock(data)
