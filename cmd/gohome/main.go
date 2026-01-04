@@ -81,6 +81,11 @@ func main() {
 	httpMux.HandleFunc("/health", server.HealthHandler)
 	httpMux.Handle("/metrics", server.MetricsHandler(metricsRegistry))
 	httpMux.Handle("/dashboards/", server.DashboardsHandler(core.DashboardsMap(activePlugins)))
+	for _, plugin := range activePlugins {
+		if registrant, ok := plugin.(core.HTTPRegistrant); ok {
+			registrant.RegisterHTTP(httpMux)
+		}
+	}
 
 	httpServer := server.NewHTTPServer(cfg.Core.HttpAddr, httpMux)
 

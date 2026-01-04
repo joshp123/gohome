@@ -14,11 +14,16 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
 - Reset consumables
 
 ## Limits
-- No map images, live map, or camera in v1
+- Camera/live view is not supported on Qrevo S (no camera hardware)
 - No remote-control joystick in v1
 - Cloud login is required for bootstrap only
 - Cloud fallback is optional and not enabled by default (status-only fallback; commands still require local)
 - Fan/mop numeric codes are device-specific; prefer named values unless you know the codes
+
+## Live Map (v2)
+- Live map requires MQTT access via Roborock cloud (map RPC channel).
+- HTTP endpoint: `http://<gohome-host>:8080/roborock/map.png?device_name=<device>`
+- Map refresh interval is 5 seconds (cached).
 
 ## Methods
 - `ListDevices`: list available vacuums.

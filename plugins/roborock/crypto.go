@@ -103,3 +103,18 @@ func gcmDecrypt(key, nonce, aad, ciphertext []byte) ([]byte, error) {
 	}
 	return gcm.Open(nil, nonce, ciphertext, aad)
 }
+
+func aesCbcDecrypt(ciphertext, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	if len(ciphertext)%block.BlockSize() != 0 {
+		return nil, errors.New("invalid cbc ciphertext length")
+	}
+	iv := make([]byte, block.BlockSize())
+	out := make([]byte, len(ciphertext))
+	mode := cipher.NewCBCDecrypter(block, iv)
+	mode.CryptBlocks(out, ciphertext)
+	return pkcs7Unpad(out, block.BlockSize())
+}
