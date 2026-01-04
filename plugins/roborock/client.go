@@ -276,6 +276,23 @@ func (c *Client) simpleCommand(ctx context.Context, deviceID, method string, par
 	return err
 }
 
+// RawRPC sends a raw RPC to the device and returns the decoded result.
+// This is intended for diagnostics and probing unsupported features.
+func (c *Client) RawRPC(ctx context.Context, deviceID, method string, params any) (any, error) {
+	if err := c.ensureHomeData(ctx); err != nil {
+		return nil, err
+	}
+	device, err := c.deviceByID(deviceID)
+	if err != nil {
+		return nil, err
+	}
+	channel, err := c.getLocalChannel(ctx, device)
+	if err != nil {
+		return nil, err
+	}
+	return c.sendRPC(ctx, channel, method, params)
+}
+
 func (c *Client) sendRPC(ctx context.Context, channel *LocalChannel, method string, params any) (any, error) {
 	if params == nil {
 		params = []any{}
