@@ -265,10 +265,20 @@ func (c *Client) fetchMapViaMQTT(ctx context.Context, device HomeDataDevice) ([]
 				}
 				if resp.Error != nil {
 					errCh <- fmt.Errorf("device error: %v", resp.Error)
-				} else {
-					errCh <- fmt.Errorf("map request failed: %v", resp.Result)
+					return
 				}
-				return
+				if resp.Result == nil {
+					return
+				}
+				if s, ok := resp.Result.(string); ok {
+					if s == "ok" {
+						return
+					}
+					if s == "unknown_method" {
+						errCh <- fmt.Errorf("map request failed: %v", resp.Result)
+						return
+					}
+				}
 			}
 		}
 	})
