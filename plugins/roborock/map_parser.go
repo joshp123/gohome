@@ -175,7 +175,7 @@ func renderMapPNG(block mapImageBlock, robot *mapPoint, carpetMap map[int]struct
 	if robot != nil {
 		rx := int(math.Round(float64(robot.x)/50.0)) - block.left
 		ry := int(math.Round(float64(robot.y)/50.0)) - block.top
-		drawDot(img, rx, height-ry-1, colorRobot())
+		drawRobotMarker(img, rx, height-ry-1)
 	}
 
 	var buf bytes.Buffer
@@ -206,19 +206,30 @@ func int32le(data []byte, offset int) uint32 {
 	return uint32(data[offset]) | uint32(data[offset+1])<<8 | uint32(data[offset+2])<<16 | uint32(data[offset+3])<<24
 }
 
-func drawDot(img *image.RGBA, x, y int, c color.RGBA) {
+func drawRobotMarker(img *image.RGBA, x, y int) {
 	if x < 0 || y < 0 || x >= img.Bounds().Dx() || y >= img.Bounds().Dy() {
 		return
 	}
-	for dy := -2; dy <= 2; dy++ {
-		for dx := -2; dx <= 2; dx++ {
+	outer := 8
+	inner := 4
+	for dy := -outer; dy <= outer; dy++ {
+		for dx := -outer; dx <= outer; dx++ {
 			xx := x + dx
 			yy := y + dy
 			if xx < 0 || yy < 0 || xx >= img.Bounds().Dx() || yy >= img.Bounds().Dy() {
 				continue
 			}
-			if dx*dx+dy*dy <= 4 {
-				img.SetRGBA(xx, yy, c)
+			dist := dx*dx + dy*dy
+			if dist > outer*outer {
+				continue
+			}
+			switch {
+			case dist <= inner*inner:
+				img.SetRGBA(xx, yy, colorRobotCenter())
+			case dist <= (outer-2)*(outer-2):
+				img.SetRGBA(xx, yy, colorRobotRing())
+			default:
+				img.SetRGBA(xx, yy, colorRobotOutline())
 			}
 		}
 	}
@@ -232,9 +243,11 @@ func colorScan() color.RGBA    { return color.RGBA{200, 220, 255, 255} }
 func colorGreyWall() color.RGBA {
 	return color.RGBA{90, 90, 90, 255}
 }
-func colorUnknown() color.RGBA { return color.RGBA{180, 80, 180, 255} }
-func colorCarpet() color.RGBA  { return color.RGBA{220, 160, 90, 255} }
-func colorRobot() color.RGBA   { return color.RGBA{240, 70, 70, 255} }
+func colorUnknown() color.RGBA      { return color.RGBA{180, 80, 180, 255} }
+func colorCarpet() color.RGBA       { return color.RGBA{220, 160, 90, 255} }
+func colorRobotCenter() color.RGBA  { return color.RGBA{235, 45, 45, 255} }
+func colorRobotRing() color.RGBA    { return color.RGBA{255, 255, 255, 255} }
+func colorRobotOutline() color.RGBA { return color.RGBA{20, 20, 20, 255} }
 
 func colorRoom(room int) color.RGBA {
 	h := float64((room * 47) % 360)
