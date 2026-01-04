@@ -21,6 +21,13 @@ let
     replaceStrings [ "\\" "\"" "\n" "\r" "\t" ] [ "\\\\" "\\\"" "\\n" "\\r" "\\t" ] (toString value);
 
   textprotoString = value: "\"${escapeTextproto value}\"";
+  textprotoMapString = attrs:
+    lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: ''
+      device_ip_overrides {
+        key: ${textprotoString k}
+        value: ${textprotoString v}
+      }
+    '') attrs);
 
   configText = ''
     schema_version: 1
@@ -56,6 +63,14 @@ let
       region: ${textprotoString (if cfg.plugins.growatt.region == null then "other_regions" else cfg.plugins.growatt.region)}
   '' + optionalString (cfg.plugins.growatt.plantId != null) ''
       plant_id: ${toString cfg.plugins.growatt.plantId}
+  '' + ''
+    }
+  '' + optionalString (cfg.plugins.roborock != null) ''
+    roborock {
+      bootstrap_file: ${textprotoString cfg.plugins.roborock.bootstrapFile}
+      cloud_fallback: ${if cfg.plugins.roborock.cloudFallback then "true" else "false"}
+  '' + optionalString (cfg.plugins.roborock.deviceIpOverrides != {}) ''
+${textprotoMapString cfg.plugins.roborock.deviceIpOverrides}
   '' + ''
     }
   '';
@@ -196,6 +211,31 @@ in
       default = null;
       description = "Growatt plugin config (presence enables the plugin)";
     };
+
+    plugins.roborock = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          bootstrapFile = mkOption {
+            type = types.path;
+            description = "Path to Roborock bootstrap JSON (read-only secret)";
+          };
+
+          cloudFallback = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Allow cloud fallback when local device is unreachable";
+          };
+
+          deviceIpOverrides = mkOption {
+            type = types.attrsOf types.str;
+            default = { };
+            description = "Optional map of device_id -> LAN IP for local TCP without UDP broadcast";
+          };
+        };
+      });
+      default = null;
+      description = "Roborock plugin config (presence enables the plugin)";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -228,6 +268,10 @@ in
         assertion = cfg.plugins.growatt == null || cfg.plugins.growatt.tokenFile != null;
         message = "services.gohome.plugins.growatt.tokenFile is required when growatt is enabled";
       }
+      {
+        assertion = cfg.plugins.roborock == null || cfg.plugins.roborock.bootstrapFile != null;
+        message = "services.gohome.plugins.roborock.bootstrapFile is required when roborock is enabled";
+      }
     ];
 
     users.users.gohome = {
@@ -245,7 +289,8 @@ in
         ]
         ++ lib.optional (cfg.plugins.tado != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.tado.bootstrapFile}"
         ++ lib.optional (cfg.plugins.daikin != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.daikin.bootstrapFile}"
-        ++ lib.optional (cfg.plugins.growatt != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.growatt.tokenFile}";
+        ++ lib.optional (cfg.plugins.growatt != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.growatt.tokenFile}"
+        ++ lib.optional (cfg.plugins.roborock != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.roborock.bootstrapFile}";
     in {
       description = "GoHome";
       wantedBy = [ "multi-user.target" ];

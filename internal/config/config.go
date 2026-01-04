@@ -106,6 +106,9 @@ func Validate(cfg *configv1.Config) error {
 	if cfg.Growatt != nil && cfg.Growatt.TokenFile == "" {
 		return fmt.Errorf("growatt.token_file is required")
 	}
+	if cfg.Roborock != nil && cfg.Roborock.BootstrapFile == "" {
+		return fmt.Errorf("roborock.bootstrap_file is required")
+	}
 
 	return nil
 }
@@ -124,6 +127,9 @@ func EnabledPlugins(cfg *configv1.Config) map[string]bool {
 	}
 	if cfg.Growatt != nil {
 		enabled["growatt"] = true
+	}
+	if cfg.Roborock != nil {
+		enabled["roborock"] = true
 	}
 	return enabled
 }
@@ -144,6 +150,11 @@ func BootstrapPathForProvider(cfg *configv1.Config, provider string) (string, er
 			return "", fmt.Errorf("daikin bootstrap_file is required")
 		}
 		return cfg.Daikin.BootstrapFile, nil
+	case "roborock":
+		if cfg.Roborock == nil || cfg.Roborock.BootstrapFile == "" {
+			return "", fmt.Errorf("roborock bootstrap_file is required")
+		}
+		return cfg.Roborock.BootstrapFile, nil
 	default:
 		return "", fmt.Errorf("unknown provider %q", provider)
 	}

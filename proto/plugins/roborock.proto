@@ -1,0 +1,170 @@
+syntax = "proto3";
+
+package gohome.plugins.roborock.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/roborock/v1;roborockv1";
+
+message ListDevicesRequest {}
+
+message Device {
+  string id = 1;
+  string name = 2;
+  string model = 3;
+  string firmware = 4;
+  bool supports_mop = 5;
+}
+
+message ListDevicesResponse {
+  repeated Device devices = 1;
+}
+
+message DeviceStatusRequest {
+  string device_id = 1;
+}
+
+message DeviceStatus {
+  string state = 1;
+  uint32 battery_percent = 2;
+  string error_code = 3;
+  string error_message = 4;
+  double cleaning_area_square_meters = 5;
+  uint32 cleaning_time_seconds = 6;
+  uint32 total_cleaning_time_seconds = 7;
+  double total_cleaning_area_square_meters = 8;
+  uint32 total_cleaning_count = 9;
+  string fan_speed = 10;
+  string mop_mode = 11;
+  string mop_intensity = 12;
+  bool water_tank_attached = 13;
+  bool mop_attached = 14;
+  bool water_shortage = 15;
+  bool charging = 16;
+  string last_clean_start = 17;
+  string last_clean_end = 18;
+}
+
+message GetStatusResponse {
+  DeviceStatus status = 1;
+}
+
+message StartCleanRequest {
+  string device_id = 1;
+}
+
+message StartCleanResponse {}
+
+message PauseRequest {
+  string device_id = 1;
+}
+
+message PauseResponse {}
+
+message StopRequest {
+  string device_id = 1;
+}
+
+message StopResponse {}
+
+message DockRequest {
+  string device_id = 1;
+}
+
+message DockResponse {}
+
+message LocateRequest {
+  string device_id = 1;
+}
+
+message LocateResponse {}
+
+message SetFanSpeedRequest {
+  string device_id = 1;
+  string fan_speed = 2;
+}
+
+message SetFanSpeedResponse {}
+
+message SetMopModeRequest {
+  string device_id = 1;
+  string mop_mode = 2;
+}
+
+message SetMopModeResponse {}
+
+message SetMopIntensityRequest {
+  string device_id = 1;
+  string mop_intensity = 2;
+}
+
+message SetMopIntensityResponse {}
+
+message Zone {
+  int32 x1 = 1;
+  int32 y1 = 2;
+  int32 x2 = 3;
+  int32 y2 = 4;
+}
+
+message CleanZoneRequest {
+  string device_id = 1;
+  repeated Zone zones = 2;
+  uint32 repeats = 3;
+}
+
+message CleanZoneResponse {}
+
+message CleanSegmentRequest {
+  string device_id = 1;
+  repeated uint32 segments = 2;
+  uint32 repeats = 3;
+}
+
+message CleanSegmentResponse {}
+
+message GoToRequest {
+  string device_id = 1;
+  int32 x = 2;
+  int32 y = 3;
+}
+
+message GoToResponse {}
+
+message SetDndRequest {
+  string device_id = 1;
+  string start_time = 2;
+  string end_time = 3;
+  bool enabled = 4;
+}
+
+message SetDndResponse {}
+
+message ResetConsumableRequest {
+  string device_id = 1;
+  string consumable = 2;
+}
+
+message ResetConsumableResponse {}
+
+message RoborockConfig {
+  string bootstrap_file = 1;
+  bool cloud_fallback = 2;
+  map<string, string> device_ip_overrides = 3;
+}
+
+service RoborockService {
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  rpc GetStatus(DeviceStatusRequest) returns (GetStatusResponse);
+  rpc StartClean(StartCleanRequest) returns (StartCleanResponse);
+  rpc Pause(PauseRequest) returns (PauseResponse);
+  rpc Stop(StopRequest) returns (StopResponse);
+  rpc Dock(DockRequest) returns (DockResponse);
+  rpc Locate(LocateRequest) returns (LocateResponse);
+  rpc SetFanSpeed(SetFanSpeedRequest) returns (SetFanSpeedResponse);
+  rpc SetMopMode(SetMopModeRequest) returns (SetMopModeResponse);
+  rpc SetMopIntensity(SetMopIntensityRequest) returns (SetMopIntensityResponse);
+  rpc CleanZone(CleanZoneRequest) returns (CleanZoneResponse);
+  rpc CleanSegment(CleanSegmentRequest) returns (CleanSegmentResponse);
+  rpc GoTo(GoToRequest) returns (GoToResponse);
+  rpc SetDnd(SetDndRequest) returns (SetDndResponse);
+  rpc ResetConsumable(ResetConsumableRequest) returns (ResetConsumableResponse);
+}
