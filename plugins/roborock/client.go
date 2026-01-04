@@ -35,6 +35,8 @@ type Client struct {
 	channels  map[string]*LocalChannel
 	ipCache   map[string]string
 	overrides map[string]string
+	mqtt      *mqttClient
+	mapCache  map[string]mapSnapshot
 }
 
 func LoadBootstrap(path string) (BootstrapState, error) {
@@ -86,6 +88,7 @@ func NewClient(cfg Config) (*Client, error) {
 		channels:  make(map[string]*LocalChannel),
 		ipCache:   make(map[string]string),
 		overrides: cfg.IPOverrides,
+		mapCache:  make(map[string]mapSnapshot),
 	}, nil
 }
 

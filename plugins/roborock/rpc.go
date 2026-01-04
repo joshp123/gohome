@@ -11,6 +11,7 @@ type requestMessage struct {
 	Params    any    `json:"params"`
 	RequestID int    `json:"id"`
 	Timestamp uint32 `json:"-"`
+	Security  any    `json:"security,omitempty"`
 }
 
 type rpcResponse struct {
