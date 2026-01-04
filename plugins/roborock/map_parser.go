@@ -123,7 +123,7 @@ func extractMapImageBlock(raw []byte) (*mapImageBlock, *mapPoint, map[int]struct
 			}
 		}
 
-		blockStart = blockStart + blockDataLen + int(int8(raw[blockStart+2]))
+		blockStart = blockStart + blockDataLen + int(byteToInt8(raw[blockStart+2]))
 	}
 
 	return imageBlock, robotPos, carpetMap, nil
@@ -194,8 +194,8 @@ func gzipDecompress(data []byte) ([]byte, error) {
 	return io.ReadAll(r)
 }
 
-func int8(b byte) int {
-	return int(int8(b))
+func byteToInt8(b byte) int8 {
+	return int8(b)
 }
 
 func int16le(data []byte, offset int) uint16 {
