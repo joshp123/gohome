@@ -64,6 +64,13 @@
       region = "other_regions";
       plantId = 960319;
     };
+    plugins.roborock = {
+      bootstrapFile = config.age.secrets.roborock-bootstrap.path;
+      cloudFallback = true;
+      deviceIpOverrides = {
+        "6tsh41HE1qxgMcVBbGByfv" = "192.168.1.18";
+      };
+    };
 
     tailscale.authKeyFile = config.age.secrets.tailscale-authkey.path;
   };

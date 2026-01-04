@@ -10,4 +10,5 @@ protoc \
   proto/config/v1/config.proto \
   proto/plugins/tado.proto \
   proto/plugins/daikin.proto \
-  proto/plugins/growatt.proto
+  proto/plugins/growatt.proto \
+  proto/plugins/roborock.proto

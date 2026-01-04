@@ -1,0 +1,188 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 20 },
+              { "color": "green", "value": 60 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "orientation": "horizontal" },
+      "targets": [
+        {
+          "expr": "gohome_roborock_battery_percent{device_name=~\"$device\"}",
+          "legendFormat": "{{device_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Battery",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [
+        {
+          "expr": "gohome_roborock_state{device_name=~\"$device\"}",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ],
+      "title": "State",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [
+        {
+          "expr": "gohome_roborock_cleaning_time_seconds{device_name=~\"$device\"}",
+          "legendFormat": "{{device_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Current Clean Time",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": { "unit": "m2" },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [
+        {
+          "expr": "gohome_roborock_cleaning_area_square_meters{device_name=~\"$device\"}",
+          "legendFormat": "{{device_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Current Clean Area",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 6 },
+      "id": 5,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [
+        {
+          "expr": "gohome_roborock_total_cleaning_count{device_name=~\"$device\"}",
+          "legendFormat": "{{device_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Clean Count",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 6 },
+      "id": 6,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [
+        {
+          "expr": "gohome_roborock_total_cleaning_time_seconds{device_name=~\"$device\"}",
+          "legendFormat": "{{device_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Clean Time",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
+      "id": 7,
+      "options": {
+        "content": "### Controls (gRPC)\nUse `ListDevices` to find the `device_id`.\n\n```\ngrpcurl -plaintext 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/ListDevices\n```\n\n#### Safe checks (no movement)\n```\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/GetStatus\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/Locate\n```\n\n#### Commands (movement)\n```\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/StartClean\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/Pause\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/Stop\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/Dock\n```\n\n#### Advanced\n```\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"fan_speed\":\"turbo\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/SetFanSpeed\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"mop_mode\":\"standard\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/SetMopMode\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"mop_intensity\":\"medium\"}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/SetMopIntensity\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"segments\":[1,2],\"repeats\":1}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/CleanSegment\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"zones\":[{\"x1\":25000,\"y1\":25000,\"x2\":26000,\"y2\":26000}],\"repeats\":1}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/CleanZone\ngrpcurl -plaintext -d '{\"device_id\":\"$DEVICE_ID\",\"x\":25000,\"y\":25000}' 127.0.0.1:9000 gohome.plugins.roborock.v1.RoborockService/GoTo\n```\n\nMovement commands require local TCP connectivity. Use with supervision.",
+        "mode": "markdown"
+      },
+      "title": "Controls",
+      "type": "text"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["roborock"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "All", "value": ".*" },
+        "datasource": null,
+        "definition": "label_values(gohome_roborock_battery_percent, device_name)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Device",
+        "multi": true,
+        "name": "device",
+        "options": [],
+        "query": {
+          "query": "label_values(gohome_roborock_battery_percent, device_name)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Roborock Overview",
+  "uid": "roborock-overview",
+  "version": 1
+}

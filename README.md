@@ -118,14 +118,14 @@ What GoHome is:
 - A Nix-native home automation server (Go, not Python)
 - Control via gRPC API + CLI
 - Metrics in VictoriaMetrics, dashboards in Grafana
-- Currently supports Tado thermostats (more plugins coming)
+- Currently supports Tado + Roborock (more plugins coming)
 
 What I need you to do:
 1. Add the gohome flake input to my NixOS config
 2. Enable services.gohome with my plugin config
 3. Set up secrets via agenix (OAuth blob storage + plugin bootstrap tokens)
 4. Deploy with nixos-rebuild switch
-5. Verify: Grafana loads, /metrics returns Tado data
+5. Verify: Grafana loads, /metrics returns plugin data (Tado/Roborock/etc)
 
 My setup:
 - [FILL IN: your NixOS host details]
@@ -183,6 +183,11 @@ Reference the README and nix/module.nix in the repo for config options.
               enable = true;
               bootstrapFile = config.age.secrets.tado-token.path;
             };
+            plugins.roborock = {
+              enable = true;
+              bootstrapFile = config.age.secrets.roborock-bootstrap.path;
+              cloudFallback = false;
+            };
           };
         }
       ];
@@ -198,6 +203,7 @@ Reference the README and nix/module.nix in the repo for config options.
 | `gohome-blob-access` | S3 access key for OAuth state |
 | `gohome-blob-secret` | S3 secret key for OAuth state |
 | `tado-token` | Initial Tado OAuth refresh token |
+| `roborock-bootstrap` | Roborock bootstrap JSON (email login + local keys) |
 
 ## Plugin philosophy
 
@@ -266,12 +272,13 @@ curl -s localhost:8080/metrics | grep gohome_tado
 
 ```bash
 nix develop
+# or: devenv shell
 
 # Generate protobufs
 ./tools/generate.sh
 
-# Run server
-go run -tags gohome_plugin_tado ./cmd/gohome
+# Run server (enable desired plugins via build tags)
+go run -tags gohome_plugin_tado,gohome_plugin_roborock ./cmd/gohome
 
 # List plugins
 go run ./cmd/gohome-cli plugins list
