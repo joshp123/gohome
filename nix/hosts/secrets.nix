@@ -44,5 +44,13 @@
         group = "gohome";
         mode = "0400";
       };
+    }
+    // lib.optionalAttrs (config.services.gohome.plugins.roborock != null) {
+      roborock-bootstrap = {
+        file = "${secrets}/gohome-roborock-bootstrap.age";
+        owner = "gohome";
+        group = "gohome";
+        mode = "0400";
+      };
     };
 }

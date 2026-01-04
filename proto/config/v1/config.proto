@@ -7,6 +7,7 @@ option go_package = "github.com/joshp123/gohome/proto/gen/config/v1;configv1";
 import "proto/plugins/tado.proto";
 import "proto/plugins/daikin.proto";
 import "proto/plugins/growatt.proto";
+import "proto/plugins/roborock.proto";
 
 message CoreConfig {
   string grpc_addr = 1;
@@ -30,4 +31,5 @@ message Config {
   gohome.plugins.tado.v1.TadoConfig tado = 10;
   gohome.plugins.daikin.v1.DaikinConfig daikin = 11;
   gohome.plugins.growatt.v1.GrowattConfig growatt = 12;
+  gohome.plugins.roborock.v1.RoborockConfig roborock = 13;
 }

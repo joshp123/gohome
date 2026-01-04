@@ -9,6 +9,8 @@
 # Nix
 /result
 /result-*
+.devenv/
+.devenv.flake.nix
 
 # IDE
 .idea/
