@@ -26,6 +26,11 @@ type mapImage struct {
 	height int
 }
 
+type MapBlockInfo struct {
+	Type   int
+	Length int
+}
+
 type segmentSummary struct {
 	id         int
 	pixelCount int
@@ -166,6 +171,45 @@ func extractMapImageBlock(raw []byte) (*mapImageBlock, *mapPoint, map[int]struct
 	}
 
 	return imageBlock, robotPos, carpetMap, nil
+}
+
+func ListMapBlocks(raw []byte) ([]MapBlockInfo, error) {
+	data := raw
+	if len(raw) >= 2 && raw[0] == 0x1f && raw[1] == 0x8b {
+		decompressed, err := gzipDecompress(raw)
+		if err != nil {
+			return nil, err
+		}
+		data = decompressed
+	}
+	if len(data) < 4 {
+		return nil, fmt.Errorf("map payload too short")
+	}
+	mapHeaderLen := int(int16le(data, 0x02))
+	if mapHeaderLen <= 0 || mapHeaderLen >= len(data) {
+		return nil, fmt.Errorf("invalid map header length")
+	}
+	var blocks []MapBlockInfo
+	blockStart := mapHeaderLen
+	for blockStart < len(data) {
+		if blockStart+8 > len(data) {
+			break
+		}
+		blockHeaderLen := int(int16le(data, blockStart+0x02))
+		if blockHeaderLen == 0 || blockStart+blockHeaderLen > len(data) {
+			break
+		}
+		header := data[blockStart : blockStart+blockHeaderLen]
+		blockType := int(int16le(header, 0x00))
+		blockDataLen := int(int32le(header, 0x04))
+		blockDataStart := blockStart + blockHeaderLen
+		if blockDataStart+blockDataLen > len(data) || blockDataLen < 0 {
+			break
+		}
+		blocks = append(blocks, MapBlockInfo{Type: blockType, Length: blockDataLen})
+		blockStart = blockStart + blockDataLen + int(byteToInt8(data[blockStart+2]))
+	}
+	return blocks, nil
 }
 
 func extractTrace(raw []byte) ([]mapPoint, error) {
