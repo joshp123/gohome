@@ -60,7 +60,8 @@ GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli methods gohome.plug
 4) Call a safe RPC (read-only):
 
 ```sh
-GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli call gohome.plugins.tado.v1.TadoService/ListZones --data '{}'
+jq -n '{}' | GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli call \
+  gohome.plugins.tado.v1.TadoService/ListZones
 ```
 
 ## Metrics validation
@@ -90,12 +91,14 @@ Use MagicDNS (`gohome`) or set `GOHOME_HOST` to the tailnet FQDN if needed.
 Only call write RPCs after user approval. Example:
 
 ```sh
-GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli call \
-  gohome.plugins.tado.v1.TadoService/SetTemperature \
-  --data '{"zone_id":"1","temperature_celsius":20.0}'
+jq -n --arg zone_id "1" --argjson temp 20.0 \
+  '{zone_id: $zone_id, temperature_celsius: $temp}' | \
+  GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli call \
+  gohome.plugins.tado.v1.TadoService/SetTemperature
 ```
 
 ## Troubleshooting
 
 - If DNS fails, verify MagicDNS is enabled and run `tailscale status`.
 - If metrics are missing, check `gohome_tado_scrape_success` and token validity.
+- Prefer `jq -n` to build JSON for gRPC calls; it avoids quoting mistakes.
