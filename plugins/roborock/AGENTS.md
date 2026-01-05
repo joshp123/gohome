@@ -23,6 +23,8 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
 ## Live Map (v2)
 - Live map requires MQTT access via Roborock cloud (map RPC channel).
 - HTTP endpoint: `http://<gohome-host>:8080/roborock/map.png?device_name=<device>`
+- Add `labels=segments` to overlay segment IDs.
+- Add `labels=names` to overlay configured room names.
 - Map refresh interval is 5 seconds (cached).
 
 ## Methods
@@ -38,6 +40,7 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
 - `SetMopIntensity`: set mop intensity by name or numeric code.
 - `CleanZone`: clean specific zones with optional repeats.
 - `CleanSegment`: clean specific segments with optional repeats.
+- `ListSegments`: fetch segment IDs from the current map snapshot (IDs only, no room names).
 - `GoTo`: drive to coordinates.
 - `SetDnd`: set DND schedule and enable/disable.
   - Time format: `HH:MM` (24-hour).
@@ -76,6 +79,7 @@ Fields:
 - `roborock.bootstrap_file` (required; JSON with bootstrap credentials)
 - `roborock.cloud_fallback` (optional; default false)
 - `roborock.device_ip_overrides` (optional; map of device_id -> LAN IP to skip UDP discovery)
+- `roborock.segment_names` (optional; map of segment_id -> room label)
   - Required when controlling a vacuum over Tailscale subnet routing (broadcast discovery won’t cross subnets)
 
 Bootstrap JSON schema:
