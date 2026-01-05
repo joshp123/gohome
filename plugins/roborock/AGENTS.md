@@ -29,6 +29,8 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
 
 ## Methods
 - `ListDevices`: list available vacuums.
+- `ListRooms`: list configured room names (preferred for room targeting).
+- `CleanRoom`: clean a named room (preferred; accepts `room` like "kitchen" or "living room"; case-insensitive).
 - `GetStatus`: read current status for a device.
 - `StartClean`: start cleaning.
 - `Pause`: pause cleaning.
@@ -40,7 +42,7 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
 - `SetMopIntensity`: set mop intensity by name or numeric code.
 - `CleanZone`: clean specific zones with optional repeats.
 - `CleanSegment`: clean specific segments with optional repeats.
-- `ListSegments`: fetch segment IDs from the current map snapshot (IDs only, no room names).
+- `ListSegments`: fetch segment IDs from the current map snapshot (IDs only).
 - `GoTo`: drive to coordinates.
 - `SetDnd`: set DND schedule and enable/disable.
   - Time format: `HH:MM` (24-hour).
@@ -71,6 +73,7 @@ Metrics:
 - Invalid or expired bootstrap credentials
 - Device offline or unreachable over local TCP
 - Command rejected by device
+- Use `jq -n` to build JSON for gRPC calls to avoid quoting mistakes.
 
 ## Required Config
 Canonical config file: `/etc/gohome/config.pbtxt` (textproto).
