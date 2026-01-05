@@ -54,6 +54,15 @@ devenv shell
 bash tools/generate.sh
 ```
 
+## nix-clawdbot Plugin
+
+GoHome exposes an idiomatic nix-clawdbot plugin via `clawdbotPlugin` in `flake.nix`.
+
+- Plugin name: `gohome`
+- Skills: `skills/gohome`
+- Packages: `gohome` (includes `gohome-cli` on PATH)
+- Required env: none (optional `GOHOME_GRPC_ADDR` supported by `gohome-cli`)
+
 ## Smoke Test (remote)
 
 Default host: `gohome` (matches `flake.nix` nixosConfigurations). Always deploy over Tailscale, not the public IP.
