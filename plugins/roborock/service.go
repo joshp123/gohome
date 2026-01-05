@@ -4,6 +4,7 @@ import (
 	context "context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	roborockv1 "github.com/joshp123/gohome/proto/gen/plugins/roborock/v1"
@@ -191,6 +192,9 @@ func (s *service) ListSegments(ctx context.Context, req *roborockv1.ListSegments
 	segments, err := s.client.SegmentsSnapshot(ctx, req.GetDeviceId())
 	if err != nil {
 		return nil, mapClientError("list segments", err)
+	}
+	if len(segments) == 0 {
+		log.Printf("roborock list segments: empty result (device_id=%s)", req.GetDeviceId())
 	}
 	resp := &roborockv1.ListSegmentsResponse{Segments: make([]*roborockv1.Segment, 0, len(segments))}
 	for _, seg := range segments {
