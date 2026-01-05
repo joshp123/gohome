@@ -87,7 +87,7 @@ for this RFC.
 ## 9) Interaction model
 
 - Grafana queries VictoriaMetrics for visualization
-- Clawdis and operators use Grafana for state inspection
+- Clawdbot and operators use Grafana for state inspection
 - gRPC controls device state; metrics reflect outcomes
 
 ## 10) System interaction diagram

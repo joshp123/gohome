@@ -19,7 +19,7 @@ We want:
 - **Nix config** - declarative, reproducible, rollback
 - **Grafana** - already good, don't reinvent
 - **VictoriaMetrics** - already good, don't reinvent
-- **Clawdis/API** - control surface, not dashboards
+- **Clawdbot/API** - control surface, not dashboards
 
 ## Core Principles
 
@@ -100,7 +100,7 @@ packages.gohome = gohome.override {
 We don't build UIs. Ever.
 
 - **Dashboards** → Grafana (plugins provide JSON)
-- **Control** → Clawdis (Telegram, voice)
+- **Control** → Clawdbot (Telegram, voice)
 - **Debugging** → grpcurl, curl
 - **Automation** → Nix config, not UI flows
 
@@ -138,14 +138,14 @@ This repo is designed to be built BY AI agents, FOR AI agents.
 
 ## Agent Interaction Model (ZFC-Compliant)
 
-### How Clawdis Talks to GoHome
+### How Clawdbot Talks to GoHome
 
 ```
 User: "set living room to 21"
          │
          ▼
     ┌─────────┐
-    │ Clawdis │  
+    │ Clawdbot │  
     │  (AI)   │  ← AI reasons about intent + available methods
     └────┬────┘
          │ gRPC (AI-decided call)
@@ -172,7 +172,7 @@ service Registry {
 }
 ```
 
-Clawdis (ZFC flow):
+Clawdbot (ZFC flow):
 1. Connects to GoHome
 2. Fetches available services/methods (gRPC reflection)
 3. On user message: AI decides which method to call
@@ -182,7 +182,7 @@ Clawdis (ZFC flow):
 
 **NO pattern matching. NO keyword routing. AI does all reasoning.**
 
-Plugins expose their protobuf schema. Clawdis sends:
+Plugins expose their protobuf schema. Clawdbot sends:
 1. User message
 2. Available services/methods (from Registry)
 3. Current device state (optional context)
@@ -199,7 +199,7 @@ func (p *TadoPlugin) NLTriggers() map[string][]string {
 
 // RIGHT (ZFC compliant) ✅
 // Plugin just exposes schema via gRPC reflection
-// Clawdis asks AI: "Given this user message and these available methods, what should I call?"
+// Clawdbot asks AI: "Given this user message and these available methods, what should I call?"
 // AI returns: {service: "TadoService", method: "SetTemperature", params: {zone: "living_room", temp: 21}}
 // Execute mechanically
 ```
@@ -215,7 +215,7 @@ Home Assistant has 1395 integrations. We want them.
 1. **Identify API** - Most HA integrations wrap a REST/MQTT/local API
 2. **Find the client library** - Often a Python lib we can replace
 3. **Write Go client** - Or use existing Go lib
-4. **Define protobuf** - API surface for Clawdis
+4. **Define protobuf** - API surface for Clawdbot
 5. **Define metrics** - What to export to Prometheus
 6. **Create dashboard** - Grafana JSON
 7. **Write Nix module** - Config schema, secrets
@@ -319,7 +319,7 @@ HA source: `homeassistant/components/tado/`
 | Config | YAML (runtime, mutable) | Nix (declarative, immutable) |
 | Storage | SQLite (wrong tool) | VictoriaMetrics (right tool) |
 | UI | Lovelace (maintain it yourself) | Grafana (already good) |
-| Control | HA app, web UI | Clawdis, API, grpcurl |
+| Control | HA app, web UI | Clawdbot, API, grpcurl |
 | Plugins | HACS, pip, Docker | Nix flakes |
 | Secrets | YAML plaintext | agenix/sops |
 | Rollback | Hope you have a backup | `nixos-rebuild --rollback` |
