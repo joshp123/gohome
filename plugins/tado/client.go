@@ -37,7 +37,12 @@ func NewClient(cfg Config, decl oauth.Declaration, oauthCfg *configv1.OAuthConfi
 	if err != nil {
 		return nil, err
 	}
-	return NewClientWithStore(cfg, decl, blobStore)
+	client, err := NewClientWithStore(cfg, decl, blobStore)
+	if err != nil {
+		return nil, err
+	}
+	client.oauth.StartWithInterval(context.Background(), oauth.RefreshInterval(oauthCfg))
+	return client, nil
 }
 
 func NewClientWithStore(cfg Config, decl oauth.Declaration, blobStore oauth.BlobStore) (*Client, error) {
@@ -49,7 +54,6 @@ func NewClientWithStore(cfg Config, decl oauth.Declaration, blobStore oauth.Blob
 	if err != nil {
 		return nil, err
 	}
-	manager.Start(context.Background())
 
 	baseURL := strings.TrimSpace(cfg.BaseURL)
 	if baseURL == "" {

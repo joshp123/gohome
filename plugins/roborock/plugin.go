@@ -1,7 +1,10 @@
 package roborock
 
 import (
+	"context"
 	_ "embed"
+	"log"
+	"time"
 
 	"github.com/joshp123/gohome/internal/core"
 	"github.com/joshp123/gohome/internal/oauth"
@@ -25,7 +28,7 @@ type Plugin struct {
 }
 
 // NewPlugin constructs a Roborock plugin from config.
-func NewPlugin(cfg *roborockv1.RoborockConfig, _ *configv1.OAuthConfig) (Plugin, bool) {
+func NewPlugin(cfg *roborockv1.RoborockConfig, oauthCfg *configv1.OAuthConfig) (Plugin, bool) {
 	if cfg == nil {
 		return Plugin{}, false
 	}
@@ -40,7 +43,32 @@ func NewPlugin(cfg *roborockv1.RoborockConfig, _ *configv1.OAuthConfig) (Plugin,
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
 	}
 
+	startRoborockKeepalive(client, oauthCfg)
+
 	return Plugin{client: client, health: core.HealthHealthy}, true
+}
+
+func startRoborockKeepalive(client *Client, oauthCfg *configv1.OAuthConfig) {
+	if client == nil {
+		return
+	}
+	interval := oauth.RefreshInterval(oauthCfg)
+	if interval <= 0 {
+		return
+	}
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			err := client.RefreshHomeData(ctx)
+			cancel()
+			if err != nil {
+				log.Printf("roborock keepalive refresh failed: %v", err)
+			}
+			<-ticker.C
+		}
+	}()
 }
 
 func (p Plugin) ID() string {

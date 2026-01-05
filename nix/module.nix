@@ -50,6 +50,8 @@ let
       blob_prefix: ${textprotoString cfg.oauth.blobPrefix}
       blob_access_key_file: ${textprotoString cfg.oauth.blobAccessKeyFile}
       blob_secret_key_file: ${textprotoString cfg.oauth.blobSecretKeyFile}
+      refresh_enabled: ${if cfg.oauth.refreshEnabled then "true" else "false"}
+      refresh_interval_seconds: ${toString cfg.oauth.refreshIntervalSeconds}
   '' + optionalString (cfg.oauth.blobRegion != null) ''
       blob_region: ${textprotoString cfg.oauth.blobRegion}
   '' + ''
@@ -162,6 +164,18 @@ in
         type = types.nullOr types.str;
         default = null;
         description = "Optional blob region";
+      };
+
+      refreshEnabled = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable OAuth background refresh loop.";
+      };
+
+      refreshIntervalSeconds = mkOption {
+        type = types.int;
+        default = 600;
+        description = "OAuth refresh interval (seconds).";
       };
     };
 
