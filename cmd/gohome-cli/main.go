@@ -20,7 +20,28 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 {
+	args := os.Args[1:]
+	if len(args) == 0 {
+		usage()
+		os.Exit(2)
+	}
+
+	if args[0] == "-h" || args[0] == "--help" {
+		usage()
+		os.Exit(0)
+	}
+
+	jsonOutput := false
+	for len(args) > 0 {
+		if args[0] == "--json" {
+			jsonOutput = true
+			args = args[1:]
+			continue
+		}
+		break
+	}
+
+	if len(args) == 0 {
 		usage()
 		os.Exit(2)
 	}
@@ -35,15 +56,19 @@ func main() {
 	}
 	defer conn.Close()
 
-	switch os.Args[1] {
+	switch args[0] {
 	case "plugins":
-		pluginsCmd(ctx, conn, os.Args[2:])
+		pluginsCmd(ctx, conn, args[1:])
 	case "services":
 		servicesCmd(ctx, conn)
 	case "methods":
-		methodsCmd(ctx, conn, os.Args[2:])
+		methodsCmd(ctx, conn, args[1:])
 	case "call":
-		callCmd(ctx, conn, os.Args[2:])
+		callCmd(ctx, conn, args[1:])
+	case "tado":
+		tadoCmd(ctx, conn, args[1:], jsonOutput)
+	case "roborock":
+		roborockCmd(ctx, conn, args[1:], jsonOutput)
 	default:
 		usage()
 		os.Exit(2)
@@ -193,6 +218,49 @@ func resolveAddr() string {
 	return "gohome:9000"
 }
 
+func resolveHTTPBase() string {
+	if value := os.Getenv("GOHOME_HTTP_BASE"); value != "" {
+		return strings.TrimRight(value, "/")
+	}
+	if value := os.Getenv("GOHOME_HTTP_ADDR"); value != "" {
+		return fmt.Sprintf("http://%s", normalizeHTTPAddr(value))
+	}
+	for _, path := range configSearchPaths() {
+		if addr := httpAddrFromConfig(path); addr != "" {
+			return fmt.Sprintf("http://%s", normalizeHTTPAddr(addr))
+		}
+	}
+	return "http://localhost:8080"
+}
+
+func httpAddrFromConfig(path string) string {
+	cfg, err := config.Load(path)
+	if err != nil || cfg == nil || cfg.Core == nil {
+		return ""
+	}
+	return cfg.Core.HttpAddr
+}
+
+func normalizeHTTPAddr(addr string) string {
+	if strings.HasPrefix(addr, "http://") || strings.HasPrefix(addr, "https://") {
+		return strings.TrimRight(addr, "/")
+	}
+	trimmed := strings.TrimSpace(addr)
+	if trimmed == "" {
+		return "localhost:8080"
+	}
+	if strings.HasPrefix(trimmed, "0.0.0.0:") {
+		return "127.0.0.1:" + strings.TrimPrefix(trimmed, "0.0.0.0:")
+	}
+	if strings.HasPrefix(trimmed, "[::]:") {
+		return "127.0.0.1:" + strings.TrimPrefix(trimmed, "[::]:")
+	}
+	if strings.HasPrefix(trimmed, ":") {
+		return "127.0.0.1" + trimmed
+	}
+	return trimmed
+}
+
 func configSearchPaths() []string {
 	paths := []string{config.DefaultPath}
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
@@ -213,11 +281,16 @@ func usage() {
 	fmt.Println("gohome-cli <command> [args]")
 	fmt.Println("")
 	fmt.Println("Commands:")
+	fmt.Println("  tado <zones|set>")
+	fmt.Println("  roborock <status|rooms|clean|dock|locate|map>")
 	fmt.Println("  plugins list")
 	fmt.Println("  plugins describe <plugin_id>")
 	fmt.Println("  services")
 	fmt.Println("  methods <service>")
 	fmt.Println("  call <service/method> --data '{}' (or pipe JSON via stdin)")
+	fmt.Println("")
+	fmt.Println("Global flags:")
+	fmt.Println("  --json  output raw JSON")
 }
 
 func fatal(action string, err error) {
