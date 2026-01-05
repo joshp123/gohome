@@ -228,7 +228,12 @@ func (c *Client) CleanSegment(ctx context.Context, deviceID string, segments []i
 	if repeats == 0 {
 		repeats = 1
 	}
-	params := []any{segments, repeats}
+	params := []any{
+		map[string]any{
+			"segments": segments,
+			"repeat":   repeats,
+		},
+	}
 	return c.simpleCommand(ctx, deviceID, "app_segment_clean", params)
 }
 
