@@ -141,6 +141,35 @@ message ListSegmentsResponse {
   repeated Segment segments = 1;
 }
 
+message ListRoomsRequest {
+  string device_id = 1;
+}
+
+message Room {
+  string name = 1;
+  uint32 segment_id = 2;
+  string label = 3;
+}
+
+message ListRoomsResponse {
+  repeated Room rooms = 1;
+}
+
+message CleanRoomRequest {
+  string device_id = 1;
+  string room = 2;
+  uint32 repeats = 3;
+  string fan_speed = 4;
+  string mop_mode = 5;
+  string mop_intensity = 6;
+  bool dry_run = 7;
+}
+
+message CleanRoomResponse {
+  uint32 segment_id = 1;
+  string room = 2;
+}
+
 message GoToRequest {
   string device_id = 1;
   int32 x = 2;
@@ -186,6 +215,8 @@ service RoborockService {
   rpc CleanZone(CleanZoneRequest) returns (CleanZoneResponse);
   rpc CleanSegment(CleanSegmentRequest) returns (CleanSegmentResponse);
   rpc ListSegments(ListSegmentsRequest) returns (ListSegmentsResponse);
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+  rpc CleanRoom(CleanRoomRequest) returns (CleanRoomResponse);
   rpc GoTo(GoToRequest) returns (GoToResponse);
   rpc SetDnd(SetDndRequest) returns (SetDndResponse);
   rpc ResetConsumable(ResetConsumableRequest) returns (ResetConsumableResponse);
