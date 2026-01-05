@@ -94,16 +94,27 @@ func NewManager(decl Declaration, bootstrapPath string, blobStore BlobStore) (*M
 }
 
 func (m *Manager) Start(ctx context.Context) {
-	m.refreshIfNeeded(ctx)
+	m.StartWithInterval(ctx, DefaultRefreshInterval)
+}
+
+func (m *Manager) StartWithInterval(ctx context.Context, interval time.Duration) {
+	if interval <= 0 {
+		return
+	}
+	threshold := interval
+	if threshold < 30*time.Second {
+		threshold = 30 * time.Second
+	}
+	m.refreshIfNeeded(ctx, threshold)
 	go func() {
-		ticker := time.NewTicker(30 * time.Second)
+		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				m.refreshIfNeeded(ctx)
+				m.refreshIfNeeded(ctx, threshold)
 			}
 		}
 	}()
@@ -140,9 +151,9 @@ func (m *Manager) TriggerRefresh(ctx context.Context) {
 	}()
 }
 
-func (m *Manager) refreshIfNeeded(ctx context.Context) {
+func (m *Manager) refreshIfNeeded(ctx context.Context, threshold time.Duration) {
 	m.mu.Lock()
-	need := m.accessToken == "" || time.Until(m.expiresAt) <= 30*time.Second
+	need := m.accessToken == "" || time.Until(m.expiresAt) <= threshold
 	if !need || m.refreshInFlight {
 		m.mu.Unlock()
 		return

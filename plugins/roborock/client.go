@@ -393,6 +393,28 @@ func (c *Client) ensureHomeData(ctx context.Context) error {
 	return nil
 }
 
+func (c *Client) RefreshHomeData(ctx context.Context) error {
+	home, err := c.api.GetHomeDataV3(ctx, c.userData)
+	if err != nil {
+		return err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.homeData = home
+	c.devices = make(map[string]HomeDataDevice)
+	for _, dev := range home.Devices {
+		c.devices[dev.DUID] = dev
+	}
+	for _, dev := range home.ReceivedDevices {
+		c.devices[dev.DUID] = dev
+	}
+	c.products = make(map[string]HomeDataProduct)
+	for _, prod := range home.Products {
+		c.products[prod.ID] = prod
+	}
+	return nil
+}
+
 func (c *Client) deviceByID(id string) (HomeDataDevice, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
