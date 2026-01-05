@@ -77,3 +77,17 @@ Notes:
 - The deploy script maps `gohome` to a Tailscale IP (currently `root@100.108.102.95`). Update `scripts/deploy.sh` if the Tailscale IP changes.
 - `infra/tofu/terraform.tfstate` contains the public IP (`outputs.server_ip.value`) for provisioning history only; do not use it for deploys.
 - The current host uses `/root/gohome` (not `/etc/nixos`) and `/root/nix-secrets`. The deploy script detects this and uses `--override-input secrets /root/nix-secrets`.
+- GoHome binaries should be on PATH on the host (via `environment.systemPackages`).
+  - If PATH is missing, use systemd to locate them:
+    - `ssh root@gohome 'systemctl cat gohome | grep -n ExecStart'`
+    - Run the CLI via the ExecStart path, e.g. `ssh root@gohome '<execstart> roborock probe --methods ...'`.
+
+## Bootstrap + Self-Bootstrapping
+
+- The host is expected to have a working checkout at `/root/gohome` (git clone of this repo).
+  - `scripts/deploy.sh` runs `git pull` only if `/root/gohome/.git` exists.
+  - If the host has a tarball or bare tree, the deploy script clones to `/root/gohome-src` and uses that for builds.
+- Bootstrap secrets are stored in the secrets repo and materialized by agenix on the host.
+  - Roborock bootstrap JSON is generated locally, encrypted into `gohome-roborock-bootstrap.age`,
+    and surfaced to GoHome via `services.gohome.plugins.roborock.bootstrapFile`.
+- The deploy script should be the only path to update the remote host; it rebuilds and rolls back on failure.

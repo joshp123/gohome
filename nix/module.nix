@@ -342,5 +342,9 @@ in
       "d /var/lib/gohome 0755 gohome gohome - -"
       "d /var/lib/gohome/dashboards 0755 gohome gohome - -"
     ];
+
+    environment.systemPackages = [
+      gohomePkg
+    ];
   };
 }

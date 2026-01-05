@@ -24,8 +24,8 @@ func roborockMain(args []string) {
 	switch args[0] {
 	case "bootstrap":
 		roborockBootstrapCmd(args[1:])
-	case "probe-camera":
-		roborockProbeCameraCmd(args[1:])
+	case "probe":
+		roborockProbeCmd(args[1:])
 	default:
 		roborockUsage()
 		os.Exit(2)
@@ -37,7 +37,7 @@ func roborockUsage() {
 	fmt.Println("")
 	fmt.Println("Commands:")
 	fmt.Println("  bootstrap --email user@example.com [--code 123456] [--config path] [--bootstrap-file path]")
-	fmt.Println("  probe-camera [--device-id id] [--config path] [--methods name1,name2]")
+	fmt.Println("  probe [--device-id id] [--config path] [--methods name1,name2]")
 }
 
 func roborockBootstrapCmd(args []string) {
@@ -126,28 +126,29 @@ type probeMethod struct {
 	params any
 }
 
-func roborockProbeCameraCmd(args []string) {
-	flags := flag.NewFlagSet("roborock probe-camera", flag.ExitOnError)
+func roborockProbeCmd(args []string) {
+	flags := flag.NewFlagSet("roborock probe", flag.ExitOnError)
 	deviceID := flags.String("device-id", "", "Roborock device id (optional; defaults to first device)")
 	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
 	methods := flags.String("methods", "", "Comma-separated RPC methods to probe (optional)")
+	paramsJSON := flags.String("params", "", "Optional JSON params to pass to each RPC method")
 	timeout := flags.Duration("timeout", 30*time.Second, "Overall probe timeout")
 	_ = flags.Parse(args)
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		fatal("roborock probe-camera", err)
+		fatal("roborock probe", err)
 	}
 	if cfg.Roborock == nil {
-		fatal("roborock probe-camera", fmt.Errorf("roborock config is required"))
+		fatal("roborock probe", fmt.Errorf("roborock config is required"))
 	}
 	roboCfg, err := roborock.ConfigFromProto(cfg.Roborock)
 	if err != nil {
-		fatal("roborock probe-camera", err)
+		fatal("roborock probe", err)
 	}
 	client, err := roborock.NewClient(roboCfg)
 	if err != nil {
-		fatal("roborock probe-camera", err)
+		fatal("roborock probe", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
@@ -156,10 +157,10 @@ func roborockProbeCameraCmd(args []string) {
 	if *deviceID == "" {
 		devices, err := client.Devices(ctx)
 		if err != nil {
-			fatal("roborock probe-camera", err)
+			fatal("roborock probe", err)
 		}
 		if len(devices) == 0 {
-			fatal("roborock probe-camera", fmt.Errorf("no devices found"))
+			fatal("roborock probe", fmt.Errorf("no devices found"))
 		}
 		*deviceID = devices[0].ID
 		fmt.Printf("Using device %s (%s)\n", devices[0].Name, *deviceID)
@@ -188,10 +189,19 @@ func roborockProbeCameraCmd(args []string) {
 		}
 	}
 	if len(probes) == 0 {
-		fatal("roborock probe-camera", fmt.Errorf("no methods to probe"))
+		fatal("roborock probe", fmt.Errorf("no methods to probe"))
+	}
+	var params any
+	if strings.TrimSpace(*paramsJSON) != "" {
+		if err := json.Unmarshal([]byte(*paramsJSON), &params); err != nil {
+			fatal("roborock probe", fmt.Errorf("invalid --params JSON: %w", err))
+		}
 	}
 
 	for _, probe := range probes {
+		if params != nil {
+			probe.params = params
+		}
 		result, err := client.RawRPC(ctx, *deviceID, probe.name, probe.params)
 		if err != nil {
 			fmt.Printf("%s: error: %v\n", probe.name, err)
