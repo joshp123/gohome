@@ -40,6 +40,18 @@
         };
       }
     ) // {
+      clawdbotPlugin = let
+        system = builtins.currentSystem;
+      in {
+        name = "gohome";
+        skills = [ ./skills/gohome ];
+        packages = [ self.packages.${system}.default ];
+        needs = {
+          stateDirs = [];
+          requiredEnv = [];
+        };
+      };
+
       nixosModules.default = import ./nix/module.nix;
 
       nixosConfigurations =
