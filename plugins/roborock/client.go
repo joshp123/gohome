@@ -24,19 +24,20 @@ type BootstrapState struct {
 
 // Client talks to Roborock cloud/local APIs.
 type Client struct {
-	cfg       Config
-	bootstrap BootstrapState
-	userData  *UserData
-	api       *RoborockApiClient
-	mu        sync.Mutex
-	homeData  *HomeData
-	devices   map[string]HomeDataDevice
-	products  map[string]HomeDataProduct
-	channels  map[string]*LocalChannel
-	ipCache   map[string]string
-	overrides map[string]string
-	mqtt      *mqttClient
-	mapCache  map[string]mapSnapshot
+	cfg             Config
+	bootstrap       BootstrapState
+	userData        *UserData
+	api             *RoborockApiClient
+	mu              sync.Mutex
+	homeData        *HomeData
+	devices         map[string]HomeDataDevice
+	products        map[string]HomeDataProduct
+	channels        map[string]*LocalChannel
+	ipCache         map[string]string
+	overrides       map[string]string
+	mqtt            *mqttClient
+	mapCache        map[string]mapSnapshot
+	defaultProfiles map[string]profileCache
 }
 
 func LoadBootstrap(path string) (BootstrapState, error) {
@@ -79,16 +80,17 @@ func NewClient(cfg Config) (*Client, error) {
 	api := NewRoborockApiClient(bootstrap.Username, bootstrap.BaseURL)
 
 	return &Client{
-		cfg:       cfg,
-		bootstrap: bootstrap,
-		userData:  userData,
-		api:       api,
-		devices:   make(map[string]HomeDataDevice),
-		products:  make(map[string]HomeDataProduct),
-		channels:  make(map[string]*LocalChannel),
-		ipCache:   make(map[string]string),
-		overrides: cfg.IPOverrides,
-		mapCache:  make(map[string]mapSnapshot),
+		cfg:             cfg,
+		bootstrap:       bootstrap,
+		userData:        userData,
+		api:             api,
+		devices:         make(map[string]HomeDataDevice),
+		products:        make(map[string]HomeDataProduct),
+		channels:        make(map[string]*LocalChannel),
+		ipCache:         make(map[string]string),
+		overrides:       cfg.IPOverrides,
+		mapCache:        make(map[string]mapSnapshot),
+		defaultProfiles: make(map[string]profileCache),
 	}, nil
 }
 
@@ -235,6 +237,102 @@ func (c *Client) CleanSegment(ctx context.Context, deviceID string, segments []i
 		},
 	}
 	return c.simpleCommand(ctx, deviceID, "app_segment_clean", params)
+}
+
+type profileCache struct {
+	profile CleanProfile
+	source  string
+	at      time.Time
+}
+
+func (c *Client) DefaultCleanProfile(ctx context.Context, deviceID string) (CleanProfile, string, bool, error) {
+	if deviceID == "" {
+		return CleanProfile{}, "", false, fmt.Errorf("device id required for default profile")
+	}
+
+	c.mu.Lock()
+	if cache, ok := c.defaultProfiles[deviceID]; ok {
+		if time.Since(cache.at) < 5*time.Minute && cache.profile.HasAny() {
+			c.mu.Unlock()
+			return cache.profile, cache.source, true, nil
+		}
+	}
+	c.mu.Unlock()
+
+	profile, ok, err := c.profileFromSchedule(ctx, deviceID)
+	if err != nil {
+		ok = false
+	}
+	source := "schedule"
+	if !ok || !profile.HasAny() {
+		profile = c.cfg.DefaultProfile
+		ok = profile.HasAny()
+		source = "config"
+		err = nil
+	}
+	if ok {
+		c.mu.Lock()
+		c.defaultProfiles[deviceID] = profileCache{profile: profile, source: source, at: time.Now()}
+		c.mu.Unlock()
+	}
+	return profile, source, ok, err
+}
+
+func (c *Client) profileFromSchedule(ctx context.Context, deviceID string) (CleanProfile, bool, error) {
+	result, err := c.RawRPC(ctx, deviceID, "get_timer", nil)
+	if err != nil {
+		return CleanProfile{}, false, err
+	}
+	profile, ok := parseProfileFromTimers(result)
+	return profile, ok, nil
+}
+
+func parseProfileFromTimers(value any) (CleanProfile, bool) {
+	timers, ok := value.([]any)
+	if !ok {
+		return CleanProfile{}, false
+	}
+	for _, timer := range timers {
+		entry, ok := timer.([]any)
+		if !ok || len(entry) < 3 {
+			continue
+		}
+		status, _ := entry[1].(string)
+		if status != "on" {
+			continue
+		}
+		schedule, ok := entry[2].([]any)
+		if !ok || len(schedule) < 2 {
+			continue
+		}
+		action, ok := schedule[1].([]any)
+		if !ok || len(action) < 2 {
+			continue
+		}
+		actionName, _ := action[0].(string)
+		if actionName != "start_clean" {
+			continue
+		}
+		params, ok := normalizeMap(action[1])
+		if !ok {
+			continue
+		}
+		profile := profileFromParams(params)
+		if profile.HasAny() {
+			return profile, true
+		}
+	}
+	return CleanProfile{}, false
+}
+
+func profileFromParams(params map[string]any) CleanProfile {
+	return CleanProfile{
+		FanPower:       intFrom(params["fan_power"]),
+		MopMode:        intFrom(params["mop_mode"]),
+		MopIntensity:   intFrom(params["water_box_mode"]),
+		Repeat:         intFrom(params["repeat"]),
+		CleanOrderMode: intFrom(params["clean_order_mode"]),
+	}
 }
 
 func (c *Client) GoTo(ctx context.Context, deviceID string, x int, y int) error {

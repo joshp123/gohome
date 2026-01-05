@@ -37,6 +37,19 @@ let
       }
     '') attrs);
 
+  textprotoProfile = field: profile: let
+    lines = []
+      ++ lib.optional (profile.fanPower != null) "      fan_power: ${toString profile.fanPower}"
+      ++ lib.optional (profile.mopMode != null) "      mop_mode: ${toString profile.mopMode}"
+      ++ lib.optional (profile.mopIntensity != null) "      mop_intensity: ${toString profile.mopIntensity}"
+      ++ lib.optional (profile.repeat != null) "      repeat: ${toString profile.repeat}"
+      ++ lib.optional (profile.cleanOrderMode != null) "      clean_order_mode: ${toString profile.cleanOrderMode}";
+  in lib.optionalString (lines != []) ''
+      ${field} {
+${lib.concatStringsSep "\n" lines}
+      }
+  '';
+
   configText = ''
     schema_version: 1
     core {
@@ -83,6 +96,8 @@ let
 ${textprotoMapString "device_ip_overrides" cfg.plugins.roborock.deviceIpOverrides}
   '' + optionalString (cfg.plugins.roborock.segmentNames != {}) ''
 ${textprotoMapUIntString "segment_names" cfg.plugins.roborock.segmentNames}
+  '' + optionalString (cfg.plugins.roborock.defaultProfile != null) ''
+${textprotoProfile "default_profile" cfg.plugins.roborock.defaultProfile}
   '' + ''
     }
   '';
@@ -260,6 +275,40 @@ in
             type = types.attrsOf types.str;
             default = { };
             description = "Optional map of segment_id -> human room name (numeric keys, e.g., \"18\" = \"kitchen\")";
+          };
+
+          defaultProfile = mkOption {
+            type = types.nullOr (types.submodule {
+              options = {
+                fanPower = mkOption {
+                  type = types.nullOr types.int;
+                  default = null;
+                  description = "Optional default fan power (numeric code) for smart plan reuse.";
+                };
+                mopMode = mkOption {
+                  type = types.nullOr types.int;
+                  default = null;
+                  description = "Optional default mop mode (numeric code) for smart plan reuse.";
+                };
+                mopIntensity = mkOption {
+                  type = types.nullOr types.int;
+                  default = null;
+                  description = "Optional default mop intensity (numeric code) for smart plan reuse.";
+                };
+                repeat = mkOption {
+                  type = types.nullOr types.int;
+                  default = null;
+                  description = "Optional default repeat count for smart plan reuse.";
+                };
+                cleanOrderMode = mkOption {
+                  type = types.nullOr types.int;
+                  default = null;
+                  description = "Optional clean order mode (numeric code) for smart plan reuse.";
+                };
+              };
+            });
+            default = null;
+            description = "Optional default clean profile (fan/mop/repeat) used when no overrides are provided.";
           };
         };
       });
