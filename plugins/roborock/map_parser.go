@@ -17,6 +17,7 @@ const (
 	mapBlockImage     = 2
 	mapBlockCarpetMap = 17
 	mapBlockRobot     = 8
+	mapBlockTrace     = 20
 )
 
 type mapImage struct {
@@ -51,7 +52,7 @@ func (s segmentSummary) centroidY() int {
 	return int(math.Round(float64(s.sumY) / float64(s.pixelCount)))
 }
 
-func parseMapData(raw []byte, label string, labelMode string, labels map[uint32]string) (mapImage, []segmentSummary, error) {
+func parseMapData(raw []byte, label string, labelMode string, labels map[uint32]string, trace []mapPoint) (mapImage, []segmentSummary, error) {
 	data := raw
 	if len(raw) >= 2 && raw[0] == 0x1f && raw[1] == 0x8b {
 		decompressed, err := gzipDecompress(raw)
@@ -71,7 +72,7 @@ func parseMapData(raw []byte, label string, labelMode string, labels map[uint32]
 
 	segments := extractSegments(*imageBlock)
 	applySegmentLabels(segments, labels)
-	pngBytes, width, height, err := renderMapPNG(*imageBlock, robotPos, carpetMap, label, segments, labelMode)
+	pngBytes, width, height, err := renderMapPNG(*imageBlock, robotPos, carpetMap, label, segments, labelMode, trace)
 	if err != nil {
 		return mapImage{}, nil, err
 	}
@@ -167,6 +168,60 @@ func extractMapImageBlock(raw []byte) (*mapImageBlock, *mapPoint, map[int]struct
 	return imageBlock, robotPos, carpetMap, nil
 }
 
+func extractTrace(raw []byte) ([]mapPoint, error) {
+	data := raw
+	if len(raw) >= 2 && raw[0] == 0x1f && raw[1] == 0x8b {
+		decompressed, err := gzipDecompress(raw)
+		if err != nil {
+			return nil, err
+		}
+		data = decompressed
+	}
+	if len(data) < 4 {
+		return nil, fmt.Errorf("map payload too short")
+	}
+	mapHeaderLen := int(int16le(data, 0x02))
+	if mapHeaderLen <= 0 || mapHeaderLen >= len(data) {
+		return nil, fmt.Errorf("invalid map header length")
+	}
+	blockStart := mapHeaderLen
+	for blockStart < len(data) {
+		if blockStart+8 > len(data) {
+			break
+		}
+		blockHeaderLen := int(int16le(data, blockStart+0x02))
+		if blockHeaderLen == 0 || blockStart+blockHeaderLen > len(data) {
+			break
+		}
+		header := data[blockStart : blockStart+blockHeaderLen]
+		blockType := int(int16le(header, 0x00))
+		blockDataLen := int(int32le(header, 0x04))
+		blockDataStart := blockStart + blockHeaderLen
+		if blockDataStart+blockDataLen > len(data) || blockDataLen < 0 {
+			break
+		}
+		payload := data[blockDataStart : blockDataStart+blockDataLen]
+		if blockType == mapBlockTrace {
+			return parseTraceBlock(payload), nil
+		}
+		blockStart = blockStart + blockDataLen + int(byteToInt8(data[blockStart+2]))
+	}
+	return nil, nil
+}
+
+func parseTraceBlock(data []byte) []mapPoint {
+	if len(data) < 4 {
+		return nil
+	}
+	points := make([]mapPoint, 0, len(data)/4)
+	for i := 0; i+4 <= len(data); i += 4 {
+		x := int(int16le(data, i))
+		y := int(int16le(data, i+2))
+		points = append(points, mapPoint{x: x, y: y})
+	}
+	return points
+}
+
 func extractSegments(block mapImageBlock) []segmentSummary {
 	width := block.width
 	height := block.height
@@ -225,7 +280,7 @@ func extractSegments(block mapImageBlock) []segmentSummary {
 	return result
 }
 
-func renderMapPNG(block mapImageBlock, robot *mapPoint, carpetMap map[int]struct{}, label string, segments []segmentSummary, labelMode string) ([]byte, int, int, error) {
+func renderMapPNG(block mapImageBlock, robot *mapPoint, carpetMap map[int]struct{}, label string, segments []segmentSummary, labelMode string, trace []mapPoint) ([]byte, int, int, error) {
 	width := block.width
 	height := block.height
 	if width == 0 || height == 0 {
@@ -266,6 +321,10 @@ func renderMapPNG(block mapImageBlock, robot *mapPoint, carpetMap map[int]struct
 			}
 			img.SetRGBA(x, y, c)
 		}
+	}
+
+	if len(trace) > 1 {
+		drawTrace(img, width, height, trace)
 	}
 
 	if robot != nil {
@@ -473,6 +532,62 @@ func drawSegmentLabels(img *image.RGBA, segments []segmentSummary, labelMode str
 		}
 		drawSegmentLabel(img, seg.centroidX(), seg.centroidY(), label)
 	}
+}
+
+func drawTrace(img *image.RGBA, width, height int, trace []mapPoint) {
+	if len(trace) < 2 {
+		return
+	}
+	col := colorTrace()
+	for i := 1; i < len(trace); i++ {
+		x0 := trace[i-1].x
+		y0 := height - trace[i-1].y - 1
+		x1 := trace[i].x
+		y1 := height - trace[i].y - 1
+		drawLine(img, x0, y0, x1, y1, col)
+	}
+}
+
+func drawLine(img *image.RGBA, x0, y0, x1, y1 int, col color.RGBA) {
+	dx := absInt(x1 - x0)
+	dy := -absInt(y1 - y0)
+	sx := -1
+	if x0 < x1 {
+		sx = 1
+	}
+	sy := -1
+	if y0 < y1 {
+		sy = 1
+	}
+	err := dx + dy
+	for {
+		if x0 >= 0 && y0 >= 0 && x0 < img.Bounds().Dx() && y0 < img.Bounds().Dy() {
+			img.SetRGBA(x0, y0, col)
+		}
+		if x0 == x1 && y0 == y1 {
+			break
+		}
+		e2 := 2 * err
+		if e2 >= dy {
+			err += dy
+			x0 += sx
+		}
+		if e2 <= dx {
+			err += dx
+			y0 += sy
+		}
+	}
+}
+
+func absInt(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
+}
+
+func colorTrace() color.RGBA {
+	return color.RGBA{R: 255, G: 64, B: 64, A: 255}
 }
 
 func drawSegmentLabel(img *image.RGBA, x, y int, label string) {
