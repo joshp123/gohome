@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/jhump/protoreflect/grpcreflect"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/joshp123/gohome/internal/config"
 	registryv1 "github.com/joshp123/gohome/proto/gen/registry/v1"
 	"google.golang.org/grpc"
 )
@@ -23,7 +25,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	addr := envOrDefault("GOHOME_GRPC_ADDR", "127.0.0.1:9000")
+	addr := resolveAddr()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -177,6 +179,34 @@ func envOrDefault(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func resolveAddr() string {
+	if value := os.Getenv("GOHOME_GRPC_ADDR"); value != "" {
+		return value
+	}
+	for _, path := range configSearchPaths() {
+		if addr := addrFromConfig(path); addr != "" {
+			return addr
+		}
+	}
+	return "gohome:9000"
+}
+
+func configSearchPaths() []string {
+	paths := []string{config.DefaultPath}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		paths = append(paths, filepath.Join(home, ".config", "gohome", "config.pbtxt"))
+	}
+	return paths
+}
+
+func addrFromConfig(path string) string {
+	cfg, err := config.Load(path)
+	if err != nil || cfg == nil || cfg.Core == nil {
+		return ""
+	}
+	return cfg.Core.GrpcAddr
 }
 
 func usage() {
