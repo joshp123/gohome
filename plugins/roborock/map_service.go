@@ -3,6 +3,7 @@ package roborock
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -64,6 +65,9 @@ func (c *Client) mapSnapshot(ctx context.Context, deviceID string, labelMode str
 	parsed, segments, err := parseMapData(data, device.Name, labelMode, c.cfg.SegmentNames)
 	if err != nil {
 		return mapImage{}, nil, err
+	}
+	if len(segments) == 0 {
+		log.Printf("roborock map snapshot has 0 segments (device=%s data_bytes=%d)", device.Name, len(data))
 	}
 	c.storeMap(deviceID, data, parsed, segments)
 	return parsed, segments, nil
