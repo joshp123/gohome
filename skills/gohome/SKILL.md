@@ -75,6 +75,23 @@ gohome-cli roborock clean kitchen
 gohome-cli roborock map --labels names
 ```
 
+## Sending maps to users (Telegram/messaging)
+
+When user asks for a map, send it as an image they can see inline. Use the MEDIA: syntax with the gohome map URL:
+
+```
+MEDIA:http://gohome:8080/roborock/map.png?device_name=Roborock+Qrevo+S&labels=names
+
+Robot on dock in hallway. Battery 100%.
+```
+
+This sends the map image directly in the chat. Options:
+- `labels=names` — room names (recommended)
+- `labels=segments` — segment IDs
+- no labels param — clean map
+
+Do NOT just describe the map or show it in a code block — send it as a MEDIA: image so users can see it.
+
 Tado:
 
 ```sh
