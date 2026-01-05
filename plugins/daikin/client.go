@@ -55,7 +55,7 @@ func NewClient(cfg Config, decl oauth.Declaration, rateDecl rate.Declaration, oa
 	if err != nil {
 		return nil, err
 	}
-	manager.Start(context.Background())
+	manager.StartWithInterval(context.Background(), oauth.RefreshInterval(oauthCfg))
 
 	baseURL := strings.TrimSpace(cfg.BaseURL)
 	if baseURL == "" {

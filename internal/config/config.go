@@ -5,17 +5,19 @@ import (
 	"os"
 
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 
 	configv1 "github.com/joshp123/gohome/proto/gen/config/v1"
 )
 
 const (
-	SchemaVersion       = 1
-	DefaultPath         = "/etc/gohome/config.pbtxt"
-	DefaultGRPCAddr     = "0.0.0.0:9000"
-	DefaultHTTPAddr     = "0.0.0.0:8080"
-	DefaultDashboardDir = "/var/lib/gohome/dashboards"
-	DefaultOAuthPrefix  = "gohome/oauth"
+	SchemaVersion                      = 1
+	DefaultPath                        = "/etc/gohome/config.pbtxt"
+	DefaultGRPCAddr                    = "0.0.0.0:9000"
+	DefaultHTTPAddr                    = "0.0.0.0:8080"
+	DefaultDashboardDir                = "/var/lib/gohome/dashboards"
+	DefaultOAuthPrefix                 = "gohome/oauth"
+	DefaultOAuthRefreshIntervalSeconds = 600
 )
 
 // Load parses the textproto config file, applies defaults, and validates.
@@ -56,6 +58,12 @@ func applyDefaults(cfg *configv1.Config) {
 	}
 	if cfg.Oauth.BlobPrefix == "" {
 		cfg.Oauth.BlobPrefix = DefaultOAuthPrefix
+	}
+	if cfg.Oauth.RefreshEnabled == nil {
+		cfg.Oauth.RefreshEnabled = proto.Bool(true)
+	}
+	if cfg.Oauth.RefreshIntervalSeconds == 0 {
+		cfg.Oauth.RefreshIntervalSeconds = DefaultOAuthRefreshIntervalSeconds
 	}
 }
 

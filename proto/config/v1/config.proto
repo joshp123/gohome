@@ -22,6 +22,8 @@ message OAuthConfig {
   string blob_access_key_file = 4;
   string blob_secret_key_file = 5;
   string blob_region = 6;
+  optional bool refresh_enabled = 7;
+  uint32 refresh_interval_seconds = 8;
 }
 
 message Config {
