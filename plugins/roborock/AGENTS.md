@@ -48,6 +48,14 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
   - Time format: `HH:MM` (24-hour).
 - `ResetConsumable`: reset a named consumable counter.
 
+## CLI quick use
+```
+gohome-cli roborock status
+gohome-cli roborock rooms
+gohome-cli roborock clean kitchen
+gohome-cli roborock map --labels names
+```
+
 ## State
 Metrics:
 - `gohome_roborock_scrape_success`
