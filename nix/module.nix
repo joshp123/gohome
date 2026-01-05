@@ -21,10 +21,18 @@ let
     replaceStrings [ "\\" "\"" "\n" "\r" "\t" ] [ "\\\\" "\\\"" "\\n" "\\r" "\\t" ] (toString value);
 
   textprotoString = value: "\"${escapeTextproto value}\"";
-  textprotoMapString = attrs:
+  textprotoMapString = field: attrs:
     lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: ''
-      device_ip_overrides {
+      ${field} {
         key: ${textprotoString k}
+        value: ${textprotoString v}
+      }
+    '') attrs);
+
+  textprotoMapUIntString = field: attrs:
+    lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: ''
+      ${field} {
+        key: ${k}
         value: ${textprotoString v}
       }
     '') attrs);
@@ -70,7 +78,9 @@ let
       bootstrap_file: ${textprotoString cfg.plugins.roborock.bootstrapFile}
       cloud_fallback: ${if cfg.plugins.roborock.cloudFallback then "true" else "false"}
   '' + optionalString (cfg.plugins.roborock.deviceIpOverrides != {}) ''
-${textprotoMapString cfg.plugins.roborock.deviceIpOverrides}
+${textprotoMapString "device_ip_overrides" cfg.plugins.roborock.deviceIpOverrides}
+  '' + optionalString (cfg.plugins.roborock.segmentNames != {}) ''
+${textprotoMapUIntString "segment_names" cfg.plugins.roborock.segmentNames}
   '' + ''
     }
   '';
@@ -230,6 +240,12 @@ in
             type = types.attrsOf types.str;
             default = { };
             description = "Optional map of device_id -> LAN IP for local TCP without UDP broadcast";
+          };
+
+          segmentNames = mkOption {
+            type = types.attrsOf types.str;
+            default = { };
+            description = "Optional map of segment_id -> human room name (numeric keys, e.g., \"18\" = \"kitchen\")";
           };
         };
       });

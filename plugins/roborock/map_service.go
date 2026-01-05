@@ -9,56 +9,95 @@ import (
 const mapRefreshInterval = 5 * time.Second
 
 type mapSnapshot struct {
+	data      []byte
 	image     mapImage
+	segments  []segmentSummary
 	fetchedAt time.Time
 }
 
 func (c *Client) MapSnapshot(ctx context.Context, deviceID string) (mapImage, error) {
+	img, _, err := c.mapSnapshot(ctx, deviceID, "")
+	return img, err
+}
+
+func (c *Client) MapSnapshotWithLabels(ctx context.Context, deviceID string, labelMode string) (mapImage, error) {
+	img, _, err := c.mapSnapshot(ctx, deviceID, labelMode)
+	return img, err
+}
+
+func (c *Client) SegmentsSnapshot(ctx context.Context, deviceID string) ([]segmentSummary, error) {
+	_, segments, err := c.mapSnapshot(ctx, deviceID, "")
+	return segments, err
+}
+
+func (c *Client) mapSnapshot(ctx context.Context, deviceID string, labelMode string) (mapImage, []segmentSummary, error) {
 	if err := c.ensureHomeData(ctx); err != nil {
-		return mapImage{}, err
+		return mapImage{}, nil, err
 	}
 	if deviceID == "" {
 		devs, err := c.Devices(ctx)
 		if err != nil {
-			return mapImage{}, err
+			return mapImage{}, nil, err
 		}
 		if len(devs) == 0 {
-			return mapImage{}, fmt.Errorf("no devices available")
+			return mapImage{}, nil, fmt.Errorf("no devices available")
 		}
 		deviceID = devs[0].ID
 	}
-	if img, ok := c.cachedMap(deviceID); ok {
-		return img, nil
+	if snap, ok := c.cachedMap(deviceID); ok && labelMode == "" {
+		return snap.image, snap.segments, nil
 	}
 	device, err := c.deviceByID(deviceID)
 	if err != nil {
-		return mapImage{}, err
+		return mapImage{}, nil, err
 	}
-	data, err := c.fetchMapViaMQTT(ctx, device)
+	var data []byte
+	if snap, ok := c.cachedMap(deviceID); ok {
+		data = snap.data
+	}
+	if len(data) == 0 {
+		data, err = c.fetchMapViaMQTT(ctx, device)
+		if err != nil {
+			return mapImage{}, nil, err
+		}
+	}
+	parsed, segments, err := parseMapData(data, device.Name, labelMode, c.cfg.SegmentNames)
 	if err != nil {
-		return mapImage{}, err
+		return mapImage{}, nil, err
 	}
-	parsed, err := parseMapImage(data)
-	if err != nil {
-		return mapImage{}, err
-	}
-	c.storeMap(deviceID, parsed)
-	return parsed, nil
+	c.storeMap(deviceID, data, parsed, segments)
+	return parsed, segments, nil
 }
 
-func (c *Client) cachedMap(deviceID string) (mapImage, bool) {
+func (c *Client) cachedMap(deviceID string) (mapSnapshot, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if entry, ok := c.mapCache[deviceID]; ok {
 		if time.Since(entry.fetchedAt) < mapRefreshInterval {
-			return entry.image, true
+			return entry, true
 		}
 	}
-	return mapImage{}, false
+	return mapSnapshot{}, false
 }
 
-func (c *Client) storeMap(deviceID string, img mapImage) {
+func (c *Client) storeMap(deviceID string, data []byte, img mapImage, segments []segmentSummary) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.mapCache[deviceID] = mapSnapshot{image: img, fetchedAt: time.Now()}
+	c.mapCache[deviceID] = mapSnapshot{
+		data:      data,
+		image:     img,
+		segments:  segments,
+		fetchedAt: time.Now(),
+	}
+}
+
+func applySegmentLabels(segments []segmentSummary, labels map[uint32]string) {
+	if len(labels) == 0 {
+		return
+	}
+	for i := range segments {
+		if label, ok := labels[uint32(segments[i].id)]; ok {
+			segments[i].label = label
+		}
+	}
 }

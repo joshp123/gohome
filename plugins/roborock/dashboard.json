@@ -145,7 +145,7 @@
       "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 },
       "id": 7,
       "options": {
-        "content": "### Live Map\n\n![map](http://localhost:8080/roborock/map.png?device_name=$map_device)\n\nIf the map is blank, ensure the vacuum has completed at least one run.",
+        "content": "### Live Map\n\n![map](http://localhost:8080/roborock/map.png?device_name=$map_device)\n\nSegment IDs overlay:\n`http://localhost:8080/roborock/map.png?device_name=$map_device&labels=segments`\n\nRoom names overlay:\n`http://localhost:8080/roborock/map.png?device_name=$map_device&labels=names`\n\nIf the map is blank, ensure the vacuum has completed at least one run.",
         "mode": "markdown"
       },
       "title": "Live Map",

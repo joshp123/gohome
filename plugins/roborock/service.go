@@ -3,6 +3,7 @@ package roborock
 import (
 	context "context"
 	"errors"
+	"fmt"
 	"time"
 
 	roborockv1 "github.com/joshp123/gohome/proto/gen/plugins/roborock/v1"
@@ -183,6 +184,21 @@ func (s *service) CleanSegment(ctx context.Context, req *roborockv1.CleanSegment
 	return &roborockv1.CleanSegmentResponse{}, nil
 }
 
+func (s *service) ListSegments(ctx context.Context, req *roborockv1.ListSegmentsRequest) (*roborockv1.ListSegmentsResponse, error) {
+	if err := s.requireDevice(req.GetDeviceId()); err != nil {
+		return nil, err
+	}
+	segments, err := s.client.SegmentsSnapshot(ctx, req.GetDeviceId())
+	if err != nil {
+		return nil, mapClientError("list segments", err)
+	}
+	resp := &roborockv1.ListSegmentsResponse{Segments: make([]*roborockv1.Segment, 0, len(segments))}
+	for _, seg := range segments {
+		resp.Segments = append(resp.Segments, mapSegment(seg))
+	}
+	return resp, nil
+}
+
 func (s *service) GoTo(ctx context.Context, req *roborockv1.GoToRequest) (*roborockv1.GoToResponse, error) {
 	if err := s.requireDevice(req.GetDeviceId()); err != nil {
 		return nil, err
@@ -256,6 +272,24 @@ func mapStatus(statusData Status) *roborockv1.DeviceStatus {
 		Charging:                      statusData.Charging,
 		LastCleanStart:                formatTimestamp(statusData.LastCleanStart),
 		LastCleanEnd:                  formatTimestamp(statusData.LastCleanEnd),
+	}
+}
+
+func mapSegment(seg segmentSummary) *roborockv1.Segment {
+	label := fmt.Sprintf("segment_%d", seg.id)
+	if seg.label != "" {
+		label = seg.label
+	}
+	return &roborockv1.Segment{
+		Id:         uint32(seg.id),
+		PixelCount: uint32(seg.pixelCount),
+		CentroidX:  int32(seg.centroidX()),
+		CentroidY:  int32(seg.centroidY()),
+		MinX:       int32(seg.minX),
+		MinY:       int32(seg.minY),
+		MaxX:       int32(seg.maxX),
+		MaxY:       int32(seg.maxY),
+		Label:      label,
 	}
 }
 
