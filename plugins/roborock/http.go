@@ -3,6 +3,7 @@ package roborock
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/joshp123/gohome/internal/core"
@@ -35,7 +36,14 @@ func (p Plugin) RegisterHTTP(mux *http.ServeMux) {
 			}
 		}
 
-		img, err := p.client.MapSnapshot(ctx, deviceID)
+		labelMode := labelModeFromQuery(r.URL.Query().Get("labels"))
+		var img mapImage
+		var err error
+		if labelMode == "" {
+			img, err = p.client.MapSnapshot(ctx, deviceID)
+		} else {
+			img, err = p.client.MapSnapshotWithLabels(ctx, deviceID, labelMode)
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -45,4 +53,19 @@ func (p Plugin) RegisterHTTP(mux *http.ServeMux) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(img.png)
 	})
+}
+
+func labelModeFromQuery(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	for _, part := range strings.Split(raw, ",") {
+		switch strings.TrimSpace(part) {
+		case "names":
+			return "names"
+		case "segments":
+			return "segments"
+		}
+	}
+	return ""
 }

@@ -11,6 +11,7 @@ type Config struct {
 	BootstrapFile string
 	CloudFallback bool
 	IPOverrides   map[string]string
+	SegmentNames  map[uint32]string
 }
 
 func ConfigFromProto(cfg *roborockv1.RoborockConfig) (Config, error) {
@@ -25,5 +26,6 @@ func ConfigFromProto(cfg *roborockv1.RoborockConfig) (Config, error) {
 		BootstrapFile: cfg.BootstrapFile,
 		CloudFallback: cfg.CloudFallback,
 		IPOverrides:   cfg.DeviceIpOverrides,
+		SegmentNames:  cfg.SegmentNames,
 	}, nil
 }

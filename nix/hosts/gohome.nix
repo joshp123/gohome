@@ -70,6 +70,13 @@
       deviceIpOverrides = {
         "6tsh41HE1qxgMcVBbGByfv" = "192.168.1.18";
       };
+      segmentNames = {
+        "16" = "living_room";
+        "17" = "pantry";
+        "18" = "kitchen";
+        "19" = "hallway";
+        "21" = "study";
+      };
     };
 
     tailscale.authKeyFile = config.age.secrets.tailscale-authkey.path;

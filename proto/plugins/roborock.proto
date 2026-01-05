@@ -121,6 +121,26 @@ message CleanSegmentRequest {
 
 message CleanSegmentResponse {}
 
+message ListSegmentsRequest {
+  string device_id = 1;
+}
+
+message Segment {
+  uint32 id = 1;
+  uint32 pixel_count = 2;
+  int32 centroid_x = 3;
+  int32 centroid_y = 4;
+  int32 min_x = 5;
+  int32 min_y = 6;
+  int32 max_x = 7;
+  int32 max_y = 8;
+  string label = 9;
+}
+
+message ListSegmentsResponse {
+  repeated Segment segments = 1;
+}
+
 message GoToRequest {
   string device_id = 1;
   int32 x = 2;
@@ -149,6 +169,7 @@ message RoborockConfig {
   string bootstrap_file = 1;
   bool cloud_fallback = 2;
   map<string, string> device_ip_overrides = 3;
+  map<uint32, string> segment_names = 4;
 }
 
 service RoborockService {
@@ -164,6 +185,7 @@ service RoborockService {
   rpc SetMopIntensity(SetMopIntensityRequest) returns (SetMopIntensityResponse);
   rpc CleanZone(CleanZoneRequest) returns (CleanZoneResponse);
   rpc CleanSegment(CleanSegmentRequest) returns (CleanSegmentResponse);
+  rpc ListSegments(ListSegmentsRequest) returns (ListSegmentsResponse);
   rpc GoTo(GoToRequest) returns (GoToResponse);
   rpc SetDnd(SetDndRequest) returns (SetDndResponse);
   rpc ResetConsumable(ResetConsumableRequest) returns (ResetConsumableResponse);
