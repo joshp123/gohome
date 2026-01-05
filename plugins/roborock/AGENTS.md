@@ -25,6 +25,7 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
 - HTTP endpoint: `http://<gohome-host>:8080/roborock/map.png?device_name=<device>`
 - Add `labels=segments` to overlay segment IDs.
 - Add `labels=names` to overlay configured room names.
+- Add `path=true` to overlay the cleaning trace (default on).
 - Map refresh interval is 5 seconds (cached).
 
 ## Methods
@@ -53,7 +54,7 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
 gohome-cli roborock status
 gohome-cli roborock rooms
 gohome-cli roborock clean kitchen
-gohome-cli roborock map --labels names
+gohome-cli roborock map --labels names --path
 ```
 
 ## State

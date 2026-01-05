@@ -37,13 +37,13 @@ func (p Plugin) RegisterHTTP(mux *http.ServeMux) {
 		}
 
 		labelMode := labelModeFromQuery(r.URL.Query().Get("labels"))
+		withTrace := boolFromQueryDefault(r.URL.Query().Get("path"), true)
+		if r.URL.Query().Get("trace") != "" {
+			withTrace = boolFromQueryDefault(r.URL.Query().Get("trace"), withTrace)
+		}
 		var img mapImage
 		var err error
-		if labelMode == "" {
-			img, err = p.client.MapSnapshot(ctx, deviceID)
-		} else {
-			img, err = p.client.MapSnapshotWithLabels(ctx, deviceID, labelMode)
-		}
+		img, err = p.client.MapSnapshotWithOptions(ctx, deviceID, labelMode, withTrace)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -68,4 +68,18 @@ func labelModeFromQuery(raw string) string {
 		}
 	}
 	return ""
+}
+
+func boolFromQueryDefault(raw string, fallback bool) bool {
+	if raw == "" {
+		return fallback
+	}
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
 }
