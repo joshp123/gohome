@@ -165,6 +165,15 @@ func (s *service) CleanZone(ctx context.Context, req *roborockv1.CleanZoneReques
 	if err != nil {
 		return nil, err
 	}
+	repeats := int(req.GetRepeats())
+	if repeats == 0 {
+		if profile, source, ok := s.defaultProfile(ctx, deviceID); ok {
+			repeats = profile.Repeat
+			if err := s.applyProfileSettings(ctx, deviceID, profile, source); err != nil {
+				return nil, mapClientError("apply clean profile", err)
+			}
+		}
+	}
 	if len(req.GetZones()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "zones are required")
 	}
@@ -172,7 +181,7 @@ func (s *service) CleanZone(ctx context.Context, req *roborockv1.CleanZoneReques
 	for _, zone := range req.GetZones() {
 		zones = append(zones, Zone{X1: int(zone.GetX1()), Y1: int(zone.GetY1()), X2: int(zone.GetX2()), Y2: int(zone.GetY2())})
 	}
-	if err := s.client.CleanZone(ctx, deviceID, zones, int(req.GetRepeats())); err != nil {
+	if err := s.client.CleanZone(ctx, deviceID, zones, repeats); err != nil {
 		return nil, mapClientError("clean zone", err)
 	}
 	return &roborockv1.CleanZoneResponse{}, nil
@@ -183,6 +192,15 @@ func (s *service) CleanSegment(ctx context.Context, req *roborockv1.CleanSegment
 	if err != nil {
 		return nil, err
 	}
+	repeats := int(req.GetRepeats())
+	if repeats == 0 {
+		if profile, source, ok := s.defaultProfile(ctx, deviceID); ok {
+			repeats = profile.Repeat
+			if err := s.applyProfileSettings(ctx, deviceID, profile, source); err != nil {
+				return nil, mapClientError("apply clean profile", err)
+			}
+		}
+	}
 	if len(req.GetSegments()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "segments are required")
 	}
@@ -190,7 +208,7 @@ func (s *service) CleanSegment(ctx context.Context, req *roborockv1.CleanSegment
 	for _, seg := range req.GetSegments() {
 		segments = append(segments, int(seg))
 	}
-	if err := s.client.CleanSegment(ctx, deviceID, segments, int(req.GetRepeats())); err != nil {
+	if err := s.client.CleanSegment(ctx, deviceID, segments, repeats); err != nil {
 		return nil, mapClientError("clean segment", err)
 	}
 	return &roborockv1.CleanSegmentResponse{}, nil
@@ -269,23 +287,44 @@ func (s *service) CleanRoom(ctx context.Context, req *roborockv1.CleanRoomReques
 	if err != nil {
 		return nil, err
 	}
-	if req.GetFanSpeed() != "" {
-		if err := s.client.SetFanSpeed(ctx, deviceID, req.GetFanSpeed()); err != nil {
+	repeats := int(req.GetRepeats())
+	fanSpeed := req.GetFanSpeed()
+	mopMode := req.GetMopMode()
+	mopIntensity := req.GetMopIntensity()
+	if fanSpeed == "" || mopMode == "" || mopIntensity == "" || repeats == 0 {
+		if profile, source, ok := s.defaultProfile(ctx, deviceID); ok {
+			if fanSpeed == "" && profile.FanPower != 0 {
+				fanSpeed = fmt.Sprintf("%d", profile.FanPower)
+			}
+			if mopMode == "" && profile.MopMode != 0 {
+				mopMode = fmt.Sprintf("%d", profile.MopMode)
+			}
+			if mopIntensity == "" && profile.MopIntensity != 0 {
+				mopIntensity = fmt.Sprintf("%d", profile.MopIntensity)
+			}
+			if repeats == 0 && profile.Repeat != 0 {
+				repeats = profile.Repeat
+			}
+			log.Printf("roborock: using %s clean profile for %s", source, deviceID)
+		}
+	}
+	if fanSpeed != "" {
+		if err := s.client.SetFanSpeed(ctx, deviceID, fanSpeed); err != nil {
 			return nil, mapClientError("set fan speed", err)
 		}
 	}
-	if req.GetMopMode() != "" {
-		if err := s.client.SetMopMode(ctx, deviceID, req.GetMopMode()); err != nil {
+	if mopMode != "" {
+		if err := s.client.SetMopMode(ctx, deviceID, mopMode); err != nil {
 			return nil, mapClientError("set mop mode", err)
 		}
 	}
-	if req.GetMopIntensity() != "" {
-		if err := s.client.SetMopIntensity(ctx, deviceID, req.GetMopIntensity()); err != nil {
+	if mopIntensity != "" {
+		if err := s.client.SetMopIntensity(ctx, deviceID, mopIntensity); err != nil {
 			return nil, mapClientError("set mop intensity", err)
 		}
 	}
 	if !req.GetDryRun() {
-		if err := s.client.CleanSegment(ctx, deviceID, []int{int(segmentID)}, int(req.GetRepeats())); err != nil {
+		if err := s.client.CleanSegment(ctx, deviceID, []int{int(segmentID)}, repeats); err != nil {
 			return nil, mapClientError("clean room", err)
 		}
 	}
@@ -402,6 +441,38 @@ func (s *service) resolveRoomSegment(ctx context.Context, deviceID, room string)
 		}
 	}
 	return 0, status.Errorf(codes.NotFound, "room %q not found (try ListRooms)", room)
+}
+
+func (s *service) defaultProfile(ctx context.Context, deviceID string) (CleanProfile, string, bool) {
+	profile, source, ok, err := s.client.DefaultCleanProfile(ctx, deviceID)
+	if err != nil {
+		log.Printf("roborock: default profile fetch failed: %v", err)
+		return CleanProfile{}, "", false
+	}
+	return profile, source, ok
+}
+
+func (s *service) applyProfileSettings(ctx context.Context, deviceID string, profile CleanProfile, source string) error {
+	if !profile.HasAny() {
+		return nil
+	}
+	log.Printf("roborock: using %s clean profile for %s", source, deviceID)
+	if profile.FanPower != 0 {
+		if err := s.client.SetFanSpeed(ctx, deviceID, fmt.Sprintf("%d", profile.FanPower)); err != nil {
+			return err
+		}
+	}
+	if profile.MopMode != 0 {
+		if err := s.client.SetMopMode(ctx, deviceID, fmt.Sprintf("%d", profile.MopMode)); err != nil {
+			return err
+		}
+	}
+	if profile.MopIntensity != 0 {
+		if err := s.client.SetMopIntensity(ctx, deviceID, fmt.Sprintf("%d", profile.MopIntensity)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func normalizeRoomName(name string) string {

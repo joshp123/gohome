@@ -37,7 +37,7 @@ func roborockUsage() {
 	fmt.Println("")
 	fmt.Println("Commands:")
 	fmt.Println("  bootstrap --email user@example.com [--code 123456] [--config path] [--bootstrap-file path]")
-	fmt.Println("  probe [--device-id id] [--config path] [--methods name1,name2]")
+	fmt.Println("  probe [--device-id id] [--config path] [--methods name1,name2] [--params json]")
 }
 
 func roborockBootstrapCmd(args []string) {

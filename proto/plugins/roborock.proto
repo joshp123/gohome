@@ -199,6 +199,15 @@ message RoborockConfig {
   bool cloud_fallback = 2;
   map<string, string> device_ip_overrides = 3;
   map<uint32, string> segment_names = 4;
+  CleanProfile default_profile = 5;
+}
+
+message CleanProfile {
+  uint32 fan_power = 1;
+  uint32 mop_mode = 2;
+  uint32 mop_intensity = 3;
+  uint32 repeat = 4;
+  int32 clean_order_mode = 5;
 }
 
 service RoborockService {
