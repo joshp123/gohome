@@ -241,6 +241,27 @@ func (c *Client) CleanSegment(ctx context.Context, deviceID string, segments []i
 	return c.simpleCommand(ctx, deviceID, "app_segment_clean", params)
 }
 
+func (c *Client) MapRaw(ctx context.Context, deviceID string) ([]byte, error) {
+	if err := c.ensureHomeData(ctx); err != nil {
+		return nil, err
+	}
+	if deviceID == "" {
+		devs, err := c.Devices(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(devs) == 0 {
+			return nil, fmt.Errorf("no devices available")
+		}
+		deviceID = devs[0].ID
+	}
+	device, err := c.deviceByID(deviceID)
+	if err != nil {
+		return nil, err
+	}
+	return c.fetchMapViaMQTT(ctx, device)
+}
+
 type profileCache struct {
 	profile CleanProfile
 	source  string

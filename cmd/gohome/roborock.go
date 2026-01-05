@@ -24,6 +24,8 @@ func roborockMain(args []string) {
 	switch args[0] {
 	case "bootstrap":
 		roborockBootstrapCmd(args[1:])
+	case "map-blocks":
+		roborockMapBlocksCmd(args[1:])
 	case "probe":
 		roborockProbeCmd(args[1:])
 	default:
@@ -37,6 +39,7 @@ func roborockUsage() {
 	fmt.Println("")
 	fmt.Println("Commands:")
 	fmt.Println("  bootstrap --email user@example.com [--code 123456] [--config path] [--bootstrap-file path]")
+	fmt.Println("  map-blocks [--device-id id] [--config path]")
 	fmt.Println("  probe [--device-id id] [--config path] [--methods name1,name2] [--params json]")
 }
 
@@ -213,5 +216,44 @@ func roborockProbeCmd(args []string) {
 			continue
 		}
 		fmt.Printf("%s: ok\n%s\n", probe.name, string(data))
+	}
+}
+
+func roborockMapBlocksCmd(args []string) {
+	flags := flag.NewFlagSet("roborock map-blocks", flag.ExitOnError)
+	deviceID := flags.String("device-id", "", "Roborock device id (optional; defaults to first device)")
+	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
+	timeout := flags.Duration("timeout", 30*time.Second, "Overall timeout")
+	_ = flags.Parse(args)
+
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		fatal("roborock map-blocks", err)
+	}
+	if cfg.Roborock == nil {
+		fatal("roborock map-blocks", fmt.Errorf("roborock config is required"))
+	}
+	roboCfg, err := roborock.ConfigFromProto(cfg.Roborock)
+	if err != nil {
+		fatal("roborock map-blocks", err)
+	}
+	client, err := roborock.NewClient(roboCfg)
+	if err != nil {
+		fatal("roborock map-blocks", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
+
+	raw, err := client.MapRaw(ctx, *deviceID)
+	if err != nil {
+		fatal("roborock map-blocks", err)
+	}
+	blocks, err := roborock.ListMapBlocks(raw)
+	if err != nil {
+		fatal("roborock map-blocks", err)
+	}
+	for _, block := range blocks {
+		fmt.Printf("block %d len=%d\n", block.Type, block.Length)
 	}
 }
