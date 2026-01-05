@@ -308,17 +308,17 @@ func (s *service) CleanRoom(ctx context.Context, req *roborockv1.CleanRoomReques
 			log.Printf("roborock: using %s clean profile for %s", source, deviceID)
 		}
 	}
-	if fanSpeed != "" {
+	if req.GetFanSpeed() != "" {
 		if err := s.client.SetFanSpeed(ctx, deviceID, fanSpeed); err != nil {
 			return nil, mapClientError("set fan speed", err)
 		}
 	}
-	if mopMode != "" {
+	if req.GetMopMode() != "" {
 		if err := s.client.SetMopMode(ctx, deviceID, mopMode); err != nil {
 			return nil, mapClientError("set mop mode", err)
 		}
 	}
-	if mopIntensity != "" {
+	if req.GetMopIntensity() != "" {
 		if err := s.client.SetMopIntensity(ctx, deviceID, mopIntensity); err != nil {
 			return nil, mapClientError("set mop intensity", err)
 		}
