@@ -1,11 +1,11 @@
 ---
-name: gohome-clawdis
-description: Use when Clawdis needs to test or operate GoHome (Home Assistant clone) via gRPC discovery, metrics, and Grafana.
+name: gohome
+description: Use when Clawdbot needs to test or operate GoHome (Home Assistant clone) via gRPC discovery, metrics, and Grafana.
 ---
 
-# GoHome Clawdis Skill
+# GoHome Skill
 
-This skill teaches Clawdis how to discover capabilities and validate the GoHome stack
+This skill teaches Clawdbot how to discover capabilities and validate the GoHome stack
 using the repo CLI, Prometheus metrics, and Grafana.
 
 ## Quick start
@@ -18,10 +18,10 @@ export GOHOME_HTTP_BASE="http://${GOHOME_HOST}"
 export GOHOME_GRPC_ADDR="${GOHOME_HOST}:9000"
 ```
 
-Use the repo-shipped CLI binary (preferred):
+Use the CLI on PATH (preferred, installed by the nix-clawdbot plugin):
 
 ```sh
-./bin/gohome-cli services
+gohome-cli services
 ```
 
 Use the CLI from source if needed:
