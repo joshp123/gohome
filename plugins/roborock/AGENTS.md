@@ -84,6 +84,9 @@ Fields:
 - `roborock.device_ip_overrides` (optional; map of device_id -> LAN IP to skip UDP discovery)
 - `roborock.segment_names` (optional; map of segment_id -> room label)
   - Required when controlling a vacuum over Tailscale subnet routing (broadcast discovery won’t cross subnets)
+- `roborock.default_profile` (optional; default fan/mop/repeat profile)
+  - If unset, GoHome tries to derive defaults from the active Roborock schedule (`get_timer`).
+  - If the schedule is missing/unreadable, falls back to `default_profile`.
 
 Bootstrap JSON schema:
 ```json
