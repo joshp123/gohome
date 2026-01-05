@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -199,13 +200,6 @@ func isStdinTerminal() bool {
 	return (info.Mode() & os.ModeCharDevice) != 0
 }
 
-func envOrDefault(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
 func resolveAddr() string {
 	if value := os.Getenv("GOHOME_GRPC_ADDR"); value != "" {
 		return value
@@ -222,43 +216,34 @@ func resolveHTTPBase() string {
 	if value := os.Getenv("GOHOME_HTTP_BASE"); value != "" {
 		return strings.TrimRight(value, "/")
 	}
-	if value := os.Getenv("GOHOME_HTTP_ADDR"); value != "" {
-		return fmt.Sprintf("http://%s", normalizeHTTPAddr(value))
-	}
+	httpAddr := ""
+	grpcAddr := ""
 	for _, path := range configSearchPaths() {
-		if addr := httpAddrFromConfig(path); addr != "" {
-			return fmt.Sprintf("http://%s", normalizeHTTPAddr(addr))
+		if httpAddr == "" {
+			httpAddr = httpAddrFromConfig(path)
+		}
+		if grpcAddr == "" {
+			grpcAddr = addrFromConfig(path)
 		}
 	}
-	return "http://localhost:8080"
-}
-
-func httpAddrFromConfig(path string) string {
-	cfg, err := config.Load(path)
-	if err != nil || cfg == nil || cfg.Core == nil {
-		return ""
+	if httpAddr == "" {
+		httpAddr = "0.0.0.0:8080"
 	}
-	return cfg.Core.HttpAddr
-}
-
-func normalizeHTTPAddr(addr string) string {
-	if strings.HasPrefix(addr, "http://") || strings.HasPrefix(addr, "https://") {
-		return strings.TrimRight(addr, "/")
+	host, port, err := net.SplitHostPort(httpAddr)
+	if err != nil {
+		return "http://gohome:8080"
 	}
-	trimmed := strings.TrimSpace(addr)
-	if trimmed == "" {
-		return "localhost:8080"
+	if host == "" || host == "0.0.0.0" || host == "127.0.0.1" {
+		if grpcAddr != "" {
+			if grpcHost, _, err := net.SplitHostPort(grpcAddr); err == nil && grpcHost != "" && grpcHost != "0.0.0.0" {
+				host = grpcHost
+			}
+		}
+		if host == "" || host == "0.0.0.0" {
+			host = "gohome"
+		}
 	}
-	if strings.HasPrefix(trimmed, "0.0.0.0:") {
-		return "127.0.0.1:" + strings.TrimPrefix(trimmed, "0.0.0.0:")
-	}
-	if strings.HasPrefix(trimmed, "[::]:") {
-		return "127.0.0.1:" + strings.TrimPrefix(trimmed, "[::]:")
-	}
-	if strings.HasPrefix(trimmed, ":") {
-		return "127.0.0.1" + trimmed
-	}
-	return trimmed
+	return fmt.Sprintf("http://%s:%s", host, port)
 }
 
 func configSearchPaths() []string {
@@ -275,6 +260,14 @@ func addrFromConfig(path string) string {
 		return ""
 	}
 	return cfg.Core.GrpcAddr
+}
+
+func httpAddrFromConfig(path string) string {
+	cfg, err := config.Load(path)
+	if err != nil || cfg == nil || cfg.Core == nil {
+		return ""
+	}
+	return cfg.Core.HttpAddr
 }
 
 func usage() {

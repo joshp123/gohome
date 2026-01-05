@@ -10,11 +10,11 @@ using the repo CLI, Prometheus metrics, and Grafana.
 
 ## Quick start
 
-Set the target host and ports:
+Set the target host and ports (optional; defaults read from config or MagicDNS):
 
 ```sh
 export GOHOME_HOST="gohome"
-export GOHOME_HTTP_BASE="http://${GOHOME_HOST}"
+export GOHOME_HTTP_BASE="http://${GOHOME_HOST}:8080"
 export GOHOME_GRPC_ADDR="${GOHOME_HOST}:9000"
 ```
 
@@ -64,6 +64,24 @@ jq -n '{}' | GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli call \
   gohome.plugins.tado.v1.TadoService/ListZones
 ```
 
+## Friendly CLI (agent-friendly)
+
+Roborock:
+
+```sh
+gohome-cli roborock status
+gohome-cli roborock rooms
+gohome-cli roborock clean kitchen
+gohome-cli roborock map --labels names
+```
+
+Tado:
+
+```sh
+gohome-cli tado zones
+gohome-cli tado set living-room 20
+```
+
 ## Metrics validation
 
 Confirm the Tado scraper is healthy and metrics are present:
@@ -102,3 +120,4 @@ jq -n --arg zone_id "1" --argjson temp 20.0 \
 - If DNS fails, verify MagicDNS is enabled and run `tailscale status`.
 - If metrics are missing, check `gohome_tado_scrape_success` and token validity.
 - Prefer `jq -n` to build JSON for gRPC calls; it avoids quoting mistakes.
+- `gohome-cli` reads `/etc/gohome/config.pbtxt` (or `~/.config/gohome/config.pbtxt`) for default host info.
