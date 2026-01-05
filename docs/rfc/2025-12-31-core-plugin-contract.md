@@ -43,7 +43,7 @@ Non‑goals:
 
 GoHome core links a set of plugins at build time, registers their gRPC services,
 exports metrics on a single /metrics endpoint, and serves plugin dashboards and
-agent context. Clawdis (or any gRPC client) discovers capabilities via the Registry
+agent context. Clawdbot (or any gRPC client) discovers capabilities via the Registry
 API and gRPC reflection, then calls plugin APIs directly.
 
 ## 4) Components and responsibilities
@@ -138,26 +138,26 @@ Plugin protos live under proto/plugins/<name>.proto and define all device action
 
 ## 9) Interaction model
 
-- Clawdis connects over gRPC
+- Clawdbot connects over gRPC
 - Reads Registry + gRPC reflection
 - Uses AGENTS.md for capability and limits
 - Calls plugin RPCs directly
 - Observes state via Prometheus metrics and Grafana
 
-### 9.1) Progressive CLI discovery (Clawdis-friendly)
+### 9.1) Progressive CLI discovery (Clawdbot-friendly)
 
 We provide a proto‑generated CLI that uses Registry + reflection to discover
 available plugins, services, and methods at runtime. This CLI is the primary
-interface for new agents and new plugins, and it is the basis for Clawdis to
+interface for new agents and new plugins, and it is the basis for Clawdbot to
 self‑discover capability without prior manual wiring.
 
-Known workflows can be “crystallized” into a Clawdis skill that simply shells
+Known workflows can be “crystallized” into a Clawdbot skill that simply shells
 out to the CLI (symlinked from the repo). Unknown workflows use discovery.
 
 ## 10) System interaction diagram
 
 ```
-Clawdis/CLI
+Clawdbot/CLI
    | ListPlugins / DescribePlugin
    v
 GoHome Core (Registry + Router)
