@@ -8,7 +8,7 @@
 
 ## The Magic
 
-- **No UI, ever.** Clawdis is your interface. Talk to your house in Telegram. Your AI agent figures out the rest.
+- **No UI, ever.** Clawdbot is your interface. Talk to your house in Telegram. Your AI agent figures out the rest.
 
 - **Plugins self-declare everything.** Each plugin ships an `AGENTS.md` and proto definitions. Your agent discovers capabilities at compile time, not through trial and error.
 
@@ -34,7 +34,7 @@ GoHome is what happens when you give up on fixing Home Assistant and just write 
 
 ## The Stack
 
-1. **[Clawdis](https://github.com/steipete/clawdis)** - AI agent gateway for Telegram/WhatsApp/etc. If you're not letting Claude control your house via chat in 2026, you're NGMI. This is how you talk to GoHome without touching a UI.
+1. **[Clawdbot](https://github.com/steipete/clawdbot)** - AI agent gateway for Telegram/WhatsApp/etc. If you're not letting Claude control your house via chat in 2026, you're NGMI. This is how you talk to GoHome without touching a UI.
 
 2. **A cheap VM** - I use [Hetzner](https://hetzner.com). It's cheaper than AWS, VMs are simple, no 47 services to configure. A €4/month box runs everything.
 
@@ -238,7 +238,7 @@ What I need you to do:
 5. Test it works: metrics show up, gRPC calls succeed
 
 Reference plugins/tado/ for the structure. The AGENTS.md is important - it tells 
-Clawdis (or any AI agent) how to talk to your plugin.
+Clawdbot (or any AI agent) how to talk to your plugin.
 ```
 
 ### What a plugin contains
@@ -298,8 +298,8 @@ Pre-alpha. Built the MVP in 2 days over NYE (yes, including the party and phone 
 This project stands on the shoulders of people who figured out agent-first development before it was cool:
 
 - **Steve Yegge** ([@Steve_Yegge](https://x.com/Steve_Yegge)) - [Zero-Framework Cognition](https://steve-yegge.blogspot.com/2025/01/zero-framework-cognition.html) changed how I think about AI interfaces. Stop building frameworks, start exposing dumb APIs.
-- **Peter Steinberger** ([@steipete](https://twitter.com/steipete)) - [Clawdis](https://github.com/steipete/clawdis) is the agent gateway that makes this all work. Also read [Shipping at Inference Speed](https://steipete.me/posts/2025/shipping-at-inference-speed).
-- **Mario Zechner** ([@badlogicgames](https://x.com/badlogicgames)) - [Pi](https://shittycodingagent.com) is the "shitty coding agent" that powers Clawdis. Turns out shitty is pretty good.
+- **Peter Steinberger** ([@steipete](https://twitter.com/steipete)) - [Clawdbot](https://github.com/steipete/clawdbot) is the agent gateway that makes this all work. Also read [Shipping at Inference Speed](https://steipete.me/posts/2025/shipping-at-inference-speed).
+- **Mario Zechner** ([@badlogicgames](https://x.com/badlogicgames)) - [Pi](https://shittycodingagent.com) is the "shitty coding agent" that powers Clawdbot. Turns out shitty is pretty good.
 
 ## License
 

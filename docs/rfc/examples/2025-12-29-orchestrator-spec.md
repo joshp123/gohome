@@ -236,7 +236,7 @@ Location: libs/pi (shared library)
 Defaults:
 - Model: Opus 4.5
 - Thinking: max
-- Credential lookup: same paths as clawdis (see libs/pi/README.md)
+- Credential lookup: same paths as clawdbot (see libs/pi/README.md)
 
 Usage:
 - Prepare prompt with explicit “free‑text only” instruction
