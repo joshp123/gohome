@@ -135,6 +135,7 @@ func roborockCmd(ctx context.Context, conn *grpc.ClientConn, args []string, json
 		flags := flag.NewFlagSet("roborock map", flag.ExitOnError)
 		deviceID := flags.String("device", "", "Optional device id")
 		labels := flags.String("labels", "", "Optional labels: names|segments")
+		withTrace := flags.Bool("path", true, "Show cleaning trace")
 		_ = flags.Parse(args[1:])
 		name, err := resolveDeviceName(ctx, client, *deviceID)
 		if err != nil {
@@ -145,6 +146,11 @@ func roborockCmd(ctx context.Context, conn *grpc.ClientConn, args []string, json
 		query.Set("device_name", name)
 		if *labels != "" {
 			query.Set("labels", *labels)
+		}
+		if *withTrace {
+			query.Set("path", "true")
+		} else {
+			query.Set("path", "false")
 		}
 		fmt.Printf("%s/roborock/map.png?%s\n", endpoint, query.Encode())
 	default:
@@ -163,7 +169,7 @@ func roborockUsage() {
 	fmt.Println("  clean --all [--device id]")
 	fmt.Println("  dock [--device id]")
 	fmt.Println("  locate [--device id]")
-	fmt.Println("  map [--device id] [--labels names|segments]")
+	fmt.Println("  map [--device id] [--labels names|segments] [--path]")
 }
 
 func resolveDeviceName(ctx context.Context, client roborockv1.RoborockServiceClient, deviceID string) (string, error) {

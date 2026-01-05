@@ -38,6 +38,7 @@ type Client struct {
 	mqtt            *mqttClient
 	mapCache        map[string]mapSnapshot
 	defaultProfiles map[string]profileCache
+	traceCache      map[string]traceSnapshot
 }
 
 func LoadBootstrap(path string) (BootstrapState, error) {
@@ -91,6 +92,7 @@ func NewClient(cfg Config) (*Client, error) {
 		overrides:       cfg.IPOverrides,
 		mapCache:        make(map[string]mapSnapshot),
 		defaultProfiles: make(map[string]profileCache),
+		traceCache:      make(map[string]traceSnapshot),
 	}, nil
 }
 
@@ -245,6 +247,11 @@ type profileCache struct {
 	at      time.Time
 }
 
+type traceSnapshot struct {
+	points    []mapPoint
+	fetchedAt time.Time
+}
+
 func (c *Client) DefaultCleanProfile(ctx context.Context, deviceID string) (CleanProfile, string, bool, error) {
 	if deviceID == "" {
 		return CleanProfile{}, "", false, fmt.Errorf("device id required for default profile")
@@ -285,6 +292,26 @@ func (c *Client) profileFromSchedule(ctx context.Context, deviceID string) (Clea
 	}
 	profile, ok := parseProfileFromTimers(result)
 	return profile, ok, nil
+}
+
+func (c *Client) cachedTrace(deviceID string) (traceSnapshot, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if entry, ok := c.traceCache[deviceID]; ok {
+		if time.Since(entry.fetchedAt) < mapRefreshInterval {
+			return entry, true
+		}
+	}
+	return traceSnapshot{}, false
+}
+
+func (c *Client) storeTrace(deviceID string, points []mapPoint) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.traceCache[deviceID] = traceSnapshot{
+		points:    points,
+		fetchedAt: time.Now(),
+	}
 }
 
 func parseProfileFromTimers(value any) (CleanProfile, bool) {

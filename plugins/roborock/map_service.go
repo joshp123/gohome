@@ -13,25 +13,31 @@ type mapSnapshot struct {
 	data      []byte
 	image     mapImage
 	segments  []segmentSummary
+	trace     []mapPoint
 	fetchedAt time.Time
 }
 
 func (c *Client) MapSnapshot(ctx context.Context, deviceID string) (mapImage, error) {
-	img, _, err := c.mapSnapshot(ctx, deviceID, "")
+	img, _, err := c.mapSnapshot(ctx, deviceID, "", false)
 	return img, err
 }
 
 func (c *Client) MapSnapshotWithLabels(ctx context.Context, deviceID string, labelMode string) (mapImage, error) {
-	img, _, err := c.mapSnapshot(ctx, deviceID, labelMode)
+	img, _, err := c.mapSnapshot(ctx, deviceID, labelMode, false)
+	return img, err
+}
+
+func (c *Client) MapSnapshotWithOptions(ctx context.Context, deviceID string, labelMode string, withTrace bool) (mapImage, error) {
+	img, _, err := c.mapSnapshot(ctx, deviceID, labelMode, withTrace)
 	return img, err
 }
 
 func (c *Client) SegmentsSnapshot(ctx context.Context, deviceID string) ([]segmentSummary, error) {
-	_, segments, err := c.mapSnapshot(ctx, deviceID, "")
+	_, segments, err := c.mapSnapshot(ctx, deviceID, "", false)
 	return segments, err
 }
 
-func (c *Client) mapSnapshot(ctx context.Context, deviceID string, labelMode string) (mapImage, []segmentSummary, error) {
+func (c *Client) mapSnapshot(ctx context.Context, deviceID string, labelMode string, withTrace bool) (mapImage, []segmentSummary, error) {
 	if err := c.ensureHomeData(ctx); err != nil {
 		return mapImage{}, nil, err
 	}
@@ -45,7 +51,7 @@ func (c *Client) mapSnapshot(ctx context.Context, deviceID string, labelMode str
 		}
 		deviceID = devs[0].ID
 	}
-	if snap, ok := c.cachedMap(deviceID); ok && labelMode == "" {
+	if snap, ok := c.cachedMap(deviceID); ok && labelMode == "" && !withTrace {
 		return snap.image, snap.segments, nil
 	}
 	device, err := c.deviceByID(deviceID)
@@ -53,8 +59,10 @@ func (c *Client) mapSnapshot(ctx context.Context, deviceID string, labelMode str
 		return mapImage{}, nil, err
 	}
 	var data []byte
+	var trace []mapPoint
 	if snap, ok := c.cachedMap(deviceID); ok {
 		data = snap.data
+		trace = snap.trace
 	}
 	if len(data) == 0 {
 		data, err = c.fetchMapViaMQTT(ctx, device)
@@ -62,14 +70,21 @@ func (c *Client) mapSnapshot(ctx context.Context, deviceID string, labelMode str
 			return mapImage{}, nil, err
 		}
 	}
-	parsed, segments, err := parseMapData(data, device.Name, labelMode, c.cfg.SegmentNames)
+	if withTrace && len(trace) == 0 {
+		trace, err = extractTrace(data)
+		if err != nil {
+			log.Printf("roborock trace parse failed: %v", err)
+			trace = nil
+		}
+	}
+	parsed, segments, err := parseMapData(data, device.Name, labelMode, c.cfg.SegmentNames, trace)
 	if err != nil {
 		return mapImage{}, nil, err
 	}
 	if len(segments) == 0 {
 		log.Printf("roborock map snapshot has 0 segments (device=%s data_bytes=%d)", device.Name, len(data))
 	}
-	c.storeMap(deviceID, data, parsed, segments)
+	c.storeMap(deviceID, data, parsed, segments, trace)
 	return parsed, segments, nil
 }
 
@@ -84,13 +99,14 @@ func (c *Client) cachedMap(deviceID string) (mapSnapshot, bool) {
 	return mapSnapshot{}, false
 }
 
-func (c *Client) storeMap(deviceID string, data []byte, img mapImage, segments []segmentSummary) {
+func (c *Client) storeMap(deviceID string, data []byte, img mapImage, segments []segmentSummary, trace []mapPoint) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.mapCache[deviceID] = mapSnapshot{
 		data:      data,
 		image:     img,
 		segments:  segments,
+		trace:     trace,
 		fetchedAt: time.Now(),
 	}
 }
