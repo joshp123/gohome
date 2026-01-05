@@ -23,6 +23,13 @@ ssh "${host}" <<'SSH'
     repo="/etc/nixos"
   fi
 
+  if [[ "${repo}" == "/root/gohome" && ! -d "${repo}/.git" ]]; then
+    if [[ ! -d /root/gohome-src/.git ]]; then
+      git clone https://github.com/joshp123/gohome.git /root/gohome-src
+    fi
+    repo="/root/gohome-src"
+  fi
+
   if [[ -d "${repo}/.git" ]]; then
     git -C "${repo}" pull origin main
   fi
