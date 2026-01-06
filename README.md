@@ -286,6 +286,8 @@ go run ./cmd/gohome-cli plugins list
 # Friendly CLI (agent-friendly)
 go run ./cmd/gohome-cli roborock status
 go run ./cmd/gohome-cli roborock clean kitchen
+go run ./cmd/gohome-cli roborock mop kitchen
+go run ./cmd/gohome-cli roborock vacuum kitchen
 go run ./cmd/gohome-cli tado zones
 go run ./cmd/gohome-cli tado set living-room 20
 ```
