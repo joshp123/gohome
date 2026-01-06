@@ -18,7 +18,7 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
 - No remote-control joystick in v1
 - Cloud login is required for bootstrap only
 - Cloud fallback is optional and not enabled by default (status-only fallback; commands still require local)
-- Fan/mop numeric codes are device-specific; prefer named values unless you know the codes
+- Fan/mop numeric codes are device-specific; prefer CLI-friendly modes unless you know the codes
 
 ## Live Map (v2)
 - Live map requires MQTT access via Roborock cloud (map RPC channel).
@@ -54,6 +54,9 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
 gohome-cli roborock status
 gohome-cli roborock rooms
 gohome-cli roborock clean kitchen
+gohome-cli roborock mop kitchen
+gohome-cli roborock vacuum kitchen
+gohome-cli roborock smart kitchen
 gohome-cli roborock map --labels names --path
 ```
 
