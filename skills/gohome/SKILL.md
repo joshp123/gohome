@@ -72,6 +72,9 @@ Roborock:
 gohome-cli roborock status
 gohome-cli roborock rooms
 gohome-cli roborock clean kitchen
+gohome-cli roborock mop kitchen
+gohome-cli roborock vacuum kitchen
+gohome-cli roborock smart kitchen
 gohome-cli roborock map --labels names
 ```
 
