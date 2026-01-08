@@ -111,7 +111,10 @@ func TestClientFlow(t *testing.T) {
 		t.Fatalf("new client: %v", err)
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	client.oauth.StartWithInterval(ctx, time.Hour)
 
 	homeID, err := client.HomeID(ctx)
 	if err != nil {
