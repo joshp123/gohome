@@ -307,7 +307,7 @@ This project stands on the shoulders of people who figured out agent-first devel
 
 - **Steve Yegge** ([@Steve_Yegge](https://x.com/Steve_Yegge)) - [Zero-Framework Cognition](https://steve-yegge.medium.com/zero-framework-cognition-a-way-to-build-resilient-ai-applications-56b090ed3e69) changed how I think about AI interfaces. Stop building frameworks, start exposing dumb APIs.
 - **Peter Steinberger** ([@steipete](https://twitter.com/steipete)) - [Clawdbot](https://github.com/steipete/clawdbot) is the agent gateway that makes this all work. Also read [Shipping at Inference Speed](https://steipete.me/posts/2025/shipping-at-inference-speed).
-- **Mario Zechner** ([@badlogicgames](https://x.com/badlogicgames)) - [Pi](https://shittycodingagent.com) is the "shitty coding agent" that powers Clawdbot. Turns out shitty is pretty good.
+- **Mario Zechner** ([@badlogicgames](https://x.com/badlogicgames)) - [Pi](https://shittycodingagent.ai) is the "shitty coding agent" that powers Clawdbot. Turns out shitty is pretty good.
 - The Home Assistant integration authors whose protocol research, API discovery, and integration logic we have reimplemented in GoHome plugins.
 
 ## License
