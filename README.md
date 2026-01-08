@@ -34,7 +34,7 @@ GoHome is what happens when you give up on fixing Home Assistant and just write 
 
 ## The Stack
 
-1. **[Clawdbot](https://github.com/steipete/clawdbot)** - AI agent gateway for Telegram/WhatsApp/etc. If you're not letting Claude control your house via chat in 2026, you're NGMI. This is how you talk to GoHome without touching a UI.
+1. **[Clawdbot](https://docs.clawd.bot/)** - AI agent gateway for Telegram/WhatsApp/etc. If you're not letting Claude control your house via chat in 2026, you're NGMI. This is how you talk to GoHome without touching a UI.
 
 2. **A cheap VM** - I use [Hetzner](https://hetzner.com). It's cheaper than AWS, VMs are simple, no 47 services to configure. A €4/month box runs everything.
 
@@ -306,7 +306,7 @@ Pre-alpha. Built the MVP in 2 days over NYE (yes, including the party and phone 
 This project stands on the shoulders of people who figured out agent-first development before it was cool:
 
 - **Steve Yegge** ([@Steve_Yegge](https://x.com/Steve_Yegge)) - [Zero-Framework Cognition](https://steve-yegge.medium.com/zero-framework-cognition-a-way-to-build-resilient-ai-applications-56b090ed3e69) changed how I think about AI interfaces. Stop building frameworks, start exposing dumb APIs.
-- **Peter Steinberger** ([@steipete](https://twitter.com/steipete)) - [Clawdbot](https://github.com/steipete/clawdbot) is the agent gateway that makes this all work. Also read [Shipping at Inference Speed](https://steipete.me/posts/2025/shipping-at-inference-speed).
+- **Peter Steinberger** ([@steipete](https://twitter.com/steipete)) - [Clawdbot](https://docs.clawd.bot/) is the agent gateway that makes this all work. Also read [Shipping at Inference Speed](https://steipete.me/posts/2025/shipping-at-inference-speed).
 - **Mario Zechner** ([@badlogicgames](https://x.com/badlogicgames)) - [Pi](https://shittycodingagent.ai) is the "shitty coding agent" that powers Clawdbot. Turns out shitty is pretty good.
 - The Home Assistant integration authors whose protocol research, API discovery, and integration logic we have reimplemented in GoHome plugins.
 
