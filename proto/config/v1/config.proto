@@ -8,6 +8,7 @@ import "proto/plugins/tado.proto";
 import "proto/plugins/daikin.proto";
 import "proto/plugins/growatt.proto";
 import "proto/plugins/roborock.proto";
+import "proto/plugins/p1_homewizard.proto";
 
 message CoreConfig {
   string grpc_addr = 1;
@@ -34,4 +35,5 @@ message Config {
   gohome.plugins.daikin.v1.DaikinConfig daikin = 11;
   gohome.plugins.growatt.v1.GrowattConfig growatt = 12;
   gohome.plugins.roborock.v1.RoborockConfig roborock = 13;
+  gohome.plugins.p1_homewizard.v1.P1HomewizardConfig p1_homewizard = 14;
 }

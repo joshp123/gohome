@@ -22,18 +22,23 @@ const (
 
 // Load parses the textproto config file, applies defaults, and validates.
 func Load(path string) (*configv1.Config, error) {
-	data, err := os.ReadFile(path)
+	var (
+		data []byte
+		err  error
+	)
+
+	data, err = os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
 	cfg := &configv1.Config{}
-	if err := prototext.Unmarshal(data, cfg); err != nil {
+	if err = prototext.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
 	applyDefaults(cfg)
-	if err := Validate(cfg); err != nil {
+	if err = Validate(cfg); err != nil {
 		return nil, err
 	}
 	return cfg, nil
@@ -138,6 +143,9 @@ func EnabledPlugins(cfg *configv1.Config) map[string]bool {
 	}
 	if cfg.Roborock != nil {
 		enabled["roborock"] = true
+	}
+	if cfg.P1Homewizard != nil {
+		enabled["p1_homewizard"] = true
 	}
 	return enabled
 }
