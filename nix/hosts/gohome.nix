@@ -80,6 +80,10 @@
     };
     plugins.p1_homewizard = {
       baseUrl = "http://192.168.1.48";
+      tariffImportT1EurPerKwh = 0.15367;
+      tariffImportT2EurPerKwh = 0.15367;
+      tariffExportT1EurPerKwh = -0.02178;
+      tariffExportT2EurPerKwh = -0.02178;
     };
 
     tailscale.authKeyFile = config.age.secrets.tailscale-authkey.path;
