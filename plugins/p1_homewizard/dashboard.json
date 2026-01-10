@@ -287,6 +287,7 @@
     ]
   },
   "timezone": "browser",
+  "uid": "p1-homewizard",
   "title": "P1 Homewizard",
   "version": 1
 }
