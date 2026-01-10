@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/joshp123/gohome/internal/config"
+	"github.com/joshp123/gohome/plugins/growatt"
 	"github.com/joshp123/gohome/plugins/tado"
 )
 
@@ -23,6 +24,8 @@ func backfillMain(args []string) {
 	switch args[0] {
 	case "tado":
 		tadoBackfillCmd(args[1:])
+	case "growatt":
+		growattBackfillCmd(args[1:])
 	default:
 		backfillUsage()
 		os.Exit(2)
@@ -34,6 +37,7 @@ func backfillUsage() {
 	fmt.Println("")
 	fmt.Println("Commands:")
 	fmt.Println("  tado --start YYYY-MM-DD --end YYYY-MM-DD [--zones name1,name2] [--config path]")
+	fmt.Println("  growatt [--max-weeks N] [--stop-after-empty-weeks N] [--config path] [--import-url url]")
 }
 
 func tadoBackfillCmd(args []string) {
@@ -87,15 +91,56 @@ func tadoBackfillCmd(args []string) {
 	}
 
 	opts := tado.BackfillOptions{
-		StartDate:  start,
-		EndDate:    end,
-		Zones:      zones,
-		ImportURL:  *importURL,
-		BatchSize:  *batchSize,
-		Throttle:   *throttle,
+		StartDate: start,
+		EndDate:   end,
+		Zones:     zones,
+		ImportURL: *importURL,
+		BatchSize: *batchSize,
+		Throttle:  *throttle,
 	}
 
 	if err := tado.Backfill(context.Background(), client, opts); err != nil {
 		fatal("backfill tado", err)
+	}
+}
+
+func growattBackfillCmd(args []string) {
+	flags := flag.NewFlagSet("growatt", flag.ExitOnError)
+	maxWeeks := flags.Int("max-weeks", 520, "Maximum weeks to request (backfill stops early after empty weeks)")
+	stopAfterEmptyWeeks := flags.Int("stop-after-empty-weeks", 6, "Stop after N consecutive empty weeks (0 disables)")
+	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
+	importURL := flags.String("import-url", growatt.DefaultImportURL, "VictoriaMetrics import URL")
+	_ = flags.Parse(args)
+
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		fatal("backfill growatt", err)
+	}
+	if cfg.Growatt == nil {
+		fatal("backfill growatt", fmt.Errorf("growatt config missing"))
+	}
+
+	runtimeCfg, err := growatt.ConfigFromProto(cfg.Growatt)
+	if err != nil {
+		fatal("backfill growatt", err)
+	}
+	client, err := growatt.NewClient(runtimeCfg)
+	if err != nil {
+		fatal("backfill growatt", err)
+	}
+
+	ctx := context.Background()
+	plant, err := client.ResolvePlant(ctx, 0)
+	if err != nil {
+		fatal("backfill growatt", err)
+	}
+
+	opts := growatt.HistoryOptions{
+		MaxWeeks:            *maxWeeks,
+		StopAfterEmptyWeeks: *stopAfterEmptyWeeks,
+		ImportURL:           *importURL,
+	}
+	if err := client.ImportEnergyHistoryWithOptions(ctx, plant, opts); err != nil {
+		fatal("backfill growatt", err)
 	}
 }

@@ -341,7 +341,7 @@
       },
       "targets": [
         {
-          "expr": "max_over_time(gohome_growatt_today_energy_kwh[1d])",
+          "expr": "gohome_growatt_energy_kwh{period=\"day\"}",
           "legendFormat": "{{plant_name}}",
           "refId": "A"
         }

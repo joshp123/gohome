@@ -12,9 +12,16 @@ import (
 )
 
 const (
-	victoriaImportURL = "http://127.0.0.1:8428/vm/api/v1/import/prometheus"
-	growattHistoryWeeks = 52
+	DefaultImportURL             = "http://127.0.0.1:8428/vm/api/v1/import/prometheus"
+	defaultGrowattHistoryWeeks   = 52
+	defaultGrowattEmptyStopWeeks = 6
 )
+
+type HistoryOptions struct {
+	MaxWeeks            int
+	StopAfterEmptyWeeks int
+	ImportURL           string
+}
 
 // EnergyPoint represents a dated energy reading.
 type EnergyPoint struct {
@@ -103,6 +110,16 @@ func parseEnergyDate(unit string, value any) (time.Time, error) {
 }
 
 func (c *Client) ImportEnergyHistory(ctx context.Context, plant Plant) error {
+	return c.ImportEnergyHistoryWithOptions(ctx, plant, HistoryOptions{
+		MaxWeeks:            defaultGrowattHistoryWeeks,
+		StopAfterEmptyWeeks: defaultGrowattEmptyStopWeeks,
+		ImportURL:           DefaultImportURL,
+	})
+}
+
+func (c *Client) ImportEnergyHistoryWithOptions(ctx context.Context, plant Plant, opts HistoryOptions) error {
+	opts = normalizeHistoryOptions(opts)
+
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 
@@ -111,7 +128,7 @@ func (c *Client) ImportEnergyHistory(ctx context.Context, plant Plant) error {
 	yearEnd := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.Local)
 	yearStart := yearEnd.AddDate(-4, 0, 0)
 
-	day, err := c.dailyHistoryChunks(ctx, plant.ID, today, growattHistoryWeeks)
+	day, err := c.dailyHistoryChunks(ctx, plant.ID, today, opts.MaxWeeks, opts.StopAfterEmptyWeeks)
 	if err != nil {
 		return err
 	}
@@ -130,10 +147,10 @@ func (c *Client) ImportEnergyHistory(ctx context.Context, plant Plant) error {
 	points = append(points, week...)
 	points = append(points, month...)
 	points = append(points, year...)
-	return importEnergyPoints(ctx, plant, points)
+	return importEnergyPoints(ctx, plant, points, opts.ImportURL)
 }
 
-func importEnergyPoints(ctx context.Context, plant Plant, points []EnergyPoint) error {
+func importEnergyPoints(ctx context.Context, plant Plant, points []EnergyPoint, importURL string) error {
 	if len(points) == 0 {
 		return nil
 	}
@@ -156,7 +173,7 @@ func importEnergyPoints(ctx context.Context, plant Plant, points []EnergyPoint) 
 		buf.WriteString("\n")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, victoriaImportURL, strings.NewReader(buf.String()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, importURL, strings.NewReader(buf.String()))
 	if err != nil {
 		return err
 	}
@@ -181,13 +198,14 @@ func escapeLabelValue(value string) string {
 	return value
 }
 
-func (c *Client) dailyHistoryChunks(ctx context.Context, plantID int64, end time.Time, weeks int) ([]EnergyPoint, error) {
+func (c *Client) dailyHistoryChunks(ctx context.Context, plantID int64, end time.Time, weeks int, stopAfterEmptyWeeks int) ([]EnergyPoint, error) {
 	if weeks <= 0 {
 		return nil, nil
 	}
 
 	points := make([]EnergyPoint, 0, weeks*7)
 	seen := make(map[int64]struct{}, weeks*7)
+	emptyWeeks := 0
 
 	for i := 0; i < weeks; i++ {
 		chunkEnd := end.AddDate(0, 0, -(i * 7))
@@ -196,6 +214,14 @@ func (c *Client) dailyHistoryChunks(ctx context.Context, plantID int64, end time
 		chunk, err := c.EnergyHistory(ctx, plantID, chunkStart, chunkEnd, "day")
 		if err != nil {
 			return nil, err
+		}
+		if len(chunk) == 0 {
+			emptyWeeks++
+			if stopAfterEmptyWeeks > 0 && emptyWeeks >= stopAfterEmptyWeeks {
+				break
+			}
+		} else {
+			emptyWeeks = 0
 		}
 		for _, point := range chunk {
 			key := point.Timestamp.Unix()
@@ -213,6 +239,19 @@ func (c *Client) dailyHistoryChunks(ctx context.Context, plantID int64, end time
 	}
 
 	return points, nil
+}
+
+func normalizeHistoryOptions(opts HistoryOptions) HistoryOptions {
+	if opts.MaxWeeks <= 0 {
+		opts.MaxWeeks = defaultGrowattHistoryWeeks
+	}
+	if opts.StopAfterEmptyWeeks < 0 {
+		opts.StopAfterEmptyWeeks = defaultGrowattEmptyStopWeeks
+	}
+	if strings.TrimSpace(opts.ImportURL) == "" {
+		opts.ImportURL = DefaultImportURL
+	}
+	return opts
 }
 
 func aggregateWeekly(points []EnergyPoint) []EnergyPoint {
