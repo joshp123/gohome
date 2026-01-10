@@ -37,7 +37,7 @@ func backfillUsage() {
 	fmt.Println("")
 	fmt.Println("Commands:")
 	fmt.Println("  tado --start YYYY-MM-DD --end YYYY-MM-DD [--zones name1,name2] [--config path]")
-	fmt.Println("  growatt [--max-weeks N] [--stop-after-empty-weeks N] [--config path] [--import-url url]")
+	fmt.Println("  growatt [--max-weeks N] [--stop-after-empty-weeks N] [--chunk-delay 25s] [--rate-limit-backoff 2m] [--config path] [--import-url url]")
 }
 
 func tadoBackfillCmd(args []string) {
@@ -108,6 +108,8 @@ func growattBackfillCmd(args []string) {
 	flags := flag.NewFlagSet("growatt", flag.ExitOnError)
 	maxWeeks := flags.Int("max-weeks", 520, "Maximum weeks to request (backfill stops early after empty weeks)")
 	stopAfterEmptyWeeks := flags.Int("stop-after-empty-weeks", 6, "Stop after N consecutive empty weeks (0 disables)")
+	chunkDelay := flags.Duration("chunk-delay", 25*time.Second, "Delay between history chunk requests")
+	rateLimitBackoff := flags.Duration("rate-limit-backoff", 2*time.Minute, "Backoff duration on API rate limits")
 	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
 	importURL := flags.String("import-url", growatt.DefaultImportURL, "VictoriaMetrics import URL")
 	_ = flags.Parse(args)
@@ -139,6 +141,8 @@ func growattBackfillCmd(args []string) {
 		MaxWeeks:            *maxWeeks,
 		StopAfterEmptyWeeks: *stopAfterEmptyWeeks,
 		ImportURL:           *importURL,
+		ChunkDelay:          *chunkDelay,
+		RateLimitBackoff:    *rateLimitBackoff,
 	}
 	if err := client.ImportEnergyHistoryWithOptions(ctx, plant, opts); err != nil {
 		fatal("backfill growatt", err)

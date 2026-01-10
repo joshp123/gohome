@@ -15,12 +15,16 @@ const (
 	DefaultImportURL             = "http://127.0.0.1:8428/vm/api/v1/import/prometheus"
 	defaultGrowattHistoryWeeks   = 52
 	defaultGrowattEmptyStopWeeks = 6
+	defaultGrowattChunkDelay     = 25 * time.Second
+	defaultGrowattRateBackoff    = 2 * time.Minute
 )
 
 type HistoryOptions struct {
 	MaxWeeks            int
 	StopAfterEmptyWeeks int
 	ImportURL           string
+	ChunkDelay          time.Duration
+	RateLimitBackoff    time.Duration
 }
 
 // EnergyPoint represents a dated energy reading.
@@ -128,7 +132,7 @@ func (c *Client) ImportEnergyHistoryWithOptions(ctx context.Context, plant Plant
 	yearEnd := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.Local)
 	yearStart := yearEnd.AddDate(-4, 0, 0)
 
-	day, err := c.dailyHistoryChunks(ctx, plant.ID, today, opts.MaxWeeks, opts.StopAfterEmptyWeeks)
+	day, err := c.dailyHistoryChunks(ctx, plant.ID, today, opts)
 	if err != nil {
 		return err
 	}
@@ -198,26 +202,36 @@ func escapeLabelValue(value string) string {
 	return value
 }
 
-func (c *Client) dailyHistoryChunks(ctx context.Context, plantID int64, end time.Time, weeks int, stopAfterEmptyWeeks int) ([]EnergyPoint, error) {
-	if weeks <= 0 {
+func (c *Client) dailyHistoryChunks(ctx context.Context, plantID int64, end time.Time, opts HistoryOptions) ([]EnergyPoint, error) {
+	if opts.MaxWeeks <= 0 {
 		return nil, nil
 	}
 
-	points := make([]EnergyPoint, 0, weeks*7)
-	seen := make(map[int64]struct{}, weeks*7)
+	points := make([]EnergyPoint, 0, opts.MaxWeeks*7)
+	seen := make(map[int64]struct{}, opts.MaxWeeks*7)
 	emptyWeeks := 0
 
-	for i := 0; i < weeks; i++ {
+	for i := 0; i < opts.MaxWeeks; i++ {
 		chunkEnd := end.AddDate(0, 0, -(i * 7))
 		chunkStart := chunkEnd.AddDate(0, 0, -6)
 
-		chunk, err := c.EnergyHistory(ctx, plantID, chunkStart, chunkEnd, "day")
-		if err != nil {
-			return nil, err
+		var chunk []EnergyPoint
+		for {
+			var err error
+			chunk, err = c.EnergyHistory(ctx, plantID, chunkStart, chunkEnd, "day")
+			if err == nil {
+				break
+			}
+			if !isRateLimit(err) {
+				return nil, err
+			}
+			if err := sleepWithContext(ctx, opts.RateLimitBackoff); err != nil {
+				return points, err
+			}
 		}
 		if len(chunk) == 0 {
 			emptyWeeks++
-			if stopAfterEmptyWeeks > 0 && emptyWeeks >= stopAfterEmptyWeeks {
+			if opts.StopAfterEmptyWeeks > 0 && emptyWeeks >= opts.StopAfterEmptyWeeks {
 				break
 			}
 		} else {
@@ -231,8 +245,8 @@ func (c *Client) dailyHistoryChunks(ctx context.Context, plantID int64, end time
 			seen[key] = struct{}{}
 			points = append(points, point)
 		}
-		if i < weeks-1 {
-			if err := sleepWithContext(ctx, 25*time.Second); err != nil {
+		if i < opts.MaxWeeks-1 {
+			if err := sleepWithContext(ctx, opts.ChunkDelay); err != nil {
 				return points, err
 			}
 		}
@@ -250,6 +264,12 @@ func normalizeHistoryOptions(opts HistoryOptions) HistoryOptions {
 	}
 	if strings.TrimSpace(opts.ImportURL) == "" {
 		opts.ImportURL = DefaultImportURL
+	}
+	if opts.ChunkDelay <= 0 {
+		opts.ChunkDelay = defaultGrowattChunkDelay
+	}
+	if opts.RateLimitBackoff <= 0 {
+		opts.RateLimitBackoff = defaultGrowattRateBackoff
 	}
 	return opts
 }
