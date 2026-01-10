@@ -11,4 +11,5 @@ protoc \
   proto/plugins/tado.proto \
   proto/plugins/daikin.proto \
   proto/plugins/growatt.proto \
-  proto/plugins/roborock.proto
+  proto/plugins/roborock.proto \
+  proto/plugins/p1_homewizard.proto

@@ -1,0 +1,292 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "scrape error"
+                },
+                "1": {
+                  "text": "ok"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "gohome_p1_homewizard_scrape_success",
+          "refId": "A"
+        }
+      ],
+      "title": "Scrape status",
+      "type": "stat"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "gohome_p1_homewizard_active_power_w",
+          "refId": "A"
+        }
+      ],
+      "title": "Active power",
+      "type": "stat"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwh"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "increase(gohome_p1_homewizard_total_import_kwh[1d])",
+          "refId": "A"
+        }
+      ],
+      "title": "Grid import (today)",
+      "type": "stat"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwh"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "increase(gohome_p1_homewizard_total_export_kwh[1d])",
+          "refId": "A"
+        }
+      ],
+      "title": "Surplus export (today)",
+      "type": "stat"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "id": 5,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "(increase(gohome_p1_homewizard_total_import_t1_kwh[1d]) * gohome_p1_homewizard_tariff_import_t1_eur_per_kwh) + (increase(gohome_p1_homewizard_total_import_t2_kwh[1d]) * gohome_p1_homewizard_tariff_import_t2_eur_per_kwh) - (increase(gohome_p1_homewizard_total_export_t1_kwh[1d]) * gohome_p1_homewizard_tariff_export_t1_eur_per_kwh) - (increase(gohome_p1_homewizard_total_export_t2_kwh[1d]) * gohome_p1_homewizard_tariff_export_t2_eur_per_kwh)",
+          "refId": "A"
+        }
+      ],
+      "title": "Costs (today)",
+      "type": "stat"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "gohome_p1_homewizard_active_power_w",
+          "legendFormat": "active",
+          "refId": "A"
+        },
+        {
+          "expr": "gohome_p1_homewizard_import_power_w",
+          "legendFormat": "import",
+          "refId": "B"
+        },
+        {
+          "expr": "gohome_p1_homewizard_export_power_w",
+          "legendFormat": "export",
+          "refId": "C"
+        }
+      ],
+      "title": "Total power",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "gohome",
+    "p1_homewizard"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-12h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m"
+    ]
+  },
+  "timezone": "browser",
+  "title": "P1 Homewizard",
+  "version": 1
+}
