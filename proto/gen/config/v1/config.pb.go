@@ -9,6 +9,7 @@ package configv1
 import (
 	v11 "github.com/joshp123/gohome/proto/gen/plugins/daikin/v1"
 	v12 "github.com/joshp123/gohome/proto/gen/plugins/growatt/v1"
+	v14 "github.com/joshp123/gohome/proto/gen/plugins/p1_homewizard/v1"
 	v13 "github.com/joshp123/gohome/proto/gen/plugins/roborock/v1"
 	v1 "github.com/joshp123/gohome/proto/gen/plugins/tado/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -186,14 +187,15 @@ func (x *OAuthConfig) GetRefreshIntervalSeconds() uint32 {
 }
 
 type Config struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SchemaVersion uint32                 `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	Core          *CoreConfig            `protobuf:"bytes,2,opt,name=core,proto3" json:"core,omitempty"`
-	Oauth         *OAuthConfig           `protobuf:"bytes,3,opt,name=oauth,proto3" json:"oauth,omitempty"`
-	Tado          *v1.TadoConfig         `protobuf:"bytes,10,opt,name=tado,proto3" json:"tado,omitempty"`
-	Daikin        *v11.DaikinConfig      `protobuf:"bytes,11,opt,name=daikin,proto3" json:"daikin,omitempty"`
-	Growatt       *v12.GrowattConfig     `protobuf:"bytes,12,opt,name=growatt,proto3" json:"growatt,omitempty"`
-	Roborock      *v13.RoborockConfig    `protobuf:"bytes,13,opt,name=roborock,proto3" json:"roborock,omitempty"`
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	SchemaVersion uint32                  `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	Core          *CoreConfig             `protobuf:"bytes,2,opt,name=core,proto3" json:"core,omitempty"`
+	Oauth         *OAuthConfig            `protobuf:"bytes,3,opt,name=oauth,proto3" json:"oauth,omitempty"`
+	Tado          *v1.TadoConfig          `protobuf:"bytes,10,opt,name=tado,proto3" json:"tado,omitempty"`
+	Daikin        *v11.DaikinConfig       `protobuf:"bytes,11,opt,name=daikin,proto3" json:"daikin,omitempty"`
+	Growatt       *v12.GrowattConfig      `protobuf:"bytes,12,opt,name=growatt,proto3" json:"growatt,omitempty"`
+	Roborock      *v13.RoborockConfig     `protobuf:"bytes,13,opt,name=roborock,proto3" json:"roborock,omitempty"`
+	P1Homewizard  *v14.P1HomewizardConfig `protobuf:"bytes,14,opt,name=p1_homewizard,json=p1Homewizard,proto3" json:"p1_homewizard,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -277,11 +279,18 @@ func (x *Config) GetRoborock() *v13.RoborockConfig {
 	return nil
 }
 
+func (x *Config) GetP1Homewizard() *v14.P1HomewizardConfig {
+	if x != nil {
+		return x.P1Homewizard
+	}
+	return nil
+}
+
 var File_proto_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_proto_config_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"\x1cproto/config/v1/config.proto\x12\x10gohome.config.v1\x1a\x18proto/plugins/tado.proto\x1a\x1aproto/plugins/daikin.proto\x1a\x1bproto/plugins/growatt.proto\x1a\x1cproto/plugins/roborock.proto\"k\n" +
+	"\x1cproto/config/v1/config.proto\x12\x10gohome.config.v1\x1a\x18proto/plugins/tado.proto\x1a\x1aproto/plugins/daikin.proto\x1a\x1bproto/plugins/growatt.proto\x1a\x1cproto/plugins/roborock.proto\x1a!proto/plugins/p1_homewizard.proto\"k\n" +
 	"\n" +
 	"CoreConfig\x12\x1b\n" +
 	"\tgrpc_addr\x18\x01 \x01(\tR\bgrpcAddr\x12\x1b\n" +
@@ -299,7 +308,7 @@ const file_proto_config_v1_config_proto_rawDesc = "" +
 	"blobRegion\x12,\n" +
 	"\x0frefresh_enabled\x18\a \x01(\bH\x00R\x0erefreshEnabled\x88\x01\x01\x128\n" +
 	"\x18refresh_interval_seconds\x18\b \x01(\rR\x16refreshIntervalSecondsB\x12\n" +
-	"\x10_refresh_enabled\"\x9a\x03\n" +
+	"\x10_refresh_enabled\"\xf4\x03\n" +
 	"\x06Config\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x120\n" +
 	"\x04core\x18\x02 \x01(\v2\x1c.gohome.config.v1.CoreConfigR\x04core\x123\n" +
@@ -308,7 +317,8 @@ const file_proto_config_v1_config_proto_rawDesc = "" +
 	" \x01(\v2\".gohome.plugins.tado.v1.TadoConfigR\x04tado\x12>\n" +
 	"\x06daikin\x18\v \x01(\v2&.gohome.plugins.daikin.v1.DaikinConfigR\x06daikin\x12B\n" +
 	"\agrowatt\x18\f \x01(\v2(.gohome.plugins.growatt.v1.GrowattConfigR\agrowatt\x12F\n" +
-	"\broborock\x18\r \x01(\v2*.gohome.plugins.roborock.v1.RoborockConfigR\broborockB9Z7github.com/joshp123/gohome/proto/gen/config/v1;configv1b\x06proto3"
+	"\broborock\x18\r \x01(\v2*.gohome.plugins.roborock.v1.RoborockConfigR\broborock\x12X\n" +
+	"\rp1_homewizard\x18\x0e \x01(\v23.gohome.plugins.p1_homewizard.v1.P1HomewizardConfigR\fp1HomewizardB9Z7github.com/joshp123/gohome/proto/gen/config/v1;configv1b\x06proto3"
 
 var (
 	file_proto_config_v1_config_proto_rawDescOnce sync.Once
@@ -324,13 +334,14 @@ func file_proto_config_v1_config_proto_rawDescGZIP() []byte {
 
 var file_proto_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_proto_config_v1_config_proto_goTypes = []any{
-	(*CoreConfig)(nil),         // 0: gohome.config.v1.CoreConfig
-	(*OAuthConfig)(nil),        // 1: gohome.config.v1.OAuthConfig
-	(*Config)(nil),             // 2: gohome.config.v1.Config
-	(*v1.TadoConfig)(nil),      // 3: gohome.plugins.tado.v1.TadoConfig
-	(*v11.DaikinConfig)(nil),   // 4: gohome.plugins.daikin.v1.DaikinConfig
-	(*v12.GrowattConfig)(nil),  // 5: gohome.plugins.growatt.v1.GrowattConfig
-	(*v13.RoborockConfig)(nil), // 6: gohome.plugins.roborock.v1.RoborockConfig
+	(*CoreConfig)(nil),             // 0: gohome.config.v1.CoreConfig
+	(*OAuthConfig)(nil),            // 1: gohome.config.v1.OAuthConfig
+	(*Config)(nil),                 // 2: gohome.config.v1.Config
+	(*v1.TadoConfig)(nil),          // 3: gohome.plugins.tado.v1.TadoConfig
+	(*v11.DaikinConfig)(nil),       // 4: gohome.plugins.daikin.v1.DaikinConfig
+	(*v12.GrowattConfig)(nil),      // 5: gohome.plugins.growatt.v1.GrowattConfig
+	(*v13.RoborockConfig)(nil),     // 6: gohome.plugins.roborock.v1.RoborockConfig
+	(*v14.P1HomewizardConfig)(nil), // 7: gohome.plugins.p1_homewizard.v1.P1HomewizardConfig
 }
 var file_proto_config_v1_config_proto_depIdxs = []int32{
 	0, // 0: gohome.config.v1.Config.core:type_name -> gohome.config.v1.CoreConfig
@@ -339,11 +350,12 @@ var file_proto_config_v1_config_proto_depIdxs = []int32{
 	4, // 3: gohome.config.v1.Config.daikin:type_name -> gohome.plugins.daikin.v1.DaikinConfig
 	5, // 4: gohome.config.v1.Config.growatt:type_name -> gohome.plugins.growatt.v1.GrowattConfig
 	6, // 5: gohome.config.v1.Config.roborock:type_name -> gohome.plugins.roborock.v1.RoborockConfig
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	7, // 6: gohome.config.v1.Config.p1_homewizard:type_name -> gohome.plugins.p1_homewizard.v1.P1HomewizardConfig
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_proto_config_v1_config_proto_init() }

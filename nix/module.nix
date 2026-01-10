@@ -50,6 +50,11 @@ ${lib.concatStringsSep "\n" lines}
       }
   '';
 
+  p1TariffLine = field: value:
+    if value == null
+    then ""
+    else "      ${field}: ${toString value}\n";
+
   configText = ''
     schema_version: 1
     core {
@@ -99,6 +104,14 @@ ${textprotoMapUIntString "segment_names" cfg.plugins.roborock.segmentNames}
   '' + optionalString (cfg.plugins.roborock.defaultProfile != null) ''
 ${textprotoProfile "default_profile" cfg.plugins.roborock.defaultProfile}
   '' + ''
+    }
+  '' + optionalString (cfg.plugins.p1_homewizard != null) ''
+    p1_homewizard {
+      base_url: ${textprotoString (if cfg.plugins.p1_homewizard.baseUrl == null then "http://192.168.1.48" else cfg.plugins.p1_homewizard.baseUrl)}
+${p1TariffLine "tariff_import_t1_eur_per_kwh" cfg.plugins.p1_homewizard.tariffImportT1EurPerKwh}
+${p1TariffLine "tariff_import_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffImportT2EurPerKwh}
+${p1TariffLine "tariff_export_t1_eur_per_kwh" cfg.plugins.p1_homewizard.tariffExportT1EurPerKwh}
+${p1TariffLine "tariff_export_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffExportT2EurPerKwh}
     }
   '';
 
@@ -314,6 +327,44 @@ in
       });
       default = null;
       description = "Roborock plugin config (presence enables the plugin)";
+    };
+
+    plugins.p1_homewizard = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          baseUrl = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = "P1 Homewizard base URL (default http://192.168.1.48)";
+          };
+
+          tariffImportT1EurPerKwh = mkOption {
+            type = types.nullOr types.float;
+            default = null;
+            description = "Import tariff T1 in EUR per kWh";
+          };
+
+          tariffImportT2EurPerKwh = mkOption {
+            type = types.nullOr types.float;
+            default = null;
+            description = "Import tariff T2 in EUR per kWh";
+          };
+
+          tariffExportT1EurPerKwh = mkOption {
+            type = types.nullOr types.float;
+            default = null;
+            description = "Export tariff T1 in EUR per kWh";
+          };
+
+          tariffExportT2EurPerKwh = mkOption {
+            type = types.nullOr types.float;
+            default = null;
+            description = "Export tariff T2 in EUR per kWh";
+          };
+        };
+      });
+      default = null;
+      description = "P1 Homewizard plugin config (presence enables the plugin)";
     };
   };
 

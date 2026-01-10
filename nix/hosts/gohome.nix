@@ -78,6 +78,9 @@
         "21" = "study";
       };
     };
+    plugins.p1_homewizard = {
+      baseUrl = "http://192.168.1.48";
+    };
 
     tailscale.authKeyFile = config.age.secrets.tailscale-authkey.path;
   };
