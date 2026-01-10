@@ -362,12 +362,12 @@
       },
       "targets": [
         {
-          "expr": "-1 * increase(gohome_p1_homewizard_total_import_kwh[$__rate_interval])",
+          "expr": "increase(gohome_p1_homewizard_total_import_kwh[$__rate_interval])",
           "legendFormat": "Consumed",
           "refId": "A"
         },
         {
-          "expr": "increase(gohome_p1_homewizard_total_export_kwh[$__rate_interval])",
+          "expr": "-1 * increase(gohome_p1_homewizard_total_export_kwh[$__rate_interval])",
           "legendFormat": "Produced",
           "refId": "B"
         }
