@@ -311,11 +311,6 @@
         "type": "query"
       },
       {
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": ".*"
-        },
         "datasource": null,
         "definition": "label_values(gohome_roborock_battery_percent, device_name)",
         "hide": 0,
