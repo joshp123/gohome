@@ -112,14 +112,61 @@
           "refId": "A"
         }
       ],
-      "title": "Active power",
+      "title": "Current power",
       "type": "stat"
     },
     {
       "datasource": "VictoriaMetrics",
       "fieldConfig": {
         "defaults": {
-          "unit": "kwh"
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": -1000000000.0,
+                "to": -0.0001,
+                "result": {
+                  "text": "Producing"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": -0.0001,
+                "to": 0.0001,
+                "result": {
+                  "text": "Idle"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "Consuming"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -129,7 +176,7 @@
         "x": 8,
         "y": 0
       },
-      "id": 3,
+      "id": 7,
       "options": {
         "reduceOptions": {
           "calcs": [
@@ -143,11 +190,11 @@
       },
       "targets": [
         {
-          "expr": "increase(gohome_p1_homewizard_total_import_kwh[1d])",
+          "expr": "gohome_p1_homewizard_import_power_w - gohome_p1_homewizard_export_power_w",
           "refId": "A"
         }
       ],
-      "title": "Grid import (today)",
+      "title": "Status",
       "type": "stat"
     },
     {
@@ -164,6 +211,41 @@
         "x": 12,
         "y": 0
       },
+      "id": 3,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "increase(gohome_p1_homewizard_total_import_kwh[24h])",
+          "refId": "A"
+        }
+      ],
+      "title": "Consumed (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwh"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
       "id": 4,
       "options": {
         "reduceOptions": {
@@ -178,11 +260,11 @@
       },
       "targets": [
         {
-          "expr": "increase(gohome_p1_homewizard_total_export_kwh[1d])",
+          "expr": "increase(gohome_p1_homewizard_total_export_kwh[24h])",
           "refId": "A"
         }
       ],
-      "title": "Surplus export (today)",
+      "title": "Produced (24h)",
       "type": "stat"
     },
     {
@@ -196,7 +278,7 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 16,
+        "x": 20,
         "y": 0
       },
       "id": 5,
@@ -213,20 +295,56 @@
       },
       "targets": [
         {
-          "expr": "(increase(gohome_p1_homewizard_total_import_t1_kwh[1d]) * gohome_p1_homewizard_tariff_import_t1_eur_per_kwh) + (increase(gohome_p1_homewizard_total_import_t2_kwh[1d]) * gohome_p1_homewizard_tariff_import_t2_eur_per_kwh) - (increase(gohome_p1_homewizard_total_export_t1_kwh[1d]) * gohome_p1_homewizard_tariff_export_t1_eur_per_kwh) - (increase(gohome_p1_homewizard_total_export_t2_kwh[1d]) * gohome_p1_homewizard_tariff_export_t2_eur_per_kwh)",
+          "expr": "(increase(gohome_p1_homewizard_total_import_t1_kwh[24h]) * gohome_p1_homewizard_tariff_import_t1_eur_per_kwh) + (increase(gohome_p1_homewizard_total_import_t2_kwh[24h]) * gohome_p1_homewizard_tariff_import_t2_eur_per_kwh) + - (increase(gohome_p1_homewizard_total_export_t1_kwh[24h]) * gohome_p1_homewizard_tariff_export_t1_eur_per_kwh) + - (increase(gohome_p1_homewizard_total_export_t2_kwh[24h]) * gohome_p1_homewizard_tariff_export_t2_eur_per_kwh)",
           "refId": "A"
         }
       ],
-      "title": "Costs (today)",
+      "title": "Cost (24h)",
       "type": "stat"
     },
     {
       "datasource": "VictoriaMetrics",
       "fieldConfig": {
         "defaults": {
-          "unit": "watt"
+          "unit": "kwh",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 50,
+            "lineWidth": 0
+          }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Consumed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Produced"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#E0B400"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 10,
@@ -237,29 +355,24 @@
       "id": 6,
       "options": {
         "legend": {
-          "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         }
       },
       "targets": [
         {
-          "expr": "gohome_p1_homewizard_active_power_w",
-          "legendFormat": "active",
+          "expr": "-1 * increase(gohome_p1_homewizard_total_import_kwh[$__rate_interval])",
+          "legendFormat": "Consumed",
           "refId": "A"
         },
         {
-          "expr": "gohome_p1_homewizard_import_power_w",
-          "legendFormat": "import",
+          "expr": "increase(gohome_p1_homewizard_total_export_kwh[$__rate_interval])",
+          "legendFormat": "Produced",
           "refId": "B"
-        },
-        {
-          "expr": "gohome_p1_homewizard_export_power_w",
-          "legendFormat": "export",
-          "refId": "C"
         }
       ],
-      "title": "Total power",
+      "title": "Energy flow (24h)",
       "type": "timeseries"
     }
   ],
@@ -274,7 +387,7 @@
     "list": []
   },
   "time": {
-    "from": "now-12h",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {
