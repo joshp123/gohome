@@ -20,6 +20,11 @@ Nix‑native home automation. Replace Home Assistant with a deterministic Go sys
 - No UI beyond Grafana
 - Secrets via agenix only
 
+## In-flight (living log)
+
+- Growatt high-res power: blocked on ShinePhone app auth; need working login/session cookie. Next: add private client to pull minute-level power and import to VM; rewire Grafana power panel to new series.
+- Growatt public backfill: daily energy imported 2025-01-01→2026-01-10; weekly/monthly/yearly present. All backfill jobs stopped after rate limits; restart only with new plan.
+
 ## Security Rules
 
 - NEVER commit secrets, tokens, keys, or personal data
