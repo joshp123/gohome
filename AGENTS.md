@@ -20,6 +20,9 @@ Nix‑native home automation. Replace Home Assistant with a deterministic Go sys
 - No UI beyond Grafana
 - Secrets via agenix only
 
+## In-flight (living log)
+
+
 ## Security Rules
 
 - NEVER commit secrets, tokens, keys, or personal data
