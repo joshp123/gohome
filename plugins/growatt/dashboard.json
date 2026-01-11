@@ -308,9 +308,8 @@
           "refId": "A"
         }
       ],
-      "title": "Power (24h)",
-      "type": "timeseries",
-      "timeFrom": "24h"
+      "title": "Power",
+      "type": "timeseries"
     },
     {
       "datasource": "VictoriaMetrics",
