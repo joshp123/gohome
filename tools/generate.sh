@@ -12,4 +12,5 @@ protoc \
   proto/plugins/daikin.proto \
   proto/plugins/growatt.proto \
   proto/plugins/roborock.proto \
-  proto/plugins/p1_homewizard.proto
+  proto/plugins/p1_homewizard.proto \
+  proto/plugins/airgradient.proto

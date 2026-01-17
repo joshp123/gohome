@@ -113,6 +113,10 @@ ${p1TariffLine "tariff_import_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffIm
 ${p1TariffLine "tariff_export_t1_eur_per_kwh" cfg.plugins.p1_homewizard.tariffExportT1EurPerKwh}
 ${p1TariffLine "tariff_export_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffExportT2EurPerKwh}
     }
+  '' + optionalString (cfg.plugins.airgradient != null) ''
+    airgradient {
+      base_url: ${textprotoString (if cfg.plugins.airgradient.baseUrl == null then "http://192.168.1.243" else cfg.plugins.airgradient.baseUrl)}
+    }
   '';
 
 in
@@ -365,6 +369,20 @@ in
       });
       default = null;
       description = "P1 Homewizard plugin config (presence enables the plugin)";
+    };
+
+    plugins.airgradient = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          baseUrl = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = "AirGradient base URL (default http://192.168.1.243)";
+          };
+        };
+      });
+      default = null;
+      description = "AirGradient plugin config (presence enables the plugin)";
     };
   };
 

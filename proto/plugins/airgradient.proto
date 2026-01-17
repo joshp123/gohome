@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package gohome.plugins.airgradient.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/airgradient/v1;airgradientv1";
+
+message GetCurrentRequest {}
+
+message SatelliteReading {
+  string id = 1;
+  optional double temperature_celsius = 2;
+  optional double humidity_percent = 3;
+  optional double wifi_rssi_dbm = 4;
+}
+
+message CurrentReading {
+  optional string serial = 1;
+  optional string firmware = 2;
+  optional string model = 3;
+  optional string led_mode = 4;
+  optional double wifi_rssi_dbm = 5;
+  optional double co2_ppm = 6;
+  optional double pm01_ugm3 = 7;
+  optional double pm02_ugm3 = 8;
+  optional double pm10_ugm3 = 9;
+  optional double pm02_compensated_ugm3 = 10;
+  optional double pm01_standard_ugm3 = 11;
+  optional double pm02_standard_ugm3 = 12;
+  optional double pm10_standard_ugm3 = 13;
+  optional double pm003_count_per_dl = 14;
+  optional double pm005_count_per_dl = 15;
+  optional double pm01_count_per_dl = 16;
+  optional double pm02_count_per_dl = 17;
+  optional double pm50_count_per_dl = 18;
+  optional double pm10_count_per_dl = 19;
+  optional double temperature_celsius = 20;
+  optional double temperature_compensated_celsius = 21;
+  optional double humidity_percent = 22;
+  optional double humidity_compensated_percent = 23;
+  optional double tvoc_index = 24;
+  optional double tvoc_raw = 25;
+  optional double nox_index = 26;
+  optional double nox_raw = 27;
+  optional double boot_count = 28;
+  repeated SatelliteReading satellites = 29;
+}
+
+message GetCurrentResponse {
+  CurrentReading reading = 1;
+}
+
+message GetSnapshotRequest {}
+
+message GetSnapshotResponse {
+  string json = 1;
+}
+
+message GetMetricsRequest {}
+
+message GetMetricsResponse {
+  string openmetrics = 1;
+}
+
+message GetConfigRequest {}
+
+message GetConfigResponse {
+  string json = 1;
+}
+
+message AirgradientConfig {
+  string base_url = 1;
+}
+
+service AirGradientService {
+  rpc GetCurrent(GetCurrentRequest) returns (GetCurrentResponse);
+  rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+}

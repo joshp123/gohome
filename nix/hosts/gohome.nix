@@ -86,6 +86,10 @@
       tariffExportT2EurPerKwh = -0.02178;
     };
 
+    plugins.airgradient = {
+      baseUrl = "http://192.168.1.243";
+    };
+
     tailscale.authKeyFile = config.age.secrets.tailscale-authkey.path;
   };
 }
