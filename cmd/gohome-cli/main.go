@@ -70,6 +70,8 @@ func main() {
 		tadoCmd(ctx, conn, args[1:], jsonOutput)
 	case "roborock":
 		roborockCmd(ctx, conn, args[1:], jsonOutput)
+	case "airgradient":
+		airgradientCmd(ctx, conn, args[1:], jsonOutput)
 	default:
 		usage()
 		os.Exit(2)
@@ -276,6 +278,7 @@ func usage() {
 	fmt.Println("Commands:")
 	fmt.Println("  tado <zones|set>")
 	fmt.Println("  roborock <status|rooms|clean|dock|locate|map>")
+	fmt.Println("  airgradient <current|snapshot|metrics|config>")
 	fmt.Println("  plugins list")
 	fmt.Println("  plugins describe <plugin_id>")
 	fmt.Println("  services")
