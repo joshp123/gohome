@@ -147,6 +147,9 @@ func EnabledPlugins(cfg *configv1.Config) map[string]bool {
 	if cfg.P1Homewizard != nil {
 		enabled["p1_homewizard"] = true
 	}
+	if cfg.Airgradient != nil {
+		enabled["airgradient"] = true
+	}
 	return enabled
 }
 
