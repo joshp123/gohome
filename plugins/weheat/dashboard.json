@@ -1,86 +1,852 @@
 {
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": "-- Grafana --",
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
-  },
-  "editable": false,
-  "graphTooltip": 1,
-  "panels": [
-    {
-      "datasource": "VictoriaMetrics",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bool"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 0
-      },
-      "id": 1,
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "horizontal",
-        "textMode": "auto"
-      },
-      "targets": [
-        {
-          "expr": "gohome_weheat_scrape_success",
-          "refId": "A"
-        }
-      ],
-      "title": "Weheat scrape success",
-      "type": "stat"
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": "-- Grafana --",
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
     },
-    {
-      "datasource": "VictoriaMetrics",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 4
-      },
-      "id": 2,
-      "options": {
-        "showPoints": "never"
-      },
-      "targets": [
+    "editable": false,
+    "graphTooltip": 1,
+    "links": [],
+    "liveNow": false,
+    "panels": [
         {
-          "expr": "gohome_weheat_last_update_timestamp_seconds",
-          "refId": "A"
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [
+                        {
+                            "options": {
+                                "0": {
+                                    "text": "scrape error"
+                                },
+                                "1": {
+                                    "text": "ok"
+                                }
+                            },
+                            "type": "value"
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 0,
+                "y": 0
+            },
+            "id": 1,
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "orientation": "horizontal",
+                "textMode": "value"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_scrape_success",
+                    "refId": "A"
+                }
+            ],
+            "title": "Scrape status",
+            "type": "stat"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [
+                        {
+                            "options": {
+                                "0": {
+                                    "text": "error"
+                                },
+                                "1": {
+                                    "text": "ok"
+                                }
+                            },
+                            "type": "value"
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 4,
+                "y": 0
+            },
+            "id": 2,
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "orientation": "horizontal",
+                "textMode": "value"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_energy_scrape_success",
+                    "refId": "A"
+                }
+            ],
+            "title": "Energy scrape",
+            "type": "stat"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [
+                        {
+                            "options": {
+                                "0": {
+                                    "text": "offline"
+                                },
+                                "1": {
+                                    "text": "online"
+                                }
+                            },
+                            "type": "value"
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "unit": "bool"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 8,
+                "y": 0
+            },
+            "id": 3,
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "orientation": "horizontal",
+                "textMode": "value"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_is_online{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "{{heat_pump_id}}"
+                }
+            ],
+            "title": "Online",
+            "type": "stat"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "mappings": [
+                        {
+                            "options": {
+                                "1": {
+                                    "text": "offline"
+                                },
+                                "40": {
+                                    "text": "standby"
+                                },
+                                "70": {
+                                    "text": "heating"
+                                },
+                                "130": {
+                                    "text": "cooling"
+                                },
+                                "150": {
+                                    "text": "dhw"
+                                },
+                                "160": {
+                                    "text": "legionella"
+                                },
+                                "170": {
+                                    "text": "self_test"
+                                },
+                                "180": {
+                                    "text": "manual"
+                                },
+                                "200": {
+                                    "text": "defrost"
+                                }
+                            },
+                            "type": "value"
+                        }
+                    ]
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 12,
+                "y": 0
+            },
+            "id": 4,
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "orientation": "horizontal",
+                "textMode": "value"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_state{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "{{heat_pump_id}}"
+                }
+            ],
+            "title": "State",
+            "type": "stat"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "dateTimeAsIso"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 8,
+                "x": 16,
+                "y": 0
+            },
+            "id": 5,
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "orientation": "horizontal",
+                "textMode": "value"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_last_update_timestamp_seconds{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "{{heat_pump_id}}"
+                }
+            ],
+            "title": "Last update",
+            "type": "stat"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "celsius"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 4
+            },
+            "id": 6,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_t_water_in{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "water_in"
+                },
+                {
+                    "expr": "gohome_weheat_log_t_water_out{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "water_out"
+                },
+                {
+                    "expr": "gohome_weheat_log_t_water_house_in{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "C",
+                    "legendFormat": "house_in"
+                },
+                {
+                    "expr": "gohome_weheat_log_t1{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "D",
+                    "legendFormat": "dhw_top"
+                },
+                {
+                    "expr": "gohome_weheat_log_t2{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "E",
+                    "legendFormat": "dhw_bottom"
+                }
+            ],
+            "title": "Water + DHW temperatures",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "celsius"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 4
+            },
+            "id": 7,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_t_air_in{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "air_in"
+                },
+                {
+                    "expr": "gohome_weheat_log_t_air_out{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "air_out"
+                },
+                {
+                    "expr": "gohome_weheat_log_t_room{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "C",
+                    "legendFormat": "room"
+                },
+                {
+                    "expr": "gohome_weheat_log_t_room_target{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "D",
+                    "legendFormat": "room_target"
+                },
+                {
+                    "expr": "gohome_weheat_log_t_thermostat_setpoint{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "E",
+                    "legendFormat": "thermostat_setpoint"
+                }
+            ],
+            "title": "Air + room temperatures",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "watt"
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "cop (calc)"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "none"
+                            },
+                            {
+                                "id": "custom.axisPlacement",
+                                "value": "right"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 12
+            },
+            "id": 8,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_cm_mass_power_in{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "power_in"
+                },
+                {
+                    "expr": "gohome_weheat_log_cm_mass_power_out{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "power_out"
+                },
+                {
+                    "expr": "gohome_weheat_log_compressor_power_low_accuracy{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "C",
+                    "legendFormat": "compressor_power"
+                },
+                {
+                    "expr": "gohome_weheat_log_cm_mass_power_out{heat_pump_id=~\"$heat_pump_id\"} / gohome_weheat_log_cm_mass_power_in{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "D",
+                    "legendFormat": "cop (calc)"
+                }
+            ],
+            "title": "Power + COP",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "rpm"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 12,
+                "y": 12
+            },
+            "id": 9,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_rpm{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "rpm"
+                },
+                {
+                    "expr": "gohome_weheat_log_rpm_limiter{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "rpm_limiter"
+                }
+            ],
+            "title": "Compressor RPM",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "fan_power"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "watt"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 18,
+                "y": 12
+            },
+            "id": 10,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_fan{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "fan"
+                },
+                {
+                    "expr": "gohome_weheat_log_fan_power{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "fan_power"
+                }
+            ],
+            "title": "Fan",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 20
+            },
+            "id": 11,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_central_heating_flow{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "central_heating_flow"
+                },
+                {
+                    "expr": "gohome_weheat_log_dhw_flow{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "dhw_flow"
+                }
+            ],
+            "title": "Flow PWM",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bool"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 20
+            },
+            "id": 12,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_control_bridge_status_decoded_water_pump{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "water_pump"
+                },
+                {
+                    "expr": "gohome_weheat_log_control_bridge_status_decoded_water_pump2{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "water_pump2"
+                },
+                {
+                    "expr": "gohome_weheat_log_control_bridge_status_decoded_dhw_valve{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "C",
+                    "legendFormat": "dhw_valve"
+                },
+                {
+                    "expr": "gohome_weheat_log_control_bridge_status_decoded_gas_boiler{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "D",
+                    "legendFormat": "gas_boiler"
+                },
+                {
+                    "expr": "gohome_weheat_log_control_bridge_status_decoded_electric_heater{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "E",
+                    "legendFormat": "electric_heater"
+                }
+            ],
+            "title": "Pump + valve states",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "kwh"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 28
+            },
+            "id": 13,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_energy_total_ein_heating_kwh{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "ein_heating"
+                },
+                {
+                    "expr": "gohome_weheat_energy_total_ein_dhw_kwh{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "ein_dhw"
+                },
+                {
+                    "expr": "gohome_weheat_energy_total_ein_cooling_kwh{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "C",
+                    "legendFormat": "ein_cooling"
+                },
+                {
+                    "expr": "gohome_weheat_energy_total_eout_heating_kwh{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "D",
+                    "legendFormat": "eout_heating"
+                },
+                {
+                    "expr": "gohome_weheat_energy_total_eout_dhw_kwh{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "E",
+                    "legendFormat": "eout_dhw"
+                },
+                {
+                    "expr": "gohome_weheat_energy_total_eout_cooling_kwh{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "F",
+                    "legendFormat": "eout_cooling"
+                }
+            ],
+            "title": "Energy totals",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "kwh"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 28
+            },
+            "id": 14,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_energy_total_ein_heating_defrost_kwh{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "ein_heating_defrost"
+                },
+                {
+                    "expr": "gohome_weheat_energy_total_ein_dhw_defrost_kwh{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "ein_dhw_defrost"
+                },
+                {
+                    "expr": "gohome_weheat_energy_total_eout_heating_defrost_kwh{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "C",
+                    "legendFormat": "eout_heating_defrost"
+                },
+                {
+                    "expr": "gohome_weheat_energy_total_eout_dhw_defrost_kwh{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "D",
+                    "legendFormat": "eout_dhw_defrost"
+                }
+            ],
+            "title": "Energy defrost totals",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 36
+            },
+            "id": 15,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_signal_strength{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "signal_strength"
+                },
+                {
+                    "expr": "gohome_weheat_log_sinr{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "sinr"
+                }
+            ],
+            "title": "Signal",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 36
+            },
+            "id": 16,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_error{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "error_code"
+                },
+                {
+                    "expr": "gohome_weheat_log_error_decoded_dtc_error{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "dtc_error"
+                },
+                {
+                    "expr": "gohome_weheat_log_error_decoded_dtc_request_service{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "C",
+                    "legendFormat": "dtc_request_service"
+                },
+                {
+                    "expr": "gohome_weheat_log_error_decoded_dtc_defrost_forbidden{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "D",
+                    "legendFormat": "dtc_defrost_forbidden"
+                },
+                {
+                    "expr": "gohome_weheat_log_error_decoded_dtc_dhw_forbidden{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "E",
+                    "legendFormat": "dtc_dhw_forbidden"
+                }
+            ],
+            "title": "Errors",
+            "type": "timeseries"
         }
-      ],
-      "title": "Weheat last update",
-      "type": "timeseries"
-    }
-  ],
-  "schemaVersion": 39,
-  "style": "dark",
-  "title": "Weheat Overview",
-  "uid": "gohome-weheat",
-  "version": 1
+    ],
+    "refresh": "30s",
+    "schemaVersion": 39,
+    "style": "dark",
+    "tags": [
+        "weheat"
+    ],
+    "templating": {
+        "list": [
+            {
+                "current": {
+                    "selected": false,
+                    "text": "All",
+                    "value": ".*"
+                },
+                "datasource": null,
+                "definition": "label_values(gohome_weheat_last_update_timestamp_seconds, heat_pump_id)",
+                "hide": 0,
+                "includeAll": true,
+                "label": "Heat pump",
+                "multi": true,
+                "name": "heat_pump_id",
+                "options": [],
+                "query": {
+                    "query": "label_values(gohome_weheat_last_update_timestamp_seconds, heat_pump_id)",
+                    "refId": "StandardVariableQuery"
+                },
+                "refresh": 2,
+                "regex": "",
+                "sort": 1,
+                "type": "query"
+            }
+        ]
+    },
+    "time": {
+        "from": "now-6h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Weheat Overview",
+    "uid": "weheat-overview",
+    "version": 1
 }
