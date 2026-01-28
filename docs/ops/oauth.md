@@ -19,6 +19,13 @@ Use a **writable** state file for long-running services. JSON keys must be snake
 }
 ```
 
+## Agent-friendly flow
+- `gohome oauth device --provider <id> --json` emits a machine-readable payload (verification URL + temp state path).
+- A temp state file is written under `/tmp/gohome-oauth-<provider>-<timestamp>.json` for recovery.
+- If persistence fails, rerun: `gohome oauth persist --provider <id> --state /tmp/...`.
+- Add `--cleanup` to delete the temp file after a successful persist.
+- Use `--persist-agenix` to write the bootstrap secret into the nix-secrets repo (defaults to `~/code/nix/nix-secrets`).
+
 ## Quick Validation (no secrets printed)
 ```
 # MD5 of refresh token (CR/LF trimmed)

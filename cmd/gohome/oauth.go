@@ -15,12 +15,15 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/joshp123/gohome/internal/agenix"
 	"github.com/joshp123/gohome/internal/config"
 	"github.com/joshp123/gohome/internal/oauth"
+	"github.com/joshp123/gohome/internal/oauthflow"
 	"github.com/joshp123/gohome/internal/plugins"
 	configv1 "github.com/joshp123/gohome/proto/gen/config/v1"
 	"golang.org/x/oauth2"
@@ -37,6 +40,8 @@ func oauthMain(args []string) {
 		authCodeCmd(args[1:])
 	case "device":
 		deviceCmd(args[1:])
+	case "persist":
+		persistCmd(args[1:])
 	default:
 		oauthUsage()
 		os.Exit(2)
@@ -49,6 +54,7 @@ func oauthUsage() {
 	fmt.Println("Commands:")
 	fmt.Println("  auth-code --provider <id> --redirect-url <url> [--config <path>] [--no-open]")
 	fmt.Println("  device --provider <id> [--config <path>] [--no-open]")
+	fmt.Println("  persist --provider <id> --state <path> [--config <path>]")
 }
 
 func authCodeCmd(args []string) {
@@ -58,7 +64,16 @@ func authCodeCmd(args []string) {
 	bootstrapFile := flags.String("bootstrap-file", "", "Override bootstrap file path")
 	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
 	noOpen := flags.Bool("no-open", false, "Do not open the browser automatically")
+	stateOut := flags.String("state-out", "", "Write OAuth state to a temp file")
+	cleanup := flags.Bool("cleanup", false, "Remove temp state file after successful persist")
+	jsonOut := flags.Bool("json", false, "Output JSON to stdout")
+	printToken := flags.Bool("print-token", false, "Include refresh token in output")
+	persistAgenix := flags.Bool("persist-agenix", true, "Persist bootstrap secret via agenix")
 	timeout := flags.Duration("timeout", 5*time.Minute, "Timeout for auth flow")
+	agenixRepo := flags.String("agenix-repo", defaultAgenixRepo(), "Path to nix-secrets repo")
+	agenixSecret := flags.String("agenix-secret", "", "Override agenix secret name")
+	agenixRecipients := flags.String("agenix-recipients", "", "Space-separated recipient override")
+	skipBlob := flags.Bool("skip-blob", false, "Skip blob storage persistence")
 	_ = flags.Parse(args)
 
 	if *provider == "" || *redirectURL == "" {
@@ -114,9 +129,7 @@ func authCodeCmd(args []string) {
 	}
 
 	authURL := conf.AuthCodeURL(state, oauth2.AccessTypeOffline)
-	fmt.Println("Open this URL to authorize:")
-	fmt.Println(authURL)
-	fmt.Println("")
+	printAuthPrompt(*jsonOut, "Open this URL to authorize:", authURL, "")
 
 	if !*noOpen {
 		_ = openBrowser(authURL)
@@ -125,7 +138,7 @@ func authCodeCmd(args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
-	code, err := waitForAuthCode(ctx, *redirectURL, state)
+	code, err := waitForAuthCode(ctx, *redirectURL, state, *jsonOut)
 	if err != nil {
 		fatal("oauth", err)
 	}
@@ -138,11 +151,23 @@ func authCodeCmd(args []string) {
 		fatal("oauth", fmt.Errorf("no refresh_token returned; check scope and redirect URL"))
 	}
 
-	if err := persistState(ctx, decl, bootstrap, token.RefreshToken, cfg.Oauth); err != nil {
+	output, err := persistOAuthState(ctx, cfg, decl, bootstrap, token.RefreshToken, oauthRunOptions{
+		flow:             "auth-code",
+		jsonOut:          *jsonOut,
+		printToken:       *printToken,
+		stateOut:         *stateOut,
+		cleanup:          *cleanup,
+		persistAgenix:    *persistAgenix,
+		agenixRepo:       *agenixRepo,
+		agenixSecret:     *agenixSecret,
+		agenixRecipients: parseRecipients(*agenixRecipients),
+		skipBlob:         *skipBlob,
+	})
+	if err != nil {
 		fatal("oauth", err)
 	}
 
-	fmt.Printf("Wrote refresh token state to %s and mirrored to blob.\n", decl.StatePath)
+	emitOAuthOutput(output, *jsonOut, *printToken)
 }
 
 func deviceCmd(args []string) {
@@ -151,7 +176,16 @@ func deviceCmd(args []string) {
 	bootstrapFile := flags.String("bootstrap-file", "", "Override bootstrap file path")
 	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
 	noOpen := flags.Bool("no-open", false, "Do not open the browser automatically")
+	stateOut := flags.String("state-out", "", "Write OAuth state to a temp file")
+	cleanup := flags.Bool("cleanup", false, "Remove temp state file after successful persist")
+	jsonOut := flags.Bool("json", false, "Output JSON to stdout")
+	printToken := flags.Bool("print-token", false, "Include refresh token in output")
+	persistAgenix := flags.Bool("persist-agenix", true, "Persist bootstrap secret via agenix")
 	timeout := flags.Duration("timeout", 5*time.Minute, "Timeout for device flow")
+	agenixRepo := flags.String("agenix-repo", defaultAgenixRepo(), "Path to nix-secrets repo")
+	agenixSecret := flags.String("agenix-secret", "", "Override agenix secret name")
+	agenixRecipients := flags.String("agenix-recipients", "", "Space-separated recipient override")
+	skipBlob := flags.Bool("skip-blob", false, "Skip blob storage persistence")
 	_ = flags.Parse(args)
 
 	if *provider == "" {
@@ -200,12 +234,12 @@ func deviceCmd(args []string) {
 		verifyURL = authResp.VerificationURI
 	}
 
-	fmt.Println("Open this URL to authorize:")
-	fmt.Println(verifyURL)
+	lines := []string{"Open this URL to authorize:", verifyURL}
 	if authResp.UserCode != "" {
-		fmt.Printf("User code: %s\n", authResp.UserCode)
+		lines = append(lines, fmt.Sprintf("User code: %s", authResp.UserCode))
 	}
-	fmt.Println("")
+	lines = append(lines, "")
+	printAuthPrompt(*jsonOut, lines...)
 
 	if verifyURL != "" && !*noOpen {
 		_ = openBrowser(verifyURL)
@@ -219,35 +253,88 @@ func deviceCmd(args []string) {
 		fatal("oauth", fmt.Errorf("no refresh_token returned; check scope and client id"))
 	}
 
-	if err := persistState(ctx, decl, bootstrap, token.RefreshToken, cfg.Oauth); err != nil {
+	output, err := persistOAuthState(ctx, cfg, decl, bootstrap, token.RefreshToken, oauthRunOptions{
+		flow:             "device",
+		jsonOut:          *jsonOut,
+		printToken:       *printToken,
+		stateOut:         *stateOut,
+		cleanup:          *cleanup,
+		persistAgenix:    *persistAgenix,
+		agenixRepo:       *agenixRepo,
+		agenixSecret:     *agenixSecret,
+		agenixRecipients: parseRecipients(*agenixRecipients),
+		skipBlob:         *skipBlob,
+	})
+	if err != nil {
+		fatal("oauth", err)
+	}
+	output.VerifyURL = verifyURL
+	if authResp.UserCode != "" {
+		output.UserCode = authResp.UserCode
+	}
+
+	emitOAuthOutput(output, *jsonOut, *printToken)
+}
+
+func persistCmd(args []string) {
+	flags := flag.NewFlagSet("persist", flag.ExitOnError)
+	provider := flags.String("provider", "", "OAuth provider ID")
+	statePath := flags.String("state", "", "Path to OAuth state file")
+	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
+	cleanup := flags.Bool("cleanup", false, "Remove temp state file after successful persist")
+	jsonOut := flags.Bool("json", false, "Output JSON to stdout")
+	printToken := flags.Bool("print-token", false, "Include refresh token in output")
+	persistAgenix := flags.Bool("persist-agenix", true, "Persist bootstrap secret via agenix")
+	agenixRepo := flags.String("agenix-repo", defaultAgenixRepo(), "Path to nix-secrets repo")
+	agenixSecret := flags.String("agenix-secret", "", "Override agenix secret name")
+	agenixRecipients := flags.String("agenix-recipients", "", "Space-separated recipient override")
+	skipBlob := flags.Bool("skip-blob", false, "Skip blob storage persistence")
+	_ = flags.Parse(args)
+
+	if *provider == "" || *statePath == "" {
+		oauthUsage()
+		os.Exit(2)
+	}
+
+	cfg, err := config.Load(*configPath)
+	if err != nil {
 		fatal("oauth", err)
 	}
 
-	fmt.Printf("Wrote refresh token state to %s and mirrored to blob.\n", decl.StatePath)
-}
-
-func persistState(ctx context.Context, decl oauth.Declaration, bootstrap oauth.Bootstrap, refreshToken string, oauthCfg *configv1.OAuthConfig) error {
-	store, err := oauth.NewS3Store(oauthCfg)
+	decl, err := lookupDeclaration(cfg, *provider)
 	if err != nil {
-		return err
+		fatal("oauth", err)
 	}
 
-	state := oauth.State{
-		SchemaVersion: oauth.SchemaVersion,
-		ClientID:      bootstrap.ClientID,
-		ClientSecret:  bootstrap.ClientSecret,
-		RefreshToken:  refreshToken,
-		Scope:         decl.Scope,
-	}
-
-	if err := oauth.WriteState(decl.StatePath, state); err != nil {
-		return err
-	}
-	payload, err := json.MarshalIndent(state, "", "  ")
+	state, err := oauthflow.LoadState(*statePath)
 	if err != nil {
-		return err
+		fatal("oauth", err)
 	}
-	return store.Save(ctx, decl.Provider, payload)
+
+	bootstrap := oauth.Bootstrap{
+		ClientID:     state.ClientID,
+		ClientSecret: state.ClientSecret,
+		RefreshToken: state.RefreshToken,
+		Scope:        state.Scope,
+	}
+
+	output, err := persistLoadedState(context.Background(), cfg, decl, bootstrap, state, *statePath, false, oauthRunOptions{
+		flow:             "persist",
+		jsonOut:          *jsonOut,
+		printToken:       *printToken,
+		stateOut:         *statePath,
+		cleanup:          *cleanup,
+		persistAgenix:    *persistAgenix,
+		agenixRepo:       *agenixRepo,
+		agenixSecret:     *agenixSecret,
+		agenixRecipients: parseRecipients(*agenixRecipients),
+		skipBlob:         *skipBlob,
+	})
+	if err != nil {
+		fatal("oauth", err)
+	}
+
+	emitOAuthOutput(output, *jsonOut, *printToken)
 }
 
 func lookupDeclaration(cfg *configv1.Config, provider string) (oauth.Declaration, error) {
@@ -276,7 +363,7 @@ func resolveBootstrapPath(cfg *configv1.Config, provider, override string) (stri
 	return config.BootstrapPathForProvider(cfg, provider)
 }
 
-func waitForAuthCode(ctx context.Context, redirectURL, state string) (string, error) {
+func waitForAuthCode(ctx context.Context, redirectURL, state string, jsonOut bool) (string, error) {
 	parsed, err := url.Parse(redirectURL)
 	if err != nil {
 		return "", fmt.Errorf("invalid redirect URL: %w", err)
@@ -287,10 +374,14 @@ func waitForAuthCode(ctx context.Context, redirectURL, state string) (string, er
 		if err == nil {
 			return code, nil
 		}
-		fmt.Printf("Warning: failed to listen for callback, falling back to manual paste: %v\n", err)
+		printAuthPrompt(jsonOut, fmt.Sprintf("Warning: failed to listen for callback, falling back to manual paste: %v", err))
 	}
 
-	fmt.Print("Paste the authorization code (or full redirect URL): ")
+	if jsonOut {
+		fmt.Fprint(os.Stderr, "Paste the authorization code (or full redirect URL): ")
+	} else {
+		fmt.Print("Paste the authorization code (or full redirect URL): ")
+	}
 	return readCodeFromStdin()
 }
 
@@ -506,6 +597,176 @@ func isLoopback(host string) bool {
 		return ip.IsLoopback()
 	}
 	return false
+}
+
+type oauthRunOptions struct {
+	flow             string
+	jsonOut          bool
+	printToken       bool
+	stateOut         string
+	cleanup          bool
+	persistAgenix    bool
+	skipBlob         bool
+	agenixRepo       string
+	agenixSecret     string
+	agenixRecipients []string
+}
+
+type oauthOutput struct {
+	Provider        string `json:"provider"`
+	Flow            string `json:"flow"`
+	VerifyURL       string `json:"verify_url,omitempty"`
+	UserCode        string `json:"user_code,omitempty"`
+	StatePath       string `json:"state_path,omitempty"`
+	StateOut        string `json:"state_out,omitempty"`
+	BlobPersisted   bool   `json:"blob_persisted,omitempty"`
+	AgenixPersisted bool   `json:"agenix_persisted,omitempty"`
+	AgenixPath      string `json:"agenix_path,omitempty"`
+	RefreshToken    string `json:"refresh_token,omitempty"`
+}
+
+func persistOAuthState(ctx context.Context, cfg *configv1.Config, decl oauth.Declaration, bootstrap oauth.Bootstrap, refreshToken string, opts oauthRunOptions) (oauthOutput, error) {
+	if bootstrap.Scope == "" {
+		bootstrap.Scope = decl.Scope
+	}
+	state := oauth.State{
+		SchemaVersion: oauth.SchemaVersion,
+		ClientID:      bootstrap.ClientID,
+		ClientSecret:  bootstrap.ClientSecret,
+		RefreshToken:  refreshToken,
+		Scope:         decl.Scope,
+	}
+	return persistLoadedState(ctx, cfg, decl, bootstrap, state, opts.stateOut, true, opts)
+}
+
+func persistLoadedState(ctx context.Context, cfg *configv1.Config, decl oauth.Declaration, bootstrap oauth.Bootstrap, state oauth.State, tempPath string, writeTemp bool, opts oauthRunOptions) (oauthOutput, error) {
+	output := oauthOutput{Provider: decl.Provider, Flow: opts.flow}
+	path := tempPath
+	if path == "" {
+		path = oauthflow.DefaultTempPath(decl.Provider)
+	}
+	if writeTemp {
+		if _, err := oauthflow.WriteTempState(path, state); err != nil {
+			return output, err
+		}
+	}
+	output.StateOut = path
+
+	var blobStore oauth.BlobStore
+	if !opts.skipBlob {
+		store, err := oauth.NewS3Store(cfg.Oauth)
+		if err != nil {
+			return output, err
+		}
+		blobStore = store
+	}
+	persistResult, err := oauthflow.PersistState(ctx, decl, state, blobStore, oauthflow.PersistOptions{SkipBlob: opts.skipBlob})
+	if err != nil {
+		return output, err
+	}
+	output.StatePath = persistResult.StatePath
+	output.BlobPersisted = persistResult.BlobSaved
+
+	if opts.persistAgenix {
+		agenixPath, err := persistAgenixBootstrap(ctx, decl.Provider, bootstrap, opts)
+		if err != nil {
+			return output, err
+		}
+		output.AgenixPersisted = true
+		output.AgenixPath = agenixPath
+	}
+
+	if opts.printToken {
+		output.RefreshToken = state.RefreshToken
+	}
+
+	if opts.cleanup && output.StateOut != "" {
+		if err := os.Remove(output.StateOut); err != nil {
+			fmt.Fprintf(os.Stderr, "oauth: cleanup failed: %v\n", err)
+		}
+	}
+
+	return output, nil
+}
+
+func emitOAuthOutput(output oauthOutput, jsonOut bool, printToken bool) {
+	if !printToken {
+		output.RefreshToken = ""
+	}
+	if jsonOut {
+		payload, err := json.MarshalIndent(output, "", "  ")
+		if err != nil {
+			fatal("oauth", err)
+		}
+		fmt.Fprintln(os.Stdout, string(payload))
+		return
+	}
+
+	if output.StatePath != "" {
+		fmt.Printf("State file: %s\n", output.StatePath)
+	}
+	if output.StateOut != "" {
+		fmt.Printf("Temp state file: %s\n", output.StateOut)
+	}
+	fmt.Printf("Blob persisted: %t\n", output.BlobPersisted)
+	if output.AgenixPersisted {
+		fmt.Printf("Agenix secret: %s\n", output.AgenixPath)
+	}
+	if printToken && output.RefreshToken != "" {
+		fmt.Printf("Refresh token: %s\n", output.RefreshToken)
+	}
+}
+
+func printAuthPrompt(jsonOut bool, lines ...string) {
+	out := os.Stdout
+	if jsonOut {
+		out = os.Stderr
+	}
+	for _, line := range lines {
+		fmt.Fprintln(out, line)
+	}
+}
+
+func parseRecipients(raw string) []string {
+	return strings.Fields(raw)
+}
+
+func defaultAgenixRepo() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	repo := filepath.Join(home, "code", "nix", "nix-secrets")
+	info, err := os.Stat(repo)
+	if err != nil || !info.IsDir() {
+		return ""
+	}
+	return repo
+}
+
+func defaultAgenixSecret(provider string) string {
+	return fmt.Sprintf("gohome-%s-bootstrap.age", provider)
+}
+
+func persistAgenixBootstrap(ctx context.Context, provider string, bootstrap oauth.Bootstrap, opts oauthRunOptions) (string, error) {
+	repo := strings.TrimSpace(opts.agenixRepo)
+	if repo == "" {
+		return "", fmt.Errorf("agenix repo not configured")
+	}
+	secret := strings.TrimSpace(opts.agenixSecret)
+	if secret == "" {
+		secret = defaultAgenixSecret(provider)
+	}
+	payload, err := json.MarshalIndent(bootstrap, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	writer := agenix.Writer{
+		RepoPath:   repo,
+		SecretName: secret,
+		Recipients: opts.agenixRecipients,
+	}
+	return writer.Write(ctx, payload)
 }
 
 func fatal(action string, err error) {
