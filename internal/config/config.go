@@ -122,6 +122,9 @@ func Validate(cfg *configv1.Config) error {
 	if cfg.Roborock != nil && cfg.Roborock.BootstrapFile == "" {
 		return fmt.Errorf("roborock.bootstrap_file is required")
 	}
+	if cfg.Weheat != nil && cfg.Weheat.BootstrapFile == "" {
+		return fmt.Errorf("weheat.bootstrap_file is required")
+	}
 
 	return nil
 }
@@ -150,6 +153,9 @@ func EnabledPlugins(cfg *configv1.Config) map[string]bool {
 	if cfg.Airgradient != nil {
 		enabled["airgradient"] = true
 	}
+	if cfg.Weheat != nil {
+		enabled["weheat"] = true
+	}
 	return enabled
 }
 
@@ -174,6 +180,11 @@ func BootstrapPathForProvider(cfg *configv1.Config, provider string) (string, er
 			return "", fmt.Errorf("roborock bootstrap_file is required")
 		}
 		return cfg.Roborock.BootstrapFile, nil
+	case "weheat":
+		if cfg.Weheat == nil || cfg.Weheat.BootstrapFile == "" {
+			return "", fmt.Errorf("weheat bootstrap_file is required")
+		}
+		return cfg.Weheat.BootstrapFile, nil
 	default:
 		return "", fmt.Errorf("unknown provider %q", provider)
 	}

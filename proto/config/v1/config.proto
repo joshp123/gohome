@@ -10,6 +10,7 @@ import "proto/plugins/growatt.proto";
 import "proto/plugins/roborock.proto";
 import "proto/plugins/p1_homewizard.proto";
 import "proto/plugins/airgradient.proto";
+import "proto/plugins/weheat.proto";
 
 message CoreConfig {
   string grpc_addr = 1;
@@ -38,4 +39,5 @@ message Config {
   gohome.plugins.roborock.v1.RoborockConfig roborock = 13;
   gohome.plugins.p1_homewizard.v1.P1HomewizardConfig p1_homewizard = 14;
   gohome.plugins.airgradient.v1.AirgradientConfig airgradient = 15;
+  gohome.plugins.weheat.v1.WeheatConfig weheat = 16;
 }

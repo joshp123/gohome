@@ -118,7 +118,7 @@ What GoHome is:
 - A Nix-native home automation server (Go, not Python)
 - Control via gRPC API + CLI
 - Metrics in VictoriaMetrics, dashboards in Grafana
-- Currently supports Tado, Roborock, Growatt, Daikin, P1 Homewizard, AirGradient (more plugins coming)
+- Currently supports Tado, Roborock, Growatt, Daikin, P1 Homewizard, AirGradient, Weheat (more plugins coming)
 
 What I need you to do:
 1. Add the gohome flake input to my NixOS config
