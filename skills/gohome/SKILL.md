@@ -102,6 +102,19 @@ gohome-cli tado zones
 gohome-cli tado set living-room 20
 ```
 
+Weheat (read-only):
+
+```sh
+GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli methods \
+  gohome.plugins.weheat.v1.WeheatService
+
+jq -n '{state: 3}' | GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli call \
+  gohome.plugins.weheat.v1.WeheatService/ListHeatPumps
+
+jq -n '{heat_pump_id: "<id>"}' | GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli call \
+  gohome.plugins.weheat.v1.WeheatService/GetLatestLog
+```
+
 ## Metrics validation
 
 Confirm the Tado scraper is healthy and metrics are present:
@@ -113,6 +126,16 @@ curl -s "${GOHOME_HTTP_BASE}/gohome/metrics" | rg -n "gohome_tado_"
 Expect:
 - `gohome_tado_scrape_success 1`
 - zone temperature + humidity metrics
+
+Confirm Weheat metrics:
+
+```sh
+curl -s "${GOHOME_HTTP_BASE}/gohome/metrics" | rg -n "gohome_weheat_"
+```
+
+Expect:
+- `gohome_weheat_scrape_success 1`
+- per-heat-pump log + energy metrics
 
 ## Grafana access
 
@@ -138,6 +161,6 @@ jq -n --arg zone_id "1" --argjson temp 20.0 \
 ## Troubleshooting
 
 - If DNS fails, verify MagicDNS is enabled and run `tailscale status`.
-- If metrics are missing, check `gohome_tado_scrape_success` and token validity.
+- If metrics are missing, check `gohome_tado_scrape_success` / `gohome_weheat_scrape_success` and token validity.
 - Prefer `jq -n` to build JSON for gRPC calls; it avoids quoting mistakes.
 - `gohome-cli` reads `/etc/gohome/config.pbtxt` (or `~/.config/gohome/config.pbtxt`) for default host info.
