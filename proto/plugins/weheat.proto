@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package gohome.plugins.weheat.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/weheat/v1;weheatv1";
+
+import "google/protobuf/timestamp.proto";
+
+message ListHeatPumpsRequest {
+  optional int32 state = 1;
+}
+
+message HeatPump {
+  string heat_pump_id = 1;
+  optional string name = 2;
+  string serial_number = 3;
+  optional string firmware_version = 4;
+  optional int32 model = 5;
+  optional string model_name = 6;
+  optional int32 status = 7;
+  optional int32 state = 8;
+  optional int32 dhw_type = 9;
+  optional int32 boiler_type = 10;
+  optional bool has_dhw = 11;
+}
+
+message ListHeatPumpsResponse {
+  repeated HeatPump heat_pumps = 1;
+}
+
+message GetHeatPumpRequest {
+  string heat_pump_id = 1;
+}
+
+message GetHeatPumpResponse {
+  HeatPump heat_pump = 1;
+}
+
+message LogQuery {
+  google.protobuf.Timestamp start_time = 1;
+  google.protobuf.Timestamp end_time = 2;
+  string interval = 3;
+}
+
+message GetLatestLogRequest {
+  string heat_pump_id = 1;
+}
+
+message GetLatestLogResponse {
+  string json = 1;
+}
+
+message GetRawLogsRequest {
+  string heat_pump_id = 1;
+  LogQuery query = 2;
+}
+
+message GetRawLogsResponse {
+  repeated string json = 1;
+}
+
+message GetLogViewsRequest {
+  string heat_pump_id = 1;
+  LogQuery query = 2;
+}
+
+message GetLogViewsResponse {
+  repeated string json = 1;
+}
+
+message EnergyQuery {
+  google.protobuf.Timestamp start_time = 1;
+  google.protobuf.Timestamp end_time = 2;
+  string interval = 3;
+}
+
+message GetEnergyTotalsRequest {
+  string heat_pump_id = 1;
+}
+
+message GetEnergyTotalsResponse {
+  string json = 1;
+}
+
+message GetEnergyLogsRequest {
+  string heat_pump_id = 1;
+  EnergyQuery query = 2;
+}
+
+message GetEnergyLogsResponse {
+  repeated string json = 1;
+}
+
+message WeheatConfig {
+  string bootstrap_file = 1;
+  optional string base_url = 2;
+}
+
+service WeheatService {
+  rpc ListHeatPumps(ListHeatPumpsRequest) returns (ListHeatPumpsResponse);
+  rpc GetHeatPump(GetHeatPumpRequest) returns (GetHeatPumpResponse);
+  rpc GetLatestLog(GetLatestLogRequest) returns (GetLatestLogResponse);
+  rpc GetRawLogs(GetRawLogsRequest) returns (GetRawLogsResponse);
+  rpc GetLogViews(GetLogViewsRequest) returns (GetLogViewsResponse);
+  rpc GetEnergyTotals(GetEnergyTotalsRequest) returns (GetEnergyTotalsResponse);
+  rpc GetEnergyLogs(GetEnergyLogsRequest) returns (GetEnergyLogsResponse);
+}

@@ -13,4 +13,5 @@ protoc \
   proto/plugins/growatt.proto \
   proto/plugins/roborock.proto \
   proto/plugins/p1_homewizard.proto \
-  proto/plugins/airgradient.proto
+  proto/plugins/airgradient.proto \
+  proto/plugins/weheat.proto

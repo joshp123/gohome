@@ -117,6 +117,13 @@ ${p1TariffLine "tariff_export_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffEx
     airgradient {
       base_url: ${textprotoString (if cfg.plugins.airgradient.baseUrl == null then "http://192.168.1.243" else cfg.plugins.airgradient.baseUrl)}
     }
+  '' + optionalString (cfg.plugins.weheat != null) ''
+    weheat {
+      bootstrap_file: ${textprotoString cfg.plugins.weheat.bootstrapFile}
+  '' + optionalString (cfg.plugins.weheat.baseUrl != null) ''
+      base_url: ${textprotoString cfg.plugins.weheat.baseUrl}
+  '' + ''
+    }
   '';
 
 in
@@ -384,6 +391,25 @@ in
       default = null;
       description = "AirGradient plugin config (presence enables the plugin)";
     };
+
+    plugins.weheat = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          bootstrapFile = mkOption {
+            type = types.path;
+            description = "Path to bootstrap Weheat OAuth credentials (read-only secret)";
+          };
+
+          baseUrl = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = "Weheat API base URL (default https://api.weheat.nl)";
+          };
+        };
+      });
+      default = null;
+      description = "Weheat plugin config (presence enables the plugin)";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -420,6 +446,10 @@ in
         assertion = cfg.plugins.roborock == null || cfg.plugins.roborock.bootstrapFile != null;
         message = "services.gohome.plugins.roborock.bootstrapFile is required when roborock is enabled";
       }
+      {
+        assertion = cfg.plugins.weheat == null || cfg.plugins.weheat.bootstrapFile != null;
+        message = "services.gohome.plugins.weheat.bootstrapFile is required when weheat is enabled";
+      }
     ];
 
     users.users.gohome = {
@@ -438,7 +468,8 @@ in
         ++ lib.optional (cfg.plugins.tado != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.tado.bootstrapFile}"
         ++ lib.optional (cfg.plugins.daikin != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.daikin.bootstrapFile}"
         ++ lib.optional (cfg.plugins.growatt != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.growatt.tokenFile}"
-        ++ lib.optional (cfg.plugins.roborock != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.roborock.bootstrapFile}";
+        ++ lib.optional (cfg.plugins.roborock != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.roborock.bootstrapFile}"
+        ++ lib.optional (cfg.plugins.weheat != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.weheat.bootstrapFile}";
     in {
       description = "GoHome";
       wantedBy = [ "multi-user.target" ];
