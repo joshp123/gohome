@@ -394,11 +394,6 @@ in
     plugins.weheat = mkOption {
       type = types.nullOr (types.submodule {
         options = {
-          bootstrapFile = mkOption {
-            type = types.path;
-            description = "Path to bootstrap Weheat OAuth credentials (read-only secret)";
-          };
-
           baseUrl = mkOption {
             type = types.nullOr types.str;
             default = null;
@@ -446,8 +441,6 @@ in
         message = "services.gohome.plugins.roborock.bootstrapFile is required when roborock is enabled";
       }
       {
-        assertion = cfg.plugins.weheat == null || cfg.plugins.weheat.bootstrapFile != null;
-        message = "services.gohome.plugins.weheat.bootstrapFile is required when weheat is enabled";
       }
     ];
 
@@ -468,7 +461,7 @@ in
         ++ lib.optional (cfg.plugins.daikin != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.daikin.bootstrapFile}"
         ++ lib.optional (cfg.plugins.growatt != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.growatt.tokenFile}"
         ++ lib.optional (cfg.plugins.roborock != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.roborock.bootstrapFile}"
-        ++ lib.optional (cfg.plugins.weheat != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.weheat.bootstrapFile}";
+        ;
     in {
       description = "GoHome";
       wantedBy = [ "multi-user.target" ];
