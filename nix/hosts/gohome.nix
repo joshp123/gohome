@@ -90,6 +90,10 @@
       baseUrl = "http://192.168.1.243";
     };
 
+    plugins.weheat = {
+      bootstrapFile = config.age.secrets.weheat-bootstrap.path;
+    };
+
     tailscale.authKeyFile = config.age.secrets.tailscale-authkey.path;
   };
 }
