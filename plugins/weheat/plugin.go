@@ -78,13 +78,12 @@ func (p Plugin) AgentsMD() string {
 
 func (p Plugin) OAuthDeclaration() oauth.Declaration {
 	return oauth.Declaration{
-		Provider:       "weheat",
-		Flow:           oauth.FlowDevice,
-		TokenURL:       "https://auth.weheat.nl/realms/Weheat/protocol/openid-connect/token",
-		DeviceAuthURL:  "https://auth.weheat.nl/realms/Weheat/protocol/openid-connect/auth/device",
-		DeviceTokenURL: "https://auth.weheat.nl/realms/Weheat/protocol/openid-connect/token",
-		Scope:          "openid offline_access",
-		StatePath:      "/var/lib/gohome/weheat-credentials.json",
+		Provider:     "weheat",
+		Flow:         oauth.FlowAuthCode,
+		AuthorizeURL: "https://auth.weheat.nl/auth/realms/Weheat/protocol/openid-connect/auth/",
+		TokenURL:     "https://auth.weheat.nl/auth/realms/Weheat/protocol/openid-connect/token/",
+		Scope:        "openid offline_access",
+		StatePath:    "/var/lib/gohome/weheat-credentials.json",
 	}
 }
 
