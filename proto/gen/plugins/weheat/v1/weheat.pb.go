@@ -908,8 +908,7 @@ func (x *GetEnergyLogsResponse) GetJson() []string {
 
 type WeheatConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BootstrapFile string                 `protobuf:"bytes,1,opt,name=bootstrap_file,json=bootstrapFile,proto3" json:"bootstrap_file,omitempty"`
-	BaseUrl       *string                `protobuf:"bytes,2,opt,name=base_url,json=baseUrl,proto3,oneof" json:"base_url,omitempty"`
+	BaseUrl       *string                `protobuf:"bytes,1,opt,name=base_url,json=baseUrl,proto3,oneof" json:"base_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -942,13 +941,6 @@ func (x *WeheatConfig) ProtoReflect() protoreflect.Message {
 // Deprecated: Use WeheatConfig.ProtoReflect.Descriptor instead.
 func (*WeheatConfig) Descriptor() ([]byte, []int) {
 	return file_proto_plugins_weheat_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *WeheatConfig) GetBootstrapFile() string {
-	if x != nil {
-		return x.BootstrapFile
-	}
-	return ""
 }
 
 func (x *WeheatConfig) GetBaseUrl() string {
@@ -1037,10 +1029,9 @@ const file_proto_plugins_weheat_proto_rawDesc = "" +
 	"heatPumpId\x12;\n" +
 	"\x05query\x18\x02 \x01(\v2%.gohome.plugins.weheat.v1.EnergyQueryR\x05query\"+\n" +
 	"\x15GetEnergyLogsResponse\x12\x12\n" +
-	"\x04json\x18\x01 \x03(\tR\x04json\"b\n" +
-	"\fWeheatConfig\x12%\n" +
-	"\x0ebootstrap_file\x18\x01 \x01(\tR\rbootstrapFile\x12\x1e\n" +
-	"\bbase_url\x18\x02 \x01(\tH\x00R\abaseUrl\x88\x01\x01B\v\n" +
+	"\x04json\x18\x01 \x03(\tR\x04json\";\n" +
+	"\fWeheatConfig\x12\x1e\n" +
+	"\bbase_url\x18\x01 \x01(\tH\x00R\abaseUrl\x88\x01\x01B\v\n" +
 	"\t_base_url2\x9b\x06\n" +
 	"\rWeheatService\x12p\n" +
 	"\rListHeatPumps\x12..gohome.plugins.weheat.v1.ListHeatPumpsRequest\x1a/.gohome.plugins.weheat.v1.ListHeatPumpsResponse\x12j\n" +

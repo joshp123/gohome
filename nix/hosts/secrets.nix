@@ -53,12 +53,5 @@
         mode = "0400";
       };
     }
-    // lib.optionalAttrs (config.services.gohome.plugins.weheat != null) {
-      weheat-bootstrap = {
-        file = "${secrets}/gohome-weheat-bootstrap.age";
-        owner = "gohome";
-        group = "gohome";
-        mode = "0400";
-      };
-    };
+    ;
 }

@@ -37,6 +37,18 @@ type Manager struct {
 }
 
 func NewManager(decl Declaration, bootstrapPath string, blobStore BlobStore) (*Manager, error) {
+	if bootstrapPath == "" {
+		return nil, fmt.Errorf("bootstrap path is required")
+	}
+	bootstrap, err := LoadBootstrap(bootstrapPath)
+	if err != nil {
+		return nil, fmt.Errorf("bootstrap: %w", err)
+	}
+	return NewManagerFromBootstrap(decl, bootstrap, blobStore)
+}
+
+// NewManagerFromBootstrap creates an OAuth manager from an inline Bootstrap (no file needed).
+func NewManagerFromBootstrap(decl Declaration, bootstrap Bootstrap, blobStore BlobStore) (*Manager, error) {
 	if decl.Provider == "" {
 		return nil, fmt.Errorf("provider is required")
 	}
@@ -52,21 +64,15 @@ func NewManager(decl Declaration, bootstrapPath string, blobStore BlobStore) (*M
 	if !filepath.IsAbs(decl.StatePath) {
 		return nil, fmt.Errorf("statePath must be absolute")
 	}
-	if bootstrapPath == "" {
-		return nil, fmt.Errorf("bootstrap path is required")
-	}
 	if blobStore == nil {
 		return nil, fmt.Errorf("blob store is required")
 	}
-
-	bootstrap, err := LoadBootstrap(bootstrapPath)
-	if err != nil {
+	if err := bootstrap.Validate(); err != nil {
 		return nil, fmt.Errorf("bootstrap: %w", err)
 	}
 
 	m := &Manager{
 		decl:          decl,
-		bootstrapPath: bootstrapPath,
 		blobStore:     blobStore,
 		httpClient:    &http.Client{Timeout: 15 * time.Second},
 		clientID:      bootstrap.ClientID,

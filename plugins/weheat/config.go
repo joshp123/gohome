@@ -11,16 +11,12 @@ const defaultBaseURL = "https://api.weheat.nl"
 
 // Config defines runtime configuration for the Weheat client.
 type Config struct {
-	BootstrapFile string
-	BaseURL       string
+	BaseURL string
 }
 
 func ConfigFromProto(cfg *weheatv1.WeheatConfig) (Config, error) {
 	if cfg == nil {
 		return Config{}, fmt.Errorf("weheat config is required")
-	}
-	if strings.TrimSpace(cfg.BootstrapFile) == "" {
-		return Config{}, fmt.Errorf("weheat bootstrap_file is required")
 	}
 
 	baseURL := strings.TrimSpace(cfg.GetBaseUrl())
@@ -28,5 +24,5 @@ func ConfigFromProto(cfg *weheatv1.WeheatConfig) (Config, error) {
 		baseURL = defaultBaseURL
 	}
 
-	return Config{BootstrapFile: cfg.BootstrapFile, BaseURL: baseURL}, nil
+	return Config{BaseURL: baseURL}, nil
 }

@@ -119,7 +119,6 @@ ${p1TariffLine "tariff_export_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffEx
     }
   '' + optionalString (cfg.plugins.weheat != null) ''
     weheat {
-      bootstrap_file: ${textprotoString cfg.plugins.weheat.bootstrapFile}
   '' + optionalString (cfg.plugins.weheat.baseUrl != null) ''
       base_url: ${textprotoString cfg.plugins.weheat.baseUrl}
   '' + ''

@@ -122,9 +122,7 @@ func Validate(cfg *configv1.Config) error {
 	if cfg.Roborock != nil && cfg.Roborock.BootstrapFile == "" {
 		return fmt.Errorf("roborock.bootstrap_file is required")
 	}
-	if cfg.Weheat != nil && cfg.Weheat.BootstrapFile == "" {
-		return fmt.Errorf("weheat.bootstrap_file is required")
-	}
+	// weheat uses hardcoded public client credentials; no bootstrap file needed.
 
 	return nil
 }
@@ -181,10 +179,8 @@ func BootstrapPathForProvider(cfg *configv1.Config, provider string) (string, er
 		}
 		return cfg.Roborock.BootstrapFile, nil
 	case "weheat":
-		if cfg.Weheat == nil || cfg.Weheat.BootstrapFile == "" {
-			return "", fmt.Errorf("weheat bootstrap_file is required")
-		}
-		return cfg.Weheat.BootstrapFile, nil
+		// weheat uses hardcoded public client credentials; no bootstrap file.
+		return "", fmt.Errorf("weheat does not use a bootstrap file")
 	default:
 		return "", fmt.Errorf("unknown provider %q", provider)
 	}
