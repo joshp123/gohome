@@ -92,8 +92,7 @@ message GetEnergyLogsResponse {
 }
 
 message WeheatConfig {
-  string bootstrap_file = 1;
-  optional string base_url = 2;
+  optional string base_url = 1;
 }
 
 service WeheatService {
