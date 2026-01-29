@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package gohome.plugins.home.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/home/v1;homev1";
+
+message HomeConfig {}
