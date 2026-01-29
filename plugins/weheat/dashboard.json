@@ -305,7 +305,7 @@
             },
             "targets": [
                 {
-                    "expr": "gohome_weheat_last_update_timestamp_seconds{heat_pump_id=~\"$heat_pump_id\"}",
+                    "expr": "gohome_weheat_last_update_timestamp_seconds{heat_pump_id=~\"$heat_pump_id\"} * 1000",
                     "refId": "A",
                     "legendFormat": "{{heat_pump_id}}"
                 }
