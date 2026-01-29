@@ -27,13 +27,13 @@ func (o oauthTokenSource) Token(ctx context.Context) (string, error) {
 	return o.manager.AccessToken(ctx)
 }
 
-func NewClient(cfg Config, decl oauth.Declaration, oauthCfg *configv1.OAuthConfig) (*Client, error) {
+func NewClient(cfg Config, bootstrap oauth.Bootstrap, decl oauth.Declaration, oauthCfg *configv1.OAuthConfig) (*Client, error) {
 	blobStore, err := oauth.NewS3Store(oauthCfg)
 	if err != nil {
 		return nil, err
 	}
 
-	manager, err := oauth.NewManager(decl, cfg.BootstrapFile, blobStore)
+	manager, err := oauth.NewManagerFromBootstrap(decl, bootstrap, blobStore)
 	if err != nil {
 		return nil, err
 	}

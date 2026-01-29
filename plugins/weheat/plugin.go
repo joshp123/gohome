@@ -11,6 +11,14 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Weheat publishes these OAuth client credentials for public use.
+// They are not secret — Weheat intentionally distributes them for third-party integrations.
+// Source: https://support.weheat.nl/s/article/Is-er-een-offici%C3%ABle-Home-Assistant-integratie
+const (
+	weheatClientID     = "HomeAssistantAPI"
+	weheatClientSecret = "TqpNpiJDKbGXF8jaL9D1Y8yzl1pI1Fly"
+)
+
 //go:embed AGENTS.md
 var agentsMD string
 
@@ -35,8 +43,15 @@ func NewPlugin(cfg *weheatv1.WeheatConfig, oauthCfg *configv1.OAuthConfig) (Plug
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
 	}
 
+	bootstrap := oauth.Bootstrap{
+		SchemaVersion: 1,
+		ClientID:      weheatClientID,
+		ClientSecret:  weheatClientSecret,
+		Scope:         "openid offline_access",
+	}
+
 	decl := Plugin{}.OAuthDeclaration()
-	client, err := NewClient(runtimeCfg, decl, oauthCfg)
+	client, err := NewClient(runtimeCfg, bootstrap, decl, oauthCfg)
 	if err != nil {
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
 	}
