@@ -65,6 +65,7 @@ func authCodeCmd(args []string) {
 	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
 	noOpen := flags.Bool("no-open", false, "Do not open the browser automatically")
 	stateOut := flags.String("state-out", "", "Write OAuth state to a temp file")
+	statePath := flags.String("state-path", "", "Override persisted state path")
 	cleanup := flags.Bool("cleanup", false, "Remove temp state file after successful persist")
 	jsonOut := flags.Bool("json", false, "Output JSON to stdout")
 	printToken := flags.Bool("print-token", false, "Include refresh token in output")
@@ -156,6 +157,7 @@ func authCodeCmd(args []string) {
 		jsonOut:          *jsonOut,
 		printToken:       *printToken,
 		stateOut:         *stateOut,
+		statePath:        *statePath,
 		cleanup:          *cleanup,
 		persistAgenix:    *persistAgenix,
 		agenixRepo:       *agenixRepo,
@@ -177,6 +179,7 @@ func deviceCmd(args []string) {
 	configPath := flags.String("config", config.DefaultPath, "Path to config.pbtxt")
 	noOpen := flags.Bool("no-open", false, "Do not open the browser automatically")
 	stateOut := flags.String("state-out", "", "Write OAuth state to a temp file")
+	statePath := flags.String("state-path", "", "Override persisted state path")
 	cleanup := flags.Bool("cleanup", false, "Remove temp state file after successful persist")
 	jsonOut := flags.Bool("json", false, "Output JSON to stdout")
 	printToken := flags.Bool("print-token", false, "Include refresh token in output")
@@ -258,6 +261,7 @@ func deviceCmd(args []string) {
 		jsonOut:          *jsonOut,
 		printToken:       *printToken,
 		stateOut:         *stateOut,
+		statePath:        *statePath,
 		cleanup:          *cleanup,
 		persistAgenix:    *persistAgenix,
 		agenixRepo:       *agenixRepo,
@@ -604,6 +608,7 @@ type oauthRunOptions struct {
 	jsonOut          bool
 	printToken       bool
 	stateOut         string
+	statePath        string
 	cleanup          bool
 	persistAgenix    bool
 	skipBlob         bool
@@ -660,7 +665,10 @@ func persistLoadedState(ctx context.Context, cfg *configv1.Config, decl oauth.De
 		}
 		blobStore = store
 	}
-	persistResult, err := oauthflow.PersistState(ctx, decl, state, blobStore, oauthflow.PersistOptions{SkipBlob: opts.skipBlob})
+	persistResult, err := oauthflow.PersistState(ctx, decl, state, blobStore, oauthflow.PersistOptions{
+		SkipBlob:          opts.skipBlob,
+		StatePathOverride: opts.statePath,
+	})
 	if err != nil {
 		return output, err
 	}
