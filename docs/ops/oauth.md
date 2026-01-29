@@ -25,6 +25,7 @@ Use a **writable** state file for long-running services. JSON keys must be snake
 - If persistence fails, rerun: `gohome oauth persist --provider <id> --state /tmp/...`.
 - Add `--cleanup` to delete the temp file after a successful persist.
 - Use `--persist-agenix` to write the bootstrap secret into the nix-secrets repo (defaults to `~/code/nix/nix-secrets`).
+- Use `--state-path /tmp/...` when running locally to avoid writing `/var/lib/gohome`.
 
 ## Quick Validation (no secrets printed)
 ```
