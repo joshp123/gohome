@@ -440,8 +440,6 @@ in
         assertion = cfg.plugins.roborock == null || cfg.plugins.roborock.bootstrapFile != null;
         message = "services.gohome.plugins.roborock.bootstrapFile is required when roborock is enabled";
       }
-      {
-      }
     ];
 
     users.users.gohome = {
