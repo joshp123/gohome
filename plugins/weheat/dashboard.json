@@ -281,7 +281,7 @@
             "datasource": "VictoriaMetrics",
             "fieldConfig": {
                 "defaults": {
-                    "unit": "dateTimeAsIso"
+                    "unit": "s"
                 },
                 "overrides": []
             },
@@ -301,16 +301,17 @@
                     "values": false
                 },
                 "orientation": "horizontal",
-                "textMode": "value"
+                "textMode": "value",
+                "graphMode": "none"
             },
             "targets": [
                 {
-                    "expr": "gohome_weheat_last_update_timestamp_seconds{heat_pump_id=~\"$heat_pump_id\"} * 1000",
+                    "expr": "time() - gohome_weheat_last_update_timestamp_seconds{heat_pump_id=~\"$heat_pump_id\"}",
                     "refId": "A",
                     "legendFormat": "{{heat_pump_id}}"
                 }
             ],
-            "title": "Last update",
+            "title": "Last update age",
             "type": "stat"
         },
         {
