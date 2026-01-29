@@ -91,6 +91,7 @@
     };
 
     plugins.weheat = {};
+    plugins.home = {};
 
     tailscale.authKeyFile = config.age.secrets.tailscale-authkey.path;
   };
