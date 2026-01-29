@@ -14,4 +14,5 @@ protoc \
   proto/plugins/roborock.proto \
   proto/plugins/p1_homewizard.proto \
   proto/plugins/airgradient.proto \
-  proto/plugins/weheat.proto
+  proto/plugins/weheat.proto \
+  proto/plugins/home.proto

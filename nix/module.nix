@@ -123,6 +123,9 @@ ${p1TariffLine "tariff_export_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffEx
       base_url: ${textprotoString cfg.plugins.weheat.baseUrl}
   '' + ''
     }
+  '' + optionalString (cfg.plugins.home != null) ''
+    home {
+    }
   '';
 
 in
@@ -403,6 +406,14 @@ in
       });
       default = null;
       description = "Weheat plugin config (presence enables the plugin)";
+    };
+
+    plugins.home = mkOption {
+      type = types.nullOr (types.submodule {
+        options = { };
+      });
+      default = null;
+      description = "My Home overview dashboard";
     };
   };
 

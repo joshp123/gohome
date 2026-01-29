@@ -10,6 +10,7 @@ import (
 	v15 "github.com/joshp123/gohome/proto/gen/plugins/airgradient/v1"
 	v11 "github.com/joshp123/gohome/proto/gen/plugins/daikin/v1"
 	v12 "github.com/joshp123/gohome/proto/gen/plugins/growatt/v1"
+	v17 "github.com/joshp123/gohome/proto/gen/plugins/home/v1"
 	v14 "github.com/joshp123/gohome/proto/gen/plugins/p1_homewizard/v1"
 	v13 "github.com/joshp123/gohome/proto/gen/plugins/roborock/v1"
 	v1 "github.com/joshp123/gohome/proto/gen/plugins/tado/v1"
@@ -200,6 +201,7 @@ type Config struct {
 	P1Homewizard  *v14.P1HomewizardConfig `protobuf:"bytes,14,opt,name=p1_homewizard,json=p1Homewizard,proto3" json:"p1_homewizard,omitempty"`
 	Airgradient   *v15.AirgradientConfig  `protobuf:"bytes,15,opt,name=airgradient,proto3" json:"airgradient,omitempty"`
 	Weheat        *v16.WeheatConfig       `protobuf:"bytes,16,opt,name=weheat,proto3" json:"weheat,omitempty"`
+	Home          *v17.HomeConfig         `protobuf:"bytes,17,opt,name=home,proto3" json:"home,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -304,11 +306,18 @@ func (x *Config) GetWeheat() *v16.WeheatConfig {
 	return nil
 }
 
+func (x *Config) GetHome() *v17.HomeConfig {
+	if x != nil {
+		return x.Home
+	}
+	return nil
+}
+
 var File_proto_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_proto_config_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"\x1cproto/config/v1/config.proto\x12\x10gohome.config.v1\x1a\x18proto/plugins/tado.proto\x1a\x1aproto/plugins/daikin.proto\x1a\x1bproto/plugins/growatt.proto\x1a\x1cproto/plugins/roborock.proto\x1a!proto/plugins/p1_homewizard.proto\x1a\x1fproto/plugins/airgradient.proto\x1a\x1aproto/plugins/weheat.proto\"k\n" +
+	"\x1cproto/config/v1/config.proto\x12\x10gohome.config.v1\x1a\x18proto/plugins/tado.proto\x1a\x1aproto/plugins/daikin.proto\x1a\x1bproto/plugins/growatt.proto\x1a\x1cproto/plugins/roborock.proto\x1a!proto/plugins/p1_homewizard.proto\x1a\x1fproto/plugins/airgradient.proto\x1a\x1aproto/plugins/weheat.proto\x1a\x18proto/plugins/home.proto\"k\n" +
 	"\n" +
 	"CoreConfig\x12\x1b\n" +
 	"\tgrpc_addr\x18\x01 \x01(\tR\bgrpcAddr\x12\x1b\n" +
@@ -326,7 +335,7 @@ const file_proto_config_v1_config_proto_rawDesc = "" +
 	"blobRegion\x12,\n" +
 	"\x0frefresh_enabled\x18\a \x01(\bH\x00R\x0erefreshEnabled\x88\x01\x01\x128\n" +
 	"\x18refresh_interval_seconds\x18\b \x01(\rR\x16refreshIntervalSecondsB\x12\n" +
-	"\x10_refresh_enabled\"\x88\x05\n" +
+	"\x10_refresh_enabled\"\xc0\x05\n" +
 	"\x06Config\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x120\n" +
 	"\x04core\x18\x02 \x01(\v2\x1c.gohome.config.v1.CoreConfigR\x04core\x123\n" +
@@ -338,7 +347,8 @@ const file_proto_config_v1_config_proto_rawDesc = "" +
 	"\broborock\x18\r \x01(\v2*.gohome.plugins.roborock.v1.RoborockConfigR\broborock\x12X\n" +
 	"\rp1_homewizard\x18\x0e \x01(\v23.gohome.plugins.p1_homewizard.v1.P1HomewizardConfigR\fp1Homewizard\x12R\n" +
 	"\vairgradient\x18\x0f \x01(\v20.gohome.plugins.airgradient.v1.AirgradientConfigR\vairgradient\x12>\n" +
-	"\x06weheat\x18\x10 \x01(\v2&.gohome.plugins.weheat.v1.WeheatConfigR\x06weheatB9Z7github.com/joshp123/gohome/proto/gen/config/v1;configv1b\x06proto3"
+	"\x06weheat\x18\x10 \x01(\v2&.gohome.plugins.weheat.v1.WeheatConfigR\x06weheat\x126\n" +
+	"\x04home\x18\x11 \x01(\v2\".gohome.plugins.home.v1.HomeConfigR\x04homeB9Z7github.com/joshp123/gohome/proto/gen/config/v1;configv1b\x06proto3"
 
 var (
 	file_proto_config_v1_config_proto_rawDescOnce sync.Once
@@ -364,22 +374,24 @@ var file_proto_config_v1_config_proto_goTypes = []any{
 	(*v14.P1HomewizardConfig)(nil), // 7: gohome.plugins.p1_homewizard.v1.P1HomewizardConfig
 	(*v15.AirgradientConfig)(nil),  // 8: gohome.plugins.airgradient.v1.AirgradientConfig
 	(*v16.WeheatConfig)(nil),       // 9: gohome.plugins.weheat.v1.WeheatConfig
+	(*v17.HomeConfig)(nil),         // 10: gohome.plugins.home.v1.HomeConfig
 }
 var file_proto_config_v1_config_proto_depIdxs = []int32{
-	0, // 0: gohome.config.v1.Config.core:type_name -> gohome.config.v1.CoreConfig
-	1, // 1: gohome.config.v1.Config.oauth:type_name -> gohome.config.v1.OAuthConfig
-	3, // 2: gohome.config.v1.Config.tado:type_name -> gohome.plugins.tado.v1.TadoConfig
-	4, // 3: gohome.config.v1.Config.daikin:type_name -> gohome.plugins.daikin.v1.DaikinConfig
-	5, // 4: gohome.config.v1.Config.growatt:type_name -> gohome.plugins.growatt.v1.GrowattConfig
-	6, // 5: gohome.config.v1.Config.roborock:type_name -> gohome.plugins.roborock.v1.RoborockConfig
-	7, // 6: gohome.config.v1.Config.p1_homewizard:type_name -> gohome.plugins.p1_homewizard.v1.P1HomewizardConfig
-	8, // 7: gohome.config.v1.Config.airgradient:type_name -> gohome.plugins.airgradient.v1.AirgradientConfig
-	9, // 8: gohome.config.v1.Config.weheat:type_name -> gohome.plugins.weheat.v1.WeheatConfig
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	0,  // 0: gohome.config.v1.Config.core:type_name -> gohome.config.v1.CoreConfig
+	1,  // 1: gohome.config.v1.Config.oauth:type_name -> gohome.config.v1.OAuthConfig
+	3,  // 2: gohome.config.v1.Config.tado:type_name -> gohome.plugins.tado.v1.TadoConfig
+	4,  // 3: gohome.config.v1.Config.daikin:type_name -> gohome.plugins.daikin.v1.DaikinConfig
+	5,  // 4: gohome.config.v1.Config.growatt:type_name -> gohome.plugins.growatt.v1.GrowattConfig
+	6,  // 5: gohome.config.v1.Config.roborock:type_name -> gohome.plugins.roborock.v1.RoborockConfig
+	7,  // 6: gohome.config.v1.Config.p1_homewizard:type_name -> gohome.plugins.p1_homewizard.v1.P1HomewizardConfig
+	8,  // 7: gohome.config.v1.Config.airgradient:type_name -> gohome.plugins.airgradient.v1.AirgradientConfig
+	9,  // 8: gohome.config.v1.Config.weheat:type_name -> gohome.plugins.weheat.v1.WeheatConfig
+	10, // 9: gohome.config.v1.Config.home:type_name -> gohome.plugins.home.v1.HomeConfig
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_proto_config_v1_config_proto_init() }

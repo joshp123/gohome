@@ -154,6 +154,9 @@ func EnabledPlugins(cfg *configv1.Config) map[string]bool {
 	if cfg.Weheat != nil {
 		enabled["weheat"] = true
 	}
+	if cfg.Home != nil {
+		enabled["home"] = true
+	}
 	return enabled
 }
 
