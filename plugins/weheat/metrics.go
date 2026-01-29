@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	logFetchInterval    = 2 * time.Minute
+	logFetchInterval    = 15 * time.Second
 	energyFetchInterval = 30 * time.Minute
 )
 
