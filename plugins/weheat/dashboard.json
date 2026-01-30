@@ -224,8 +224,8 @@
                                 "70": {
                                     "text": "heating"
                                 },
-                                "130": {
-                                    "text": "cooling"
+                                "90": {
+                                    "text": "defrost"
                                 },
                                 "150": {
                                     "text": "dhw"
@@ -238,12 +238,29 @@
                                 },
                                 "180": {
                                     "text": "manual"
-                                },
-                                "200": {
-                                    "text": "defrost"
                                 }
                             },
                             "type": "value"
+                        },
+                        {
+                            "options": {
+                                "from": 130,
+                                "to": 140,
+                                "result": {
+                                    "text": "cooling"
+                                }
+                            },
+                            "type": "range"
+                        },
+                        {
+                            "options": {
+                                "from": 200,
+                                "to": 241,
+                                "result": {
+                                    "text": "defrost"
+                                }
+                            },
+                            "type": "range"
                         }
                     ]
                 },
