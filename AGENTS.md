@@ -59,9 +59,9 @@ devenv shell
 bash tools/generate.sh
 ```
 
-## nix-clawdbot Plugin
+## nix-openclaw Plugin
 
-GoHome exposes an idiomatic nix-clawdbot plugin via `clawdbotPlugin` in `flake.nix`.
+GoHome exposes an idiomatic nix-openclaw plugin via `openclawPlugin` in `flake.nix`.
 
 - Plugin name: `gohome`
 - Skills: `skills/gohome`
