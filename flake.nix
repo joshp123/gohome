@@ -40,7 +40,7 @@
         };
       }
     ) // {
-      clawdbotPlugin = let
+      openclawPlugin = let
         system = builtins.currentSystem;
       in {
         name = "gohome";

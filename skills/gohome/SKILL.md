@@ -1,11 +1,11 @@
 ---
 name: gohome
-description: Use when Clawdbot needs to test or operate GoHome (Home Assistant clone) via gRPC discovery, metrics, and Grafana.
+description: Use when Openclaw needs to test or operate GoHome (Home Assistant clone) via gRPC discovery, metrics, and Grafana.
 ---
 
 # GoHome Skill
 
-This skill teaches Clawdbot how to discover capabilities and validate the GoHome stack
+This skill teaches Openclaw how to discover capabilities and validate the GoHome stack
 using the repo CLI, Prometheus metrics, and Grafana.
 
 ## Quick start
@@ -18,7 +18,7 @@ export GOHOME_HTTP_BASE="http://${GOHOME_HOST}:8080"
 export GOHOME_GRPC_ADDR="${GOHOME_HOST}:9000"
 ```
 
-Use the CLI on PATH (preferred, installed by the nix-clawdbot plugin):
+Use the CLI on PATH (preferred, installed by the nix-openclaw plugin):
 
 ```sh
 gohome-cli services
