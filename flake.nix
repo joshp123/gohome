@@ -40,9 +40,7 @@
         };
       }
     ) // {
-      openclawPlugin = let
-        system = builtins.currentSystem;
-      in {
+      openclawPlugin = system: {
         name = "gohome";
         skills = [ ./skills/gohome ];
         packages = [ self.packages.${system}.default ];
