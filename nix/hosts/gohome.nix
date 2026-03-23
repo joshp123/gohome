@@ -87,7 +87,7 @@
     };
 
     plugins.airgradient = {
-      baseUrl = "http://192.168.1.243";
+      baseUrl = "http://192.168.1.244";
     };
 
     plugins.weheat = {};
