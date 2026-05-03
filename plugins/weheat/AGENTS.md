@@ -27,7 +27,7 @@ Weheat controls cloud telemetry for Weheat heat pumps (Sparrow/BlackBird/Flint).
 - `GetEnergyLogs`: returns energy log JSON entries for a time range.
 
 ## State
-- Metrics: `gohome_weheat_log_*` for raw log fields, plus energy totals and scrape success.
+- Metrics: `gohome_weheat_log_*` for raw log fields, `gohome_weheat_energy_log_*` for latest hourly energy-log fields, plus energy totals and scrape success.
 - Use Grafana for history; raw logs are already time-series friendly.
 
 ## Errors
