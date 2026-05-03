@@ -399,39 +399,29 @@
             },
             "targets": [
                 {
-                    "expr": "gohome_weheat_log_t_air_in{heat_pump_id=~\"$heat_pump_id\"}",
+                    "expr": "gohome_tado_inside_temperature_celsius{zone_name=\"Living room\"}",
                     "refId": "A",
-                    "legendFormat": "air_in"
-                },
-                {
-                    "expr": "gohome_weheat_log_t_air_out{heat_pump_id=~\"$heat_pump_id\"}",
-                    "refId": "B",
-                    "legendFormat": "air_out"
+                    "legendFormat": "tado_living_room"
                 },
                 {
                     "expr": "gohome_weheat_log_t_room{heat_pump_id=~\"$heat_pump_id\"}",
-                    "refId": "C",
-                    "legendFormat": "room"
+                    "refId": "B",
+                    "legendFormat": "weheat_room"
                 },
                 {
                     "expr": "gohome_weheat_log_t_room_target{heat_pump_id=~\"$heat_pump_id\"}",
-                    "refId": "D",
+                    "refId": "C",
                     "legendFormat": "room_target"
-                },
-                {
-                    "expr": "gohome_weheat_log_t_thermostat_setpoint{heat_pump_id=~\"$heat_pump_id\"}",
-                    "refId": "E",
-                    "legendFormat": "thermostat_setpoint"
                 }
             ],
-            "title": "Air + room temperatures",
+            "title": "Room Temps",
             "type": "timeseries"
         },
         {
             "datasource": "VictoriaMetrics",
             "fieldConfig": {
                 "defaults": {
-                    "unit": "watt"
+                    "unit": "kwatt"
                 },
                 "overrides": [
                     {
@@ -464,27 +454,22 @@
             },
             "targets": [
                 {
-                    "expr": "gohome_weheat_log_cm_mass_power_in{heat_pump_id=~\"$heat_pump_id\"}",
+                    "expr": "gohome_weheat_energy_log_average_power_ein_heating{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_ein_standby{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_ein_dhw{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_ein_heating_defrost{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_ein_dhw_defrost{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_ein_cooling{heat_pump_id=~\"$heat_pump_id\"}",
                     "refId": "A",
-                    "legendFormat": "power_in"
+                    "legendFormat": "power_in_avg"
                 },
                 {
-                    "expr": "gohome_weheat_log_cm_mass_power_out{heat_pump_id=~\"$heat_pump_id\"}",
+                    "expr": "gohome_weheat_energy_log_average_power_eout_heating{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_eout_dhw{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_eout_heating_defrost{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_eout_dhw_defrost{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_eout_cooling{heat_pump_id=~\"$heat_pump_id\"}",
                     "refId": "B",
-                    "legendFormat": "power_out"
+                    "legendFormat": "power_out_avg"
                 },
                 {
-                    "expr": "gohome_weheat_log_compressor_power_low_accuracy{heat_pump_id=~\"$heat_pump_id\"}",
+                    "expr": "(gohome_weheat_energy_log_average_power_eout_heating{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_eout_dhw{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_eout_heating_defrost{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_eout_dhw_defrost{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_eout_cooling{heat_pump_id=~\"$heat_pump_id\"}) / (gohome_weheat_energy_log_average_power_ein_heating{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_ein_standby{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_ein_dhw{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_ein_heating_defrost{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_ein_dhw_defrost{heat_pump_id=~\"$heat_pump_id\"} + gohome_weheat_energy_log_average_power_ein_cooling{heat_pump_id=~\"$heat_pump_id\"})",
                     "refId": "C",
-                    "legendFormat": "compressor_power"
-                },
-                {
-                    "expr": "gohome_weheat_log_cm_mass_power_out{heat_pump_id=~\"$heat_pump_id\"} / gohome_weheat_log_cm_mass_power_in{heat_pump_id=~\"$heat_pump_id\"}",
-                    "refId": "D",
                     "legendFormat": "cop (calc)"
                 }
             ],
-            "title": "Power + COP",
+            "title": "Power + COP (hour avg)",
             "type": "timeseries"
         },
         {
@@ -741,6 +726,148 @@
                 }
             ],
             "title": "Energy defrost totals",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "celsius"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 44
+            },
+            "id": 17,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_tado_inside_temperature_celsius{zone_name=\"Living room\"} - gohome_weheat_log_t_room_target{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "delta_tado_living_room"
+                },
+                {
+                    "expr": "gohome_weheat_log_t_room{heat_pump_id=~\"$heat_pump_id\"} - gohome_weheat_log_t_room_target{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "delta_weheat_room"
+                }
+            ],
+            "title": "Room delta vs target",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "celsius"
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "outside_temp"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.axisPlacement",
+                                "value": "right"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 52
+            },
+            "id": 18,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_t_thermostat_setpoint{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "water_setpoint"
+                },
+                {
+                    "expr": "gohome_weheat_log_t_air_in{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "outside_temp"
+                }
+            ],
+            "title": "Curve + Weather",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "VictoriaMetrics",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none"
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "rpm"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "rpm"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "power_in"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "watt"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 52
+            },
+            "id": 19,
+            "options": {
+                "showPoints": "never"
+            },
+            "targets": [
+                {
+                    "expr": "gohome_weheat_log_rpm{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "A",
+                    "legendFormat": "rpm"
+                },
+                {
+                    "expr": "gohome_weheat_log_cm_mass_power_in{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "B",
+                    "legendFormat": "power_in"
+                },
+                {
+                    "expr": "gohome_weheat_log_state{heat_pump_id=~\"$heat_pump_id\"}",
+                    "refId": "C",
+                    "legendFormat": "state"
+                }
+            ],
+            "title": "Machine Response",
             "type": "timeseries"
         },
         {

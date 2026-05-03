@@ -388,7 +388,7 @@
       "datasource": "VictoriaMetrics",
       "fieldConfig": {
         "defaults": {
-          "unit": "watt"
+          "unit": "kwatt"
         },
         "overrides": [
           {
@@ -421,22 +421,22 @@
       },
       "targets": [
         {
-          "expr": "gohome_weheat_log_cm_mass_power_in",
+          "expr": "gohome_weheat_energy_log_average_power_ein_heating + gohome_weheat_energy_log_average_power_ein_standby + gohome_weheat_energy_log_average_power_ein_dhw + gohome_weheat_energy_log_average_power_ein_heating_defrost + gohome_weheat_energy_log_average_power_ein_dhw_defrost + gohome_weheat_energy_log_average_power_ein_cooling",
           "refId": "A",
-          "legendFormat": "power_in"
+          "legendFormat": "power_in_avg"
         },
         {
-          "expr": "gohome_weheat_log_cm_mass_power_out",
+          "expr": "gohome_weheat_energy_log_average_power_eout_heating + gohome_weheat_energy_log_average_power_eout_dhw + gohome_weheat_energy_log_average_power_eout_heating_defrost + gohome_weheat_energy_log_average_power_eout_dhw_defrost + gohome_weheat_energy_log_average_power_eout_cooling",
           "refId": "B",
-          "legendFormat": "power_out"
+          "legendFormat": "power_out_avg"
         },
         {
-          "expr": "gohome_weheat_log_cm_mass_power_out / gohome_weheat_log_cm_mass_power_in",
+          "expr": "(gohome_weheat_energy_log_average_power_eout_heating + gohome_weheat_energy_log_average_power_eout_dhw + gohome_weheat_energy_log_average_power_eout_heating_defrost + gohome_weheat_energy_log_average_power_eout_dhw_defrost + gohome_weheat_energy_log_average_power_eout_cooling) / (gohome_weheat_energy_log_average_power_ein_heating + gohome_weheat_energy_log_average_power_ein_standby + gohome_weheat_energy_log_average_power_ein_dhw + gohome_weheat_energy_log_average_power_ein_heating_defrost + gohome_weheat_energy_log_average_power_ein_dhw_defrost + gohome_weheat_energy_log_average_power_ein_cooling)",
           "refId": "C",
           "legendFormat": "cop (calc)"
         }
       ],
-      "title": "Weheat power + COP",
+      "title": "Weheat power + COP (hour avg)",
       "type": "timeseries"
     },
     {
