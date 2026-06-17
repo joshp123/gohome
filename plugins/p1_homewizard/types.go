@@ -52,6 +52,14 @@ var (
 	telegramTimeRe   = regexp.MustCompile(`0-0:1\.0\.0\((\d{12})([SW])\)`)
 )
 
+func p1TelegramLocation() *time.Location {
+	loc, err := time.LoadLocation("Europe/Amsterdam")
+	if err != nil {
+		return time.Local
+	}
+	return loc
+}
+
 func ParseTelegram(raw string) (TelegramMetrics, bool) {
 	metrics := TelegramMetrics{}
 	ok := false
@@ -73,7 +81,7 @@ func ParseTelegram(raw string) (TelegramMetrics, bool) {
 	}
 
 	if match := telegramTimeRe.FindStringSubmatch(raw); len(match) == 3 {
-		if parsed, err := time.ParseInLocation("060102150405", match[1], time.Local); err == nil {
+		if parsed, err := time.ParseInLocation("060102150405", match[1], p1TelegramLocation()); err == nil {
 			metrics.Timestamp = &parsed
 			ok = true
 		}
