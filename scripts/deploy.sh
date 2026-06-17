@@ -31,7 +31,22 @@ ssh "${host}" <<'SSH'
   fi
 
   if [[ -d "${repo}/.git" ]]; then
-    git -C "${repo}" pull origin main
+    git -C "${repo}" fetch origin main
+    if git -C "${repo}" merge-base --is-ancestor HEAD origin/main; then
+      git -C "${repo}" merge --ff-only origin/main
+    else
+      deploy_repo="/root/gohome-deploy"
+      if [[ ! -d "${deploy_repo}/.git" ]]; then
+        git clone https://github.com/joshp123/gohome.git "${deploy_repo}"
+      fi
+      git -C "${deploy_repo}" fetch origin main
+      if ! git -C "${deploy_repo}" diff --quiet || ! git -C "${deploy_repo}" diff --cached --quiet; then
+        echo "deploy checkout ${deploy_repo} has local changes; refusing to overwrite" >&2
+        exit 1
+      fi
+      git -C "${deploy_repo}" checkout --detach origin/main
+      repo="${deploy_repo}"
+    fi
   fi
 
   if [[ -d /root/nix-secrets ]]; then
