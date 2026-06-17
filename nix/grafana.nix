@@ -41,7 +41,7 @@ in
       settings = {
         rendering = {
           server_url = "http://127.0.0.1:8081/render";
-          callback_url = "http://127.0.0.1:3000/grafana/";
+          callback_url = "http://127.0.0.1/grafana/";
         };
         server = {
           http_addr = "127.0.0.1";
