@@ -596,7 +596,7 @@
       },
       "targets": [
         {
-          "expr": "(increase(gohome_p1_homewizard_total_import_t1_kwh[24h]) * gohome_p1_homewizard_tariff_import_t1_eur_per_kwh) + (increase(gohome_p1_homewizard_total_import_t2_kwh[24h]) * gohome_p1_homewizard_tariff_import_t2_eur_per_kwh) + - (increase(gohome_p1_homewizard_total_export_t1_kwh[24h]) * gohome_p1_homewizard_tariff_export_t1_eur_per_kwh) + - (increase(gohome_p1_homewizard_total_export_t2_kwh[24h]) * gohome_p1_homewizard_tariff_export_t2_eur_per_kwh)",
+          "expr": "(increase(gohome_p1_homewizard_total_import_t1_kwh[24h]) * gohome_p1_homewizard_tariff_import_t1_eur_per_kwh) + (increase(gohome_p1_homewizard_total_import_t2_kwh[24h]) * gohome_p1_homewizard_tariff_import_t2_eur_per_kwh) - (increase(gohome_p1_homewizard_total_export_t1_kwh[24h]) * abs(gohome_p1_homewizard_tariff_export_t1_eur_per_kwh)) - (increase(gohome_p1_homewizard_total_export_t2_kwh[24h]) * abs(gohome_p1_homewizard_tariff_export_t2_eur_per_kwh))",
           "refId": "A"
         }
       ],

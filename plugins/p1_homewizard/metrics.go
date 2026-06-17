@@ -2,6 +2,7 @@ package p1_homewizard
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -238,11 +239,10 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if c.tariffs.Configured() {
 		c.costConfigured.Set(1)
-		importCost := value(data.TotalImportT1KWh)*c.tariffs.ImportT1EurPerKWh + value(data.TotalImportT2KWh)*c.tariffs.ImportT2EurPerKWh
-		exportCredit := value(data.TotalExportT1KWh)*c.tariffs.ExportT1EurPerKWh + value(data.TotalExportT2KWh)*c.tariffs.ExportT2EurPerKWh
+		importCost, exportCredit, totalCost := costBreakdown(data, c.tariffs)
 		c.importCostEUR.Set(importCost)
 		c.exportCreditEUR.Set(exportCredit)
-		c.totalCostEUR.Set(importCost - exportCredit)
+		c.totalCostEUR.Set(totalCost)
 	} else {
 		c.costConfigured.Set(0)
 		c.importCostEUR.Set(0)
@@ -327,4 +327,11 @@ func value(input *float64) float64 {
 		return 0
 	}
 	return *input
+}
+
+func costBreakdown(data Data, tariffs Tariffs) (importCostEUR, exportCreditEUR, totalCostEUR float64) {
+	importCostEUR = value(data.TotalImportT1KWh)*tariffs.ImportT1EurPerKWh + value(data.TotalImportT2KWh)*tariffs.ImportT2EurPerKWh
+	exportCreditEUR = value(data.TotalExportT1KWh)*math.Abs(tariffs.ExportT1EurPerKWh) + value(data.TotalExportT2KWh)*math.Abs(tariffs.ExportT2EurPerKWh)
+	totalCostEUR = importCostEUR - exportCreditEUR
+	return importCostEUR, exportCreditEUR, totalCostEUR
 }
