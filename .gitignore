@@ -27,6 +27,10 @@ Thumbs.db
 *.pem
 auth.toml
 credentials.json
+snapshot.json
+
+# Local agent/audit artifacts
+.agent/
 
 # Generated proto
 /proto/gen/
