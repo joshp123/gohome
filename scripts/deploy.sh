@@ -17,6 +17,21 @@ ssh "${host}" <<'SSH'
 
   export NIX_CONFIG='experimental-features = nix-command flakes'
 
+  rebuild() {
+    sudo env "NIX_CONFIG=${NIX_CONFIG}" nixos-rebuild "$@"
+  }
+
+  wait_for_health() {
+    for _ in {1..30}; do
+      if curl -fsS http://localhost:8080/health >/dev/null; then
+        echo "ok"
+        return 0
+      fi
+      sleep 1
+    done
+    return 1
+  }
+
   if [[ -d /root/gohome ]]; then
     repo="/root/gohome"
   else
@@ -50,12 +65,11 @@ ssh "${host}" <<'SSH'
   fi
 
   if [[ -d /root/nix-secrets ]]; then
-    sudo nixos-rebuild switch --flake "${repo}#gohome" --override-input secrets /root/nix-secrets \
-      || sudo nixos-rebuild switch --rollback
+    rebuild switch --flake "${repo}#gohome" --override-input secrets /root/nix-secrets \
+      || rebuild switch --rollback
   else
-    sudo nixos-rebuild switch --flake "${repo}#gohome" || sudo nixos-rebuild switch --rollback
+    rebuild switch --flake "${repo}#gohome" || rebuild switch --rollback
   fi
 
-  sleep 2
-  curl -f http://localhost:8080/health || sudo nixos-rebuild switch --rollback
+  wait_for_health || rebuild switch --rollback
 SSH
