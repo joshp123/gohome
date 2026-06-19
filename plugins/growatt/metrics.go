@@ -2,7 +2,6 @@ package growatt
 
 import (
 	"context"
-	"log"
 	"strconv"
 	"sync"
 	"time"
@@ -12,10 +11,6 @@ import (
 
 const (
 	growattMinFetchInterval = 5 * time.Minute
-	growattHistoryInterval  = 12 * time.Hour
-	growattHistoryTimeout   = 30 * time.Minute
-	growattHistoryRetry     = 30 * time.Minute
-	growattHistoryRateRetry = 2 * time.Minute
 )
 
 type cachedSnapshot struct {
@@ -37,13 +32,9 @@ type MetricsCollector struct {
 	lastUpdated  *prometheus.GaugeVec
 	lastSuccess  prometheus.Gauge
 	success      prometheus.Gauge
-	historyLast  prometheus.Gauge
-	historyOK    prometheus.Gauge
 
-	mu          sync.Mutex
-	cached      *cachedSnapshot
-	historyNext time.Time
-	historyBusy bool
+	mu     sync.Mutex
+	cached *cachedSnapshot
 }
 
 func NewMetricsCollector(client *Client) *MetricsCollector {
@@ -82,14 +73,6 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 			Name: "gohome_growatt_scrape_success",
 			Help: "Last scrape success (1=ok, 0=error)",
 		}),
-		historyLast: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "gohome_growatt_history_last_success_timestamp_seconds",
-			Help: "Last successful Growatt history import timestamp (epoch seconds)",
-		}),
-		historyOK: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "gohome_growatt_history_import_success",
-			Help: "Last history import success (1=ok, 0=error)",
-		}),
 	}
 }
 
@@ -102,8 +85,6 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	c.lastUpdated.Describe(ch)
 	c.lastSuccess.Describe(ch)
 	c.success.Describe(ch)
-	c.historyLast.Describe(ch)
-	c.historyOK.Describe(ch)
 }
 
 func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
@@ -162,7 +143,6 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	c.storeSnapshot(snapshot)
 	c.applySnapshot(snapshot)
-	c.maybeImportHistory(plant)
 	c.collectAll(ch)
 }
 
@@ -212,46 +192,4 @@ func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
 	c.lastUpdated.Collect(ch)
 	c.lastSuccess.Collect(ch)
 	c.success.Collect(ch)
-	c.historyLast.Collect(ch)
-	c.historyOK.Collect(ch)
-}
-
-func (c *MetricsCollector) maybeImportHistory(plant Plant) {
-	if c.client == nil {
-		return
-	}
-
-	c.mu.Lock()
-	if c.historyBusy || (!c.historyNext.IsZero() && time.Now().Before(c.historyNext)) {
-		c.mu.Unlock()
-		return
-	}
-	c.historyBusy = true
-	c.mu.Unlock()
-
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), growattHistoryTimeout)
-		defer cancel()
-
-		err := c.client.ImportEnergyHistory(ctx, plant)
-		next := time.Now().Add(growattHistoryRetry)
-		c.mu.Lock()
-		c.historyBusy = false
-		if err == nil {
-			now := time.Now()
-			c.historyNext = now.Add(growattHistoryInterval)
-			c.historyOK.Set(1)
-			c.historyLast.Set(float64(now.Unix()))
-		} else {
-			if isRateLimit(err) {
-				next = time.Now().Add(growattHistoryRateRetry)
-			}
-			c.historyNext = next
-			c.historyOK.Set(0)
-		}
-		c.mu.Unlock()
-		if err != nil {
-			log.Printf("growatt history import failed: %v", err)
-		}
-	}()
 }
