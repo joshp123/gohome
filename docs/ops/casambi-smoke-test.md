@@ -1,8 +1,19 @@
-# Casambi local Bluetooth investigation
+# Historical Casambi local Bluetooth investigation
 
 Written by AI on 2026.09.06 by model gpt-6-astra.
 
-Status: Linux Bluetooth authentication, live state for all eight lights, offline process restart and reconnect proven. A separate HomeKit bridge now runs on the home Linux server. Secure diagnostic HomeKit pairing, encrypted state reads and pairing persistence across service restart are proven. Apple Home/Siri and physical control remain to be verified.
+This is the historical discovery and smoke-test record from 2026.09.06, not a
+current operating guide or acceptance checklist. The standalone Casambi HomeKit
+bridge now owns the product; its README and verification record are authoritative
+for current behavior, live results and reliability findings. Its host configuration
+owns deployment and recovery. The probes below remain historical diagnostic tools;
+no runtime implementation has been moved into GoHome.
+
+The evidence below proved Linux Bluetooth authentication, eight-light state,
+short offline restart/reconnect, and diagnostic HomeKit pairing/readback. Later
+product work superseded the proposed next steps. Siri and physical remote testing
+are outside the current agreed scope. These short checks do not establish sustained
+reliability or recovery from the later connection failure.
 
 ## Observed proof
 
@@ -55,17 +66,25 @@ The Linux smoke used a temporary BlueZ 5.87 daemon on a private D-Bus socket. Th
 
 The reusable diagnostic is in `tools/casambi-bt-probe`, with a pinned Nix/devenv runtime and upstream source revision. It accepts an explicit network address/name, credential-file path and private cache directory. `--offline` rejects HTTP access through the client transport, so the process restart proof does not rely on an available cloud session endpoint. It never issues a light-control command.
 
-Choose the existing home Linux host for the next service slice. It has demonstrated the full authenticated read path without a GUI session. The Mac mini has only demonstrated the native pre-authentication path and requires GUI-session authorization. Neither host has completed a long-running production soak; Linux currently has the stronger evidence and simpler NixOS/systemd operating model.
+The investigation selected the existing home Linux host for the service. It had
+demonstrated the full authenticated read path without a GUI session. At that point,
+the Mac mini had only demonstrated the native pre-authentication path and required
+GUI-session authorization. Linux had the stronger evidence and simpler
+NixOS/systemd operating model; sustained reliability had not been established.
 
-## HomeKit and Siri target
+## Historical HomeKit design decision
 
-Expose the eight lights through one HomeKit bridge on the house LAN. Begin with on/off and brightness; add colour or colour temperature only when the device capabilities and readback are verified. The two Xpress remotes are not light accessories.
+The initial design exposed the eight lights through one HomeKit bridge on the
+house LAN, beginning with on/off and brightness. Colour and colour temperature
+controls were deferred pending device capability and readback evidence. The two
+Xpress remotes were excluded as light accessories.
 
 The chosen implementation is a standalone Python service combining the tested Casambi client with [HAP-python](https://github.com/ikalchev/HAP-python). This supersedes the initial Go adapter proposal. It owns the local Bluetooth connection and exposes HomeKit directly on the house LAN; Siri does not depend on GoHome being available. GoHome's existing `home` plugin remains a dashboard.
 
 GoHome may become a client through a narrow protobuf API when there is an actual agent-control or telemetry consumer. No GoHome plugin or additional process boundary is needed for the HomeKit deliverable. Nix owns the standalone service configuration, agenix supplies the network password and HomeKit setup PIN, and private persistent service state holds downloaded keys and pairing material. There is no configuration UI.
 
-Assign stable accessory IDs from stable device identity, not discovery order. Serve mDNS and a fixed HAP port on the house LAN. Report communication errors when state is unavailable; never present a stale value as a fresh read or acknowledge a failed control command.
+The design used stable device identities for accessory IDs, mDNS and a fixed HAP
+port on the house LAN, and communication errors when state was unavailable.
 
 Apple Home supplies Siri integration once the bridge is paired. Remote Siri access requires an Apple home hub such as HomePod or Apple TV; running the bridge on a Mac does not replace that role. [Apple guidance](https://support.apple.com/en-us/105027)
 
@@ -73,4 +92,7 @@ The supervised service boots with eight light accessories, authenticates from it
 
 Restarting the Bluetooth daemon also recovered within the same bridge process, with all sixteen encrypted HomeKit reads passing again. The diagnostic controller removed its pairing after verification so Apple Home can become the owner.
 
-Remaining proof: longer operation; current-iPhone Home pairing; one specifically agreed light-control/readback test. No physical light-control test has been performed.
+At the end of this initial investigation, household pairing and physical control
+had not yet been tested. Those checks were subsequently performed by the standalone
+product; consult its verification record for their results and the later
+Bluetooth failure and repair. This historical document defines no remaining acceptance work.
