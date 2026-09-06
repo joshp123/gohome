@@ -2,7 +2,7 @@
 
 Written by AI on 2026.09.06 by model gpt-6-astra.
 
-Status: Linux Bluetooth authentication, live state for all eight lights, offline process restart and reconnect proven. Prefer Linux for an unattended HomeKit bridge; a production service and HomeKit pairing are not implemented.
+Status: Linux Bluetooth authentication, live state for all eight lights, offline process restart and reconnect proven. A separate HomeKit bridge now runs on the home Linux server. Secure diagnostic HomeKit pairing, encrypted state reads and pairing persistence across service restart are proven. Apple Home/Siri and physical control remain to be verified.
 
 ## Observed proof
 
@@ -61,12 +61,16 @@ Choose the existing home Linux host for the next service slice. It has demonstra
 
 Expose the eight lights through one HomeKit bridge on the house LAN. Begin with on/off and brightness; add colour or colour temperature only when the device capabilities and readback are verified. The two Xpress remotes are not light accessories.
 
-A small Go adapter using [brutella/hap](https://github.com/brutella/hap) fits GoHome's Go/protobuf architecture. HAP supplies bridged accessories, DNS-SD discovery and persistent pairing. It is a candidate dependency, not a verified current-iPhone integration. GoHome currently has no HAP bridge; its existing `home` plugin is a dashboard.
+The chosen implementation is a standalone Python service combining the tested Casambi client with [HAP-python](https://github.com/ikalchev/HAP-python). This supersedes the initial Go adapter proposal. It owns the local Bluetooth connection and exposes HomeKit directly on the house LAN; Siri does not depend on GoHome being available. GoHome's existing `home` plugin remains a dashboard.
 
-The Casambi plugin should own typed inventory/state/control/subscription RPCs, metrics and its Grafana dashboard. A reference-client worker, if retained, should have a narrow protobuf/gRPC boundary. Keep Nix as the configuration source, use agenix for the network password and HomeKit setup PIN, and store downloaded network keys and pairing material in private persistent service state. No runtime configuration UI is needed.
+GoHome may become a client through a narrow protobuf API when there is an actual agent-control or telemetry consumer. No GoHome plugin or additional process boundary is needed for the HomeKit deliverable. Nix owns the standalone service configuration, agenix supplies the network password and HomeKit setup PIN, and private persistent service state holds downloaded keys and pairing material. There is no configuration UI.
 
 Assign stable accessory IDs from stable device identity, not discovery order. Serve mDNS and a fixed HAP port on the house LAN. Report communication errors when state is unavailable; never present a stale value as a fresh read or acknowledge a failed control command.
 
 Apple Home supplies Siri integration once the bridge is paired. Remote Siri access requires an Apple home hub such as HomePod or Apple TV; running the bridge on a Mac does not replace that role. [Apple guidance](https://support.apple.com/en-us/105027)
 
-Remaining proof: supervised service startup/recovery and longer soak; current-iPhone Home pairing; one specifically agreed light-control/readback test; service restart without re-pairing. No production Casambi service, HAP bridge, Home pairing or light-control test has been deployed or performed yet.
+The supervised service boots with eight light accessories, authenticates from its cached keys, and preserves HomeKit identity and controller pairing across restart. A separate diagnostic IP controller completed mDNS discovery, secure pairing, and encrypted reads of all sixteen on/off and brightness characteristics. During Bluetooth startup it received communication errors instead of stale successful reads.
+
+Restarting the Bluetooth daemon also recovered within the same bridge process, with all sixteen encrypted HomeKit reads passing again. The diagnostic controller removed its pairing after verification so Apple Home can become the owner.
+
+Remaining proof: longer operation; current-iPhone Home pairing; one specifically agreed light-control/readback test. No physical light-control test has been performed.
