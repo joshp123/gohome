@@ -2,7 +2,7 @@
 
 Written by AI on 2026.09.06 by model gpt-6-astra.
 
-Status: macOS discovery, GATT connection and authentication-challenge read proven on existing hardware; authenticated state and persistent operation unproven.
+Status: Linux Bluetooth authentication, live state for all eight lights, offline process restart and reconnect proven. Prefer Linux for an unattended HomeKit bridge; a production service and HomeKit pairing are not implemented.
 
 ## Observed proof
 
@@ -15,9 +15,9 @@ Status: macOS discovery, GATT connection and authentication-challenge read prove
 | Signal | Approximately -89 dBm at the network endpoint on Linux; about -79 to -86 dBm on the Mac mini. Reach proven; sustained reliability remains untested. |
 | GATT service discovery | Linux `gatttool --primary` returned `Request attribute has encountered an unlikely error`. The native macOS probe connected successfully and discovered one service. |
 | Authentication characteristic | Linux read-by-UUID returned the same GATT error. macOS found the expected authentication characteristic and read a 25-byte challenge: type 1, protocol byte 43 (`0x2b`). It then disconnected cleanly. This is a pre-authentication read, not an authenticated session. |
-| Authentication | Not attempted: network password unavailable. |
-| Current light state | Not read. Advertisement presence is not light state. |
-| Persistence/reconnect | Not tested. |
+| Authentication | A newly supplied network password authenticated successfully through the network API, then over Bluetooth on Linux using BlueZ 5.87 and Bleak 3.0.2. |
+| Current light state | Ten configured units comprise eight lights and two Xpress remotes. Live Bluetooth notifications supplied brightness for all eight lights; nine units reported state and eight were online. Battery remotes need not remain online. |
+| Persistence/reconnect | Initial connect and reconnect passed. A fresh Linux process with HTTP disabled authenticated from the private cache, remained authenticated for 120 seconds, disconnected, reconnected, and read all eight lights again. This is a short smoke test, not long-term reliability proof. |
 
 The Linux probe temporarily enabled LE and power, then restored both to their original disabled settings. The Mac mini already had Bluetooth on; the change was authorization for a dedicated probe app, not a radio power change. No pairing, commissioning, reset, or light-control command was issued. Device addresses, raw advertisements and credentials are deliberately excluded from this document.
 
@@ -47,18 +47,26 @@ The app identity is required for macOS authorization; adding an app bundle does 
 
 No existing credential was recovered from the configured secrets, Apple Passwords metadata, full OpenTrawl house Notes and versions, or the former owner's handover messages. Handover media files were not archived locally, so that is a coverage gap. No passwords were guessed and no resets or sharing changes were made.
 
-A Nix-provisioned Python runtime successfully imported the reference client dependencies (Python 3.14.7, Bleak 3.0.2). Bluetooth execution of that runtime remains unverified; the native Swift probe is the successful connection evidence.
+The user subsequently supplied a dedicated Casambi network credential. It is a network password entry, not a macOS login. Authentication now works. The Nix-provisioned reference client (Python 3.14.7, Bleak 3.0.2) successfully performed the Linux Bluetooth state/reconnect proof.
 
-## Next proof
+## Linux proof and operating choice
 
-1. Confirm firmware family and provide the password for the confirmed password-protected network through an agenix-managed secret, never a command argument, log, or chat message. Select the target network explicitly if multiple endpoints appear.
-2. Provision a pinned reference client with Nix/devenv. Use a dedicated read-only probe, not the upstream demo. Keep downloaded keys/cache private; the library's cached material is sensitive too.
-3. Authenticate, enumerate units, and receive current state from Bluetooth notifications. A successful cloud inventory fetch alone is insufficient.
-4. Observe repeated state reports without issuing control commands. Disconnect only the probe's connection, reconnect, and prove fresh state again. Test process restart and cached bootstrap with cloud access disabled for the probe.
-5. Establish sustained operation and recovery before selecting a transport implementation. Weak signal may require repositioning the existing host; no hardware purchase is justified yet.
+The Linux smoke used a temporary BlueZ 5.87 daemon on a private D-Bus socket. The existing host Bluetooth service was inactive. The probe enabled its unused radio, authenticated, observed notifications, and then stopped the temporary processes and restored the original controller settings. The earlier legacy `gatttool` error did not reproduce with the modern BlueZ/Bleak client; it was not evidence that the Linux hardware could not connect.
 
-## GoHome direction, conditional on proof
+The reusable diagnostic is in `tools/casambi-bt-probe`, with a pinned Nix/devenv runtime and upstream source revision. It accepts an explicit network address/name, credential-file path and private cache directory. `--offline` rejects HTTP access through the client transport, so the process restart proof does not rely on an available cloud session endpoint. It never issues a light-control command.
 
-Prefer the existing home Linux host for a system service if a modern BlueZ client can prove the same connection path. The Mac mini already proves native GATT access, but its GUI-session authorization and startup requirements must be solved before treating it as a service host. The hosted GoHome server cannot be assumed to be in Bluetooth range. Use a narrow protobuf/gRPC boundary if a separate process is required; do not introduce a user interface or runtime configuration editor.
+Choose the existing home Linux host for the next service slice. It has demonstrated the full authenticated read path without a GUI session. The Mac mini has only demonstrated the native pre-authentication path and requires GUI-session authorization. Neither host has completed a long-running production soak; Linux currently has the stronger evidence and simpler NixOS/systemd operating model.
 
-Once the operating path is proven, choose between a small Go protocol implementation and an isolated reference-client process based on observed compatibility and maintenance cost. Keep Nix as configuration source, agenix as credential source, plugin-owned protobuf/metrics/dashboard/agent context, and explicit freshness/connection status. No production plugin or persistent service is implemented yet.
+## HomeKit and Siri target
+
+Expose the eight lights through one HomeKit bridge on the house LAN. Begin with on/off and brightness; add colour or colour temperature only when the device capabilities and readback are verified. The two Xpress remotes are not light accessories.
+
+A small Go adapter using [brutella/hap](https://github.com/brutella/hap) fits GoHome's Go/protobuf architecture. HAP supplies bridged accessories, DNS-SD discovery and persistent pairing. It is a candidate dependency, not a verified current-iPhone integration. GoHome currently has no HAP bridge; its existing `home` plugin is a dashboard.
+
+The Casambi plugin should own typed inventory/state/control/subscription RPCs, metrics and its Grafana dashboard. A reference-client worker, if retained, should have a narrow protobuf/gRPC boundary. Keep Nix as the configuration source, use agenix for the network password and HomeKit setup PIN, and store downloaded network keys and pairing material in private persistent service state. No runtime configuration UI is needed.
+
+Assign stable accessory IDs from stable device identity, not discovery order. Serve mDNS and a fixed HAP port on the house LAN. Report communication errors when state is unavailable; never present a stale value as a fresh read or acknowledge a failed control command.
+
+Apple Home supplies Siri integration once the bridge is paired. Remote Siri access requires an Apple home hub such as HomePod or Apple TV; running the bridge on a Mac does not replace that role. [Apple guidance](https://support.apple.com/en-us/105027)
+
+Remaining proof: supervised service startup/recovery and longer soak; current-iPhone Home pairing; one specifically agreed light-control/readback test; service restart without re-pairing. No production Casambi service, HAP bridge, Home pairing or light-control test has been deployed or performed yet.
