@@ -22,7 +22,15 @@
   boot.loader.efi.canTouchEfiVariables = false;
   boot.loader.efi.efiSysMountPoint = "/boot";
 
-  services.openssh.enable = true;
+  # Reached over Tailscale SSH only (scripts/deploy.sh); nothing listens publicly.
+  services.openssh = {
+    enable = true;
+    openFirewall = false;
+    settings = {
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+    };
+  };
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOLItFT3SVm5r7gELrfRRJxh6V2sf/BIx7HKXt6oVWpB joshpalmer123@gmail.com"
   ];
