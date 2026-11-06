@@ -2,6 +2,7 @@ package weheat
 
 import (
 	_ "embed"
+	"time"
 
 	"github.com/joshp123/gohome/internal/core"
 	"github.com/joshp123/gohome/internal/oauth"
@@ -28,6 +29,7 @@ var dashboardJSON []byte
 // Plugin implements the GoHome plugin contract.
 type Plugin struct {
 	client        *Client
+	collector     *MetricsCollector
 	health        core.HealthStatus
 	healthMessage string
 }
@@ -56,7 +58,7 @@ func NewPlugin(cfg *weheatv1.WeheatConfig, oauthCfg *configv1.OAuthConfig) (Plug
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
 	}
 
-	return Plugin{client: client, health: core.HealthHealthy}, true
+	return Plugin{client: client, collector: NewMetricsCollector(client)}, true
 }
 
 func (p Plugin) ID() string {
@@ -99,13 +101,32 @@ func (p Plugin) Collectors() []prometheus.Collector {
 	if p.client == nil {
 		return nil
 	}
-	return []prometheus.Collector{NewMetricsCollector(p.client)}
+	return []prometheus.Collector{p.collector}
 }
 
 func (p Plugin) Health() core.HealthStatus {
-	return p.health
+	if p.collector == nil {
+		return p.health
+	}
+	p.collector.collectMu.Lock()
+	defer p.collector.collectMu.Unlock()
+	if p.collector.readError != "" || p.collector.lastRead.IsZero() || time.Since(p.collector.lastRead) > 5*time.Minute {
+		return core.HealthError
+	}
+	return core.HealthHealthy
 }
 
 func (p Plugin) HealthMessage() string {
-	return p.healthMessage
+	if p.collector == nil {
+		return p.healthMessage
+	}
+	p.collector.collectMu.Lock()
+	defer p.collector.collectMu.Unlock()
+	if p.collector.readError != "" {
+		return p.collector.readError
+	}
+	if p.collector.lastRead.IsZero() || time.Since(p.collector.lastRead) > 5*time.Minute {
+		return "no recent successful heat pump read"
+	}
+	return ""
 }

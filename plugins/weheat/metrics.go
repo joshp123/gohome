@@ -54,15 +54,17 @@ type MetricsCollector struct {
 	logFields        []logField
 	energyLogFields  []energyLogField
 
-	mu                 sync.Mutex
+	collectMu          sync.Mutex
+	lastRead           time.Time
+	readError          string
 	cachedPumps        []weheatapi.ReadAllHeatPump
 	cachedAt           time.Time
 	logFetchedAt       map[string]time.Time
 	energyFetchedAt    map[string]time.Time
 	energyLogFetchedAt map[string]time.Time
-	logCache           map[string]*weheatapi.RawHeatPumpLog
+	logCache           map[string]*latestLog
 	energyCache        map[string]*weheatapi.TotalEnergyAggregate
-	energyLogCache     map[string]*weheatapi.EnergyView
+	energyLogCache     map[string]*energyLog
 }
 
 func NewMetricsCollector(client *Client) *MetricsCollector {
@@ -173,9 +175,9 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 		logFetchedAt:       make(map[string]time.Time),
 		energyFetchedAt:    make(map[string]time.Time),
 		energyLogFetchedAt: make(map[string]time.Time),
-		logCache:           make(map[string]*weheatapi.RawHeatPumpLog),
+		logCache:           make(map[string]*latestLog),
 		energyCache:        make(map[string]*weheatapi.TotalEnergyAggregate),
-		energyLogCache:     make(map[string]*weheatapi.EnergyView),
+		energyLogCache:     make(map[string]*energyLog),
 	}
 }
 
@@ -200,6 +202,17 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
+	c.collectMu.Lock()
+	defer c.collectMu.Unlock()
+	// Rebuild each scrape from available observations, including absent fields.
+	c.lastUpdate.Reset()
+	c.lastEnergyLogBucket.Reset()
+	for _, metrics := range []map[string]*prometheus.GaugeVec{c.logMetrics, c.energyMetrics, c.energyLogMetrics} {
+		for _, metric := range metrics {
+			metric.Reset()
+		}
+	}
+	c.readError = "no successful heat pump read"
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
@@ -213,6 +226,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	pumps, err := c.fetchPumps(ctx)
 	if err != nil {
+		c.readError = err.Error()
 		c.scrapeSuccess.Set(0)
 		c.energySuccess.Set(0)
 		c.energyLogSuccess.Set(0)
@@ -220,10 +234,10 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	logOK := true
-	energyOK := true
-	energyLogOK := true
-	now := time.Now()
+	logOK := len(pumps) > 0
+	energyOK := len(pumps) > 0
+	energyLogOK := len(pumps) > 0
+	var logReadAt, energyReadAt, energyLogReadAt time.Time
 
 	for _, pump := range pumps {
 		labels := prometheus.Labels{
@@ -234,24 +248,36 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		logEntry, err := c.fetchLatestLog(ctx, pump.ID)
-		if err != nil {
+		if err != nil || logEntry == nil {
 			logOK = false
-		} else if logEntry != nil {
+			if err != nil {
+				c.readError = err.Error()
+			}
+		} else {
+			if logReadAt.IsZero() || c.logFetchedAt[pump.ID].Before(logReadAt) {
+				logReadAt = c.logFetchedAt[pump.ID]
+			}
 			c.lastUpdate.With(labels).Set(float64(logEntry.Timestamp.Unix()))
 			c.applyLog(labels, logEntry)
 		}
 
 		energy, err := c.fetchEnergyTotals(ctx, pump.ID)
-		if err != nil {
+		if err != nil || energy == nil {
 			energyOK = false
-		} else if energy != nil {
+		} else {
+			if energyReadAt.IsZero() || c.energyFetchedAt[pump.ID].Before(energyReadAt) {
+				energyReadAt = c.energyFetchedAt[pump.ID]
+			}
 			c.applyEnergy(labels, energy)
 		}
 
 		energyLog, err := c.fetchLatestEnergyLog(ctx, pump.ID)
-		if err != nil {
+		if err != nil || energyLog == nil {
 			energyLogOK = false
-		} else if energyLog != nil {
+		} else {
+			if energyLogReadAt.IsZero() || c.energyLogFetchedAt[pump.ID].Before(energyLogReadAt) {
+				energyLogReadAt = c.energyLogFetchedAt[pump.ID]
+			}
 			if energyLog.TimeBucket != nil {
 				c.lastEnergyLogBucket.With(labels).Set(float64(energyLog.TimeBucket.Unix()))
 			}
@@ -261,19 +287,25 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if logOK {
 		c.scrapeSuccess.Set(1)
-		c.lastSuccess.Set(float64(now.Unix()))
+		c.lastSuccess.Set(float64(logReadAt.Unix()))
+		c.lastRead = logReadAt
+		if energyOK && energyLogOK {
+			c.readError = ""
+		} else {
+			c.readError = "energy read failed or returned no recent data"
+		}
 	} else {
 		c.scrapeSuccess.Set(0)
 	}
 	if energyOK {
 		c.energySuccess.Set(1)
-		c.lastEnergySuccess.Set(float64(now.Unix()))
+		c.lastEnergySuccess.Set(float64(energyReadAt.Unix()))
 	} else {
 		c.energySuccess.Set(0)
 	}
 	if energyLogOK {
 		c.energyLogSuccess.Set(1)
-		c.lastEnergyLogSuccess.Set(float64(now.Unix()))
+		c.lastEnergyLogSuccess.Set(float64(energyLogReadAt.Unix()))
 	} else {
 		c.energyLogSuccess.Set(0)
 	}
@@ -302,73 +334,60 @@ func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
 }
 
 func (c *MetricsCollector) fetchPumps(ctx context.Context) ([]weheatapi.ReadAllHeatPump, error) {
-	c.mu.Lock()
 	if time.Since(c.cachedAt) < logFetchInterval && len(c.cachedPumps) > 0 {
 		pumps := append([]weheatapi.ReadAllHeatPump(nil), c.cachedPumps...)
-		c.mu.Unlock()
 		return pumps, nil
 	}
-	c.mu.Unlock()
 
 	pumps, err := c.client.ListHeatPumps(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	c.mu.Lock()
 	c.cachedPumps = append([]weheatapi.ReadAllHeatPump(nil), pumps...)
 	c.cachedAt = time.Now()
-	c.mu.Unlock()
 
 	return pumps, nil
 }
 
-func (c *MetricsCollector) fetchLatestLog(ctx context.Context, id string) (*weheatapi.RawHeatPumpLog, error) {
-	c.mu.Lock()
+func (c *MetricsCollector) fetchLatestLog(ctx context.Context, id string) (*latestLog, error) {
 	if last, ok := c.logFetchedAt[id]; ok && time.Since(last) < logFetchInterval {
 		log := c.logCache[id]
-		c.mu.Unlock()
 		return log, nil
 	}
-	c.mu.Unlock()
 
 	log, err := c.client.LatestLog(ctx, id)
-	c.mu.Lock()
-	c.logFetchedAt[id] = time.Now()
-	if err == nil {
-		c.logCache[id] = log
+	if err == nil && (log == nil || log.Timestamp.IsZero() || time.Since(log.Timestamp) > 5*time.Minute || (log.IsOnline != nil && !*log.IsOnline)) {
+		err = fmt.Errorf("heat pump has no recent online observation")
 	}
-	c.mu.Unlock()
+	if err != nil {
+		log = nil
+	}
+	c.logFetchedAt[id] = time.Now()
+	c.logCache[id] = log
 	return log, err
 }
 
 func (c *MetricsCollector) fetchEnergyTotals(ctx context.Context, id string) (*weheatapi.TotalEnergyAggregate, error) {
-	c.mu.Lock()
 	if last, ok := c.energyFetchedAt[id]; ok && time.Since(last) < energyFetchInterval {
 		energy := c.energyCache[id]
-		c.mu.Unlock()
 		return energy, nil
 	}
-	c.mu.Unlock()
 
 	energy, err := c.client.EnergyTotals(ctx, id)
-	c.mu.Lock()
 	c.energyFetchedAt[id] = time.Now()
-	if err == nil {
-		c.energyCache[id] = energy
+	if err != nil {
+		energy = nil
 	}
-	c.mu.Unlock()
+	c.energyCache[id] = energy
 	return energy, err
 }
 
-func (c *MetricsCollector) fetchLatestEnergyLog(ctx context.Context, id string) (*weheatapi.EnergyView, error) {
-	c.mu.Lock()
+func (c *MetricsCollector) fetchLatestEnergyLog(ctx context.Context, id string) (*energyLog, error) {
 	if last, ok := c.energyLogFetchedAt[id]; ok && time.Since(last) < energyLogFetchInterval {
 		energyLog := c.energyLogCache[id]
-		c.mu.Unlock()
 		return energyLog, nil
 	}
-	c.mu.Unlock()
 
 	end := time.Now().UTC()
 	start := end.Add(-48 * time.Hour)
@@ -378,18 +397,28 @@ func (c *MetricsCollector) fetchLatestEnergyLog(ctx context.Context, id string) 
 		Interval:  weheatapi.EnergyIntervalHour,
 	})
 
-	c.mu.Lock()
 	c.energyLogFetchedAt[id] = time.Now()
+	if err != nil {
+		delete(c.energyLogCache, id)
+	}
 	if err == nil {
 		if len(logs) == 0 {
 			delete(c.energyLogCache, id)
 		} else {
-			latest := logs[len(logs)-1]
-			c.energyLogCache[id] = &latest
+			latest := logs[0]
+			for _, entry := range logs[1:] {
+				if entry.TimeBucket != nil && (latest.TimeBucket == nil || entry.TimeBucket.After(*latest.TimeBucket)) {
+					latest = entry
+				}
+			}
+			if latest.TimeBucket == nil || time.Since(*latest.TimeBucket) > 2*time.Hour {
+				delete(c.energyLogCache, id)
+			} else {
+				c.energyLogCache[id] = &latest
+			}
 		}
 	}
 	energyLog := c.energyLogCache[id]
-	c.mu.Unlock()
 
 	if err != nil {
 		return nil, err
@@ -397,7 +426,7 @@ func (c *MetricsCollector) fetchLatestEnergyLog(ctx context.Context, id string) 
 	return energyLog, nil
 }
 
-func (c *MetricsCollector) applyLog(labels prometheus.Labels, log *weheatapi.RawHeatPumpLog) {
+func (c *MetricsCollector) applyLog(labels prometheus.Labels, log *latestLog) {
 	if log == nil {
 		return
 	}
@@ -440,7 +469,7 @@ func (c *MetricsCollector) applyEnergy(labels prometheus.Labels, energy *weheata
 	setEnergy("total_eout_cooling", energy.TotalEOutCooling)
 }
 
-func (c *MetricsCollector) applyEnergyLog(labels prometheus.Labels, energyLog *weheatapi.EnergyView) {
+func (c *MetricsCollector) applyEnergyLog(labels prometheus.Labels, energyLog *energyLog) {
 	if energyLog == nil {
 		return
 	}
@@ -463,7 +492,7 @@ func (c *MetricsCollector) applyEnergyLog(labels prometheus.Labels, energyLog *w
 
 func buildLogFields() []logField {
 	var fields []logField
-	typeOf := reflect.TypeOf(weheatapi.RawHeatPumpLog{})
+	typeOf := reflect.TypeOf(latestLog{})
 	for i := 0; i < typeOf.NumField(); i++ {
 		field := typeOf.Field(i)
 		jsonTag := strings.Split(field.Tag.Get("json"), ",")[0]
@@ -487,7 +516,7 @@ func buildLogFields() []logField {
 
 func buildEnergyLogFields() []energyLogField {
 	var fields []energyLogField
-	typeOf := reflect.TypeOf(weheatapi.EnergyView{})
+	typeOf := reflect.TypeOf(energyLog{})
 	for i := 0; i < typeOf.NumField(); i++ {
 		field := typeOf.Field(i)
 		jsonTag := strings.Split(field.Tag.Get("json"), ",")[0]

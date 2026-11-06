@@ -7,7 +7,7 @@ import (
 	weheatv1 "github.com/joshp123/gohome/proto/gen/plugins/weheat/v1"
 )
 
-const defaultBaseURL = "https://api.weheat.nl"
+const defaultBaseURL = "https://api.weheat.nl/third_party"
 
 // Config defines runtime configuration for the Weheat client.
 type Config struct {
