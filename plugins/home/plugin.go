@@ -1,7 +1,7 @@
 package home
 
 import (
-	_ "embed"
+	"embed"
 
 	"github.com/joshp123/gohome/internal/core"
 	"github.com/joshp123/gohome/internal/oauth"
@@ -13,8 +13,11 @@ import (
 //go:embed AGENTS.md
 var agentsMD string
 
-//go:embed dashboard.json
-var dashboardJSON []byte
+//go:embed dashboards/*.json
+var dashboardFiles embed.FS
+
+// houseDashboards are the whole-house views, in the order they appear in Grafana's House folder.
+var houseDashboards = []string{"home", "rooms", "heating", "humidity", "energy"}
 
 // Plugin implements the GoHome plugin contract.
 type Plugin struct {
@@ -52,7 +55,15 @@ func (p Plugin) OAuthDeclaration() oauth.Declaration {
 }
 
 func (p Plugin) Dashboards() []core.Dashboard {
-	return []core.Dashboard{{Name: "my-home-overview", JSON: dashboardJSON}}
+	dashboards := make([]core.Dashboard, 0, len(houseDashboards))
+	for _, name := range houseDashboards {
+		content, err := dashboardFiles.ReadFile("dashboards/house-" + name + ".json")
+		if err != nil {
+			panic(err) // embedded at build time, so a missing file is a build mistake
+		}
+		dashboards = append(dashboards, core.Dashboard{Name: name, Folder: "House", JSON: content})
+	}
+	return dashboards
 }
 
 func (p Plugin) RegisterGRPC(*grpc.Server) {}

@@ -53,6 +53,17 @@ in
         auth = {
           disable_login_form = true;
         };
+        dashboards.default_home_dashboard_path = "/var/lib/gohome/dashboards/House/home-home.json";
+        date_formats = {
+          full_date = "D MMM YYYY HH:mm:ss";
+          interval_second = "HH:mm:ss";
+          interval_minute = "HH:mm";
+          interval_hour = "D MMM HH:mm";
+          interval_day = "D MMM";
+          interval_month = "MMM YYYY";
+          interval_year = "YYYY";
+          default_timezone = "Europe/Amsterdam";
+        };
         "auth.anonymous" = {
           enabled = true;
           org_name = "Main Org.";
@@ -74,6 +85,7 @@ in
           {
             name = "GoHome";
             options.path = "/var/lib/gohome/dashboards";
+            options.foldersFromFilesStructure = true;
             updateIntervalSeconds = 10;
           }
         ];

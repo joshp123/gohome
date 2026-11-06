@@ -84,7 +84,7 @@ func (p Plugin) RateLimits() rate.Declaration {
 }
 
 func (p Plugin) Dashboards() []core.Dashboard {
-	return []core.Dashboard{{Name: "daikin-overview", JSON: dashboardJSON}}
+	return []core.Dashboard{{Name: "overview", Folder: "Devices", JSON: dashboardJSON}}
 }
 
 func (p Plugin) RegisterGRPC(server *grpc.Server) {

@@ -20,7 +20,9 @@ const (
 // Dashboard is a Grafana dashboard asset embedded by the plugin.
 type Dashboard struct {
 	Name string
-	JSON []byte
+	// Folder is the Grafana folder the dashboard appears in: "House" for whole-house views, "Devices" for one device.
+	Folder string
+	JSON   []byte
 }
 
 // Manifest describes a plugin for discovery and registry metadata.

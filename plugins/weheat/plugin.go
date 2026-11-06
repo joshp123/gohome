@@ -90,7 +90,7 @@ func (p Plugin) OAuthDeclaration() oauth.Declaration {
 }
 
 func (p Plugin) Dashboards() []core.Dashboard {
-	return []core.Dashboard{{Name: "weheat-overview", JSON: dashboardJSON}}
+	return []core.Dashboard{{Name: "overview", Folder: "Devices", JSON: dashboardJSON}}
 }
 
 func (p Plugin) RegisterGRPC(server *grpc.Server) {

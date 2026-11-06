@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -65,6 +66,10 @@ func TestDashboardsOnlyReferenceExportedWeheatMetrics(t *testing.T) {
 			t.Fatalf("read %s: %v", path, err)
 		}
 		for _, metric := range metricRE.FindAllString(string(body), -1) {
+			// History series were imported once from Weheat's hourly logs; the collector never exports them.
+			if strings.HasPrefix(metric, "gohome_weheat_history_") {
+				continue
+			}
 			if _, ok := exported[metric]; !ok {
 				missing = append(missing, metric)
 			}
@@ -117,8 +122,9 @@ func dashboardPaths(t *testing.T) []string {
 		t.Fatal("runtime.Caller failed")
 	}
 	dir := filepath.Dir(file)
-	return []string{
-		filepath.Join(dir, "dashboard.json"),
-		filepath.Join(dir, "..", "home", "dashboard.json"),
+	house, err := filepath.Glob(filepath.Join(dir, "..", "home", "dashboards", "*.json"))
+	if err != nil || len(house) == 0 {
+		t.Fatalf("find house dashboards: %v", err)
 	}
+	return append([]string{filepath.Join(dir, "dashboard.json")}, house...)
 }

@@ -19,30 +19,31 @@ func DashboardsMap(plugins []Plugin) map[string][]byte {
 	return result
 }
 
-// WriteDashboards writes dashboards to disk for Grafana provisioning.
+// WriteDashboards writes dashboards to disk for Grafana provisioning, one directory per
+// Grafana folder. It first clears the directory, so dashboards of removed plugins disappear.
 func WriteDashboards(dir string, plugins []Plugin) error {
 	if dir == "" {
 		return nil
 	}
 
+	entries, err := os.ReadDir(dir)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read dashboard dir: %w", err)
+	}
+	for _, entry := range entries {
+		if err := os.RemoveAll(filepath.Join(dir, entry.Name())); err != nil {
+			return fmt.Errorf("clear dashboard dir: %w", err)
+		}
+	}
+
 	for _, plugin := range plugins {
 		manifest := plugin.Manifest()
-		pluginDir := filepath.Join(dir, manifest.PluginID)
-		if err := os.RemoveAll(pluginDir); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("remove dashboard dir: %w", err)
-		}
-
-		dashboards := plugin.Dashboards()
-		if len(dashboards) == 0 {
-			continue
-		}
-
-		if err := os.MkdirAll(pluginDir, 0o755); err != nil {
-			return fmt.Errorf("create dashboard dir: %w", err)
-		}
-
-		for _, dash := range dashboards {
-			path := filepath.Join(pluginDir, dash.Name+".json")
+		for _, dash := range plugin.Dashboards() {
+			folderDir := filepath.Join(dir, dash.Folder)
+			if err := os.MkdirAll(folderDir, 0o755); err != nil {
+				return fmt.Errorf("create dashboard dir: %w", err)
+			}
+			path := filepath.Join(folderDir, manifest.PluginID+"-"+dash.Name+".json")
 			if err := os.WriteFile(path, dash.JSON, 0o644); err != nil {
 				return fmt.Errorf("write dashboard %s: %w", path, err)
 			}
