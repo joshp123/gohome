@@ -30,7 +30,7 @@ in
               }
             ];
           }
-        ) ([ "core" ] ++ builtins.attrNames (lib.filterAttrs (_: plugin: plugin.enable) cfg.plugins));
+        ) ([ "core" ] ++ builtins.attrNames (lib.filterAttrs (_: plugin: plugin != null) cfg.plugins));
       };
       extraOptions = [
         "-http.pathPrefix=/vm"
