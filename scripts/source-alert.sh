@@ -1,18 +1,44 @@
 # Written by AI on 2026.11.06 by model gpt-6-astra.
-# Alerts Grok Bot after six hours without a source read, at most once a day.
+# One alert per outage, with recovery after the next successful read.
 set -euo pipefail
 state="${GOHOME_ALERT_STATE:-/var/lib/gohome-source-alert}"
 mode="${1:-}"
 now=$(date +%s)
 
+send() {
+  local body
+  body=$(jq -n --arg problem "$1" '{source: "gohome-source-alert on gohome", problem: $problem, failed_steps: [], likely_fix: "Inspect source errors, connectivity and authentication. Recovery and TEST messages need no action.", logs: "journalctl -u gohome -u gohome-source-alert -n 100"}')
+  # shellcheck disable=SC1090
+  . "$CREDENTIALS_DIRECTORY/alert-webhook"
+  printf 'header = "Authorization: Bearer %s"\n' "$ALERT_WEBHOOK_KEY" |
+    curl --silent --show-error --fail --output /dev/null --config - \
+      --connect-timeout 15 --max-time 30 \
+      --header 'Content-Type: application/json' --data "$body" "$ALERT_WEBHOOK_URL"
+  echo "$1: sent to Grok Bot"
+}
+
+transition() {
+  local id="$1" current="$2" message="$3" previous=healthy
+  [ ! -f "$state/$id-status" ] || previous=$(cat "$state/$id-status")
+  if [ "$mode" = --dry-run ]; then
+    echo "$id: $current ($message)"
+    return
+  fi
+  if [ "$current" != "$previous" ]; then
+    if [ "$current" = healthy ]; then send "RECOVERED: $message"; else send "$message"; fi
+    printf '%s\n' "$current" > "$state/$id-status"
+  fi
+}
+
 if [ "$mode" = --test ]; then
-  body=$(jq -n '{source: "gohome-source-alert test", problem: "gohome alert test, no action needed", failed_steps: [], likely_fix: "None. This is an authorised webhook delivery test, not a source failure.", logs: "ssh root@gohome journalctl -u gohome-source-alert -n 50"}')
-else
-  registry=$("${GOHOME_CLI:-gohome-cli}" call --data '{}' gohome.registry.v1.Registry/ListPlugins)
-  # Reject a failed/empty RPC response before changing observation state.
-  jq -e '.plugins | type == "array"' <<< "$registry" >/dev/null
-  [ "$mode" = --dry-run ] || mkdir -p "$state"
-  problems='[]'
+  send "TEST: GoHome host alert delivery test. No action needed."
+  exit 0
+fi
+[ "$mode" = --dry-run ] || mkdir -p "$state"
+if registry=$(timeout 30 "${GOHOME_CLI:-gohome-cli}" call --data '{}' gohome.registry.v1.Registry/ListPlugins) &&
+  jq -e '.plugins | type == "array"' <<< "$registry" >/dev/null; then
+  transition registry healthy "GoHome's plugin registry is responding again."
+  [ "$mode" = --dry-run ] || printf '0\n' > "$state/registry-first-failure"
   while IFS= read -r plugin; do
     id=$(jq -r '.pluginId' <<< "$plugin")
     # Dashboard-only plugins have healthy status without a source timestamp.
@@ -33,31 +59,25 @@ else
     [ "$reference" -ne 0 ] || reference=$first_seen
     if [ $((now - reference)) -lt 21600 ]; then
       [ "$mode" != --dry-run ] || echo "$id: no alert (less than six hours without a successful read)"
+      transition "$id" healthy "$id is reading successfully again."
       continue
     fi
-    problems=$(jq --argjson plugin "$plugin" --argjson reference "$reference" --argjson last_read "$last_read" \
-      '. + [{source: $plugin.pluginId, since: ($reference | todateiso8601), since_basis: (if $last_read == 0 then "first observed; no successful read recorded" else "last successful read" end), health_message: $plugin.healthMessage, logs: "ssh root@gohome journalctl -u gohome -n 100"}]' <<< "$problems")
+    transition "$id" failed "$id has had no successful read for at least six hours. Last reference: $(jq -nr --argjson t "$reference" '$t | todateiso8601')."
   done < <(jq -c '.plugins[]' <<< "$registry")
-  [ "$(jq length <<< "$problems")" -gt 0 ] || exit 0
-  last_alert=0
-  [ ! -f "$state/last-alert" ] || last_alert=$(cat "$state/last-alert")
-  if [ $((now - last_alert)) -lt 86400 ]; then
-    echo "alert already sent within the last day; not resending"
-    exit 0
+else
+  first_failure=0
+  [ ! -f "$state/registry-first-failure" ] || first_failure=$(cat "$state/registry-first-failure")
+  if [ "$first_failure" -eq 0 ]; then
+    first_failure=$now
+    [ "$mode" = --dry-run ] || printf '%s\n' "$now" > "$state/registry-first-failure"
   fi
-  body=$(jq -n --argjson problems "$problems" '{source: "gohome-source-alert on gohome", problem: "Home automation sources have had no successful read for at least six hours.", failed_steps: $problems, likely_fix: "Inspect the source errors in the journal, then check connectivity and authentication for each affected source.", logs: "ssh root@gohome journalctl -u gohome -n 100"}')
-  if [ "$mode" = --dry-run ]; then
-    printf '%s\n' "$body"
-    exit 0
+  echo "GoHome plugin registry unavailable"
+  if [ $((now - first_failure)) -ge 900 ]; then
+    transition registry failed "GoHome's plugin registry has not answered for at least 15 minutes. Source monitoring is unavailable."
   fi
 fi
-
-# shellcheck disable=SC1090
-. "$CREDENTIALS_DIRECTORY/alert-webhook"
-# The bearer key reaches curl through stdin, never argv.
-printf 'header = "Authorization: Bearer %s"\n' "$ALERT_WEBHOOK_KEY" \
-  | curl --silent --show-error --fail-with-body --config - \
-      --connect-timeout 15 --max-time 60 \
-      --header 'Content-Type: application/json' --data "$body" "$ALERT_WEBHOOK_URL"
-[ "$mode" = --test ] || printf '%s\n' "$now" > "$state/last-alert"
-echo "alert sent to Grok Bot"
+# Publish only after the check and any required notifications have succeeded.
+if [ "$mode" != --dry-run ]; then
+  printf '%s\n' "$now" > "$GOHOME_ALERT_HEARTBEAT.tmp"
+  mv "$GOHOME_ALERT_HEARTBEAT.tmp" "$GOHOME_ALERT_HEARTBEAT"
+fi
