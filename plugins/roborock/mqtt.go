@@ -253,7 +253,7 @@ func (c *Client) sendMQTTRPC(ctx context.Context, device HomeDataDevice, method 
 		for _, message := range messages {
 			switch message.Protocol {
 			case ProtocolMapResponse:
-				if method != "get_map_v1" || len(message.Payload) < 24 || int(int16le(message.Payload, 16)) != req.RequestID {
+				if method != "get_map_v1" || len(message.Payload) < 24 || int(uint16le(message.Payload, 16)) != req.RequestID {
 					continue
 				}
 				mapResp, err := decodeMapResponse(message.Payload, sec, nonce)
@@ -349,12 +349,12 @@ func decodeMapResponse(payload []byte, sec securityData, nonce []byte) (mapRespo
 	if !strings.HasPrefix(endpoint, sec.Endpoint) {
 		return mapResponse{}, errors.New("map response endpoint mismatch")
 	}
-	reqID := int(int16le(header, 16))
+	reqID := int(uint16le(header, 16))
 	decrypted, err := aesCbcDecrypt(body, nonce)
 	if err != nil {
 		return mapResponse{}, err
 	}
-	decompressed, err := gzipDecompress(decrypted)
+	decompressed, err := decompressMap(decrypted)
 	if err != nil {
 		return mapResponse{}, err
 	}

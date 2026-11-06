@@ -41,9 +41,7 @@ func (p Plugin) RegisterHTTP(mux *http.ServeMux) {
 		if r.URL.Query().Get("trace") != "" {
 			withTrace = boolFromQueryDefault(r.URL.Query().Get("trace"), withTrace)
 		}
-		var img mapImage
-		var err error
-		img, err = p.client.MapSnapshotWithOptions(ctx, deviceID, labelMode, withTrace)
+		png, err := p.client.MapPNG(ctx, deviceID, labelMode, withTrace)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -51,7 +49,7 @@ func (p Plugin) RegisterHTTP(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", "image/png")
 		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(img.png)
+		_, _ = w.Write(png)
 	})
 }
 

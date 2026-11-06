@@ -15,7 +15,7 @@ buildGoModule {
       && rel != "/infra/tofu/terraform.tfstate"
       && rel != "/infra/tofu/terraform.tfstate.backup";
   };
-  vendorHash = "sha256-g1t3EsSJALiN1AUvPz+42wBojQJXZFWrap3Hq7t67KU=";
+  vendorHash = "sha256-Xc0sowbOqsWhkUsxRQeC4mNqOPNeROsBl1GdupVehGA=";
   nativeBuildInputs = [
     protobuf
     protoc-gen-go

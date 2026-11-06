@@ -23,10 +23,14 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
 ## Live Map (v2)
 - Live map requires MQTT access via Roborock cloud (map RPC channel).
 - HTTP endpoint: `http://<gohome-host>:8080/roborock/map.png?device_name=<device>`
-- Add `labels=segments` to overlay segment IDs.
-- Add `labels=names` to overlay configured room names.
-- Add `path=true` to overlay the cleaning trace (default on).
-- Map refresh interval is 5 seconds (cached).
+- The PNG shows the rooms, the dock (green square), the vacuum (white circle)
+  and the path of the last run (white lines), cropped to the floor plan at
+  2.5 cm per pixel. The Qrevo S map renders at about 730 x 530.
+- Add `labels=names` to label rooms with `roborock.segment_names` (unnamed
+  rooms show as `Room <id>`), or `labels=segments` to label them with ids.
+- Add `path=false` to hide the last run's path (shown by default).
+- The device's map is fetched at most every 5 seconds (cached).
+- Map block numbers and pixel meanings follow `vacuum-map-parser-roborock`.
 
 ## Methods
 - `ListDevices`: list available vacuums.
