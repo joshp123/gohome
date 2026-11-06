@@ -72,11 +72,11 @@ func NewManagerFromBootstrap(decl Declaration, bootstrap Bootstrap, blobStore Bl
 	}
 
 	m := &Manager{
-		decl:          decl,
-		blobStore:     blobStore,
-		httpClient:    &http.Client{Timeout: 15 * time.Second},
-		clientID:      bootstrap.ClientID,
-		clientSecret:  bootstrap.ClientSecret,
+		decl:         decl,
+		blobStore:    blobStore,
+		httpClient:   &http.Client{Timeout: 15 * time.Second},
+		clientID:     bootstrap.ClientID,
+		clientSecret: bootstrap.ClientSecret,
 		config: &oauth2.Config{
 			ClientID:     bootstrap.ClientID,
 			ClientSecret: bootstrap.ClientSecret,
@@ -108,18 +108,23 @@ func (m *Manager) StartWithInterval(ctx context.Context, interval time.Duration)
 		return
 	}
 	threshold := interval
-	if threshold < 30*time.Second {
-		threshold = 30 * time.Second
+	if threshold < time.Minute {
+		threshold = time.Minute
 	}
 	m.refreshIfNeeded(ctx, threshold)
 	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
 		for {
+			m.mu.Lock()
+			delay := min(interval, time.Until(m.expiresAt)-time.Minute)
+			m.mu.Unlock()
+			// Retry failed refreshes without spinning on an expired token.
+			delay = max(delay, 30*time.Second)
+			timer := time.NewTimer(delay)
 			select {
 			case <-ctx.Done():
+				timer.Stop()
 				return
-			case <-ticker.C:
+			case <-timer.C:
 				m.refreshIfNeeded(ctx, threshold)
 			}
 		}

@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -170,7 +169,7 @@ func (c *Client) EnergyOverview(ctx context.Context, plantID int64) (PlantEnergy
 	if t, err := parseGrowattTimestamp(parseString(raw["last_update_time"]), energy.Timezone); err == nil {
 		energy.LastUpdate = t
 	}
-	if power, lastUpdate, err := c.plantLivePower(ctx, energy.Timezone); err != nil {
+	if power, lastUpdate, err := c.plantLivePower(ctx, plantID, energy.Timezone); err != nil {
 		return PlantEnergy{}, err
 	} else {
 		energy.CurrentPowerW = power
@@ -271,49 +270,27 @@ type livePowerReading struct {
 	LastUpdate *time.Time
 }
 
-func (c *Client) plantLivePower(ctx context.Context, timezone string) (float64, *time.Time, error) {
-	devices, err := c.listDevices(ctx)
-	if err != nil {
+func (c *Client) plantLivePower(ctx context.Context, plantID int64, timezone string) (float64, *time.Time, error) {
+	var list struct {
+		Count   int `json:"count"`
+		Devices []struct {
+			SN   string `json:"device_sn"`
+			Type int    `json:"type"`
+		} `json:"devices"`
+	}
+	if err := c.getJSON(ctx, "device/list", map[string]string{"plant_id": strconv.FormatInt(plantID, 10), "page": "1", "perpage": "100"}, &list); err != nil {
 		return 0, nil, err
 	}
-
-	var total float64
-	var latest *time.Time
-	for _, device := range devices {
-		reading, err := c.deviceLivePower(ctx, device, timezone)
-		if err != nil {
-			return 0, nil, err
-		}
-		total += reading.Watts
-		if reading.LastUpdate != nil && (latest == nil || reading.LastUpdate.After(*latest)) {
-			latest = reading.LastUpdate
-		}
+	if list.Count != 1 || len(list.Devices) != 1 {
+		return 0, nil, fmt.Errorf("plant must contain exactly one inverter; found %d", list.Count)
 	}
-	return total, latest, nil
-}
-
-func (c *Client) listDevices(ctx context.Context) ([]growattDevice, error) {
-	var list struct {
-		Devices []growattDevice `json:"data"`
+	device := list.Devices[0]
+	// Growatt OpenAPI device type 7 is MIN, the v4 queryLastData type.
+	if device.Type != 7 || device.SN == "" {
+		return 0, nil, fmt.Errorf("unsupported Growatt device type %d", device.Type)
 	}
-	if err := c.postJSON(ctx, "new-api/queryDeviceList", map[string]string{"page": "1"}, &list); err != nil {
-		return nil, err
-	}
-
-	devices := list.Devices[:0]
-	for _, device := range list.Devices {
-		if device.SN == "" || device.Type == "" {
-			continue
-		}
-		devices = append(devices, device)
-	}
-	if len(devices) == 0 {
-		return nil, fmt.Errorf("growatt live power device not found")
-	}
-	sort.Slice(devices, func(i, j int) bool {
-		return devices[i].SN < devices[j].SN
-	})
-	return devices, nil
+	reading, err := c.deviceLivePower(ctx, growattDevice{SN: device.SN, Type: "min"}, timezone)
+	return reading.Watts, reading.LastUpdate, err
 }
 
 func (c *Client) deviceLivePower(ctx context.Context, device growattDevice, timezone string) (livePowerReading, error) {

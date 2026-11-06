@@ -63,6 +63,7 @@
                 agenix.nixosModules.default
                 ./nix/hosts/gohome.nix
                 ./nix/module.nix
+                { system.configurationRevision = self.rev or self.dirtyRev or "dirty"; }
               ];
               specialArgs = {
                 inherit secrets;

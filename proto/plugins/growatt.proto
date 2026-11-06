@@ -22,7 +22,7 @@ message GetPlantStatusRequest {
 
 message PlantStatus {
   Plant plant = 1;
-  double current_power_watts = 2;
+  optional double current_power_watts = 2; // Absent when the device reading is over 15 minutes old.
   double today_energy_kwh = 3;
   double monthly_energy_kwh = 4;
   double yearly_energy_kwh = 5;

@@ -54,7 +54,7 @@ func main() {
 		log.Fatalf("plugin enablement: %v", err)
 	}
 
-	activePlugins := core.FilterPlugins(compiledPlugins, enabled, false)
+	activePlugins := core.ObservePlugins(core.FilterPlugins(compiledPlugins, enabled, false))
 
 	if err := core.WriteDashboards(cfg.Core.DashboardDir, activePlugins); err != nil {
 		log.Fatalf("write dashboards: %v", err)
@@ -68,18 +68,29 @@ func main() {
 	router.RegisterPlugins(grpcServer.Server, activePlugins)
 
 	metricsRegistry := core.MetricsRegistry(activePlugins)
-	metricsRegistry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+	buildInfo := prometheus.NewGaugeFunc(prometheus.GaugeOpts{
 		Name: "gohome_build_info",
 		Help: "Build information",
 		ConstLabels: prometheus.Labels{
 			"version": buildVersion,
 			"commit":  buildCommit,
 		},
-	}, func() float64 { return 1 }))
+	}, func() float64 { return 1 })
+	metricsRegistry.MustRegister(buildInfo)
+	coreMetrics := core.MetricsRegistry(nil)
+	coreMetrics.MustRegister(buildInfo)
 
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/health", server.HealthHandler)
 	httpMux.Handle("/metrics", server.MetricsHandler(metricsRegistry))
+	httpMux.Handle("/metrics/core", server.MetricsHandler(coreMetrics))
+	for _, plugin := range activePlugins {
+		registry := prometheus.NewRegistry()
+		for _, collector := range plugin.Collectors() {
+			registry.MustRegister(collector)
+		}
+		httpMux.Handle("/metrics/"+plugin.ID(), server.MetricsHandler(registry))
+	}
 	httpMux.Handle("/dashboards/", server.DashboardsHandler(core.DashboardsMap(activePlugins)))
 	for _, plugin := range activePlugins {
 		if registrant, ok := plugin.(core.HTTPRegistrant); ok {

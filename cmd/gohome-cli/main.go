@@ -112,6 +112,9 @@ func pluginsCmd(ctx context.Context, conn *grpc.ClientConn, args []string) {
 		fmt.Printf("status: %s\n", resp.Plugin.Status)
 		if resp.Plugin.HealthMessage != "" {
 			fmt.Printf("health: %s\n", resp.Plugin.HealthMessage)
+			if resp.Plugin.LastSuccess != nil {
+				fmt.Printf("last successful read: %s\n", resp.Plugin.LastSuccess.AsTime().Format(time.RFC3339))
+			}
 		}
 		fmt.Println("services:")
 		for _, svc := range resp.Plugin.Services {

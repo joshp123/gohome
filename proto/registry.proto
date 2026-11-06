@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package gohome.registry.v1;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/joshp123/gohome/proto/gen/registry/v1;registryv1";
 
 message ListPluginsRequest {}
@@ -11,6 +13,8 @@ message PluginSummary {
   string display_name = 2;
   string version = 3;
   string status = 4; // HEALTHY/DEGRADED/ERROR
+  google.protobuf.Timestamp last_success = 5;
+  string health_message = 6;
 }
 
 message ListPluginsResponse {
@@ -35,6 +39,7 @@ message PluginDescriptor {
   repeated Dashboard dashboards = 6;
   string status = 7;
   string health_message = 8;
+  google.protobuf.Timestamp last_success = 9;
 }
 
 message DescribePluginResponse {

@@ -2,6 +2,7 @@ package growatt
 
 import (
 	"context"
+	"log"
 	"strconv"
 	"sync"
 	"time"
@@ -109,6 +110,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	plant, err := c.client.ResolvePlant(ctx, 0)
 	if err != nil {
+		log.Printf("growatt source read failed: %v", err)
 		c.storeSnapshot(cachedSnapshot{fetchedAt: time.Now(), success: false})
 		c.collectAll(ch)
 		return
@@ -116,19 +118,12 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	energy, err := c.client.EnergyOverview(ctx, plant.ID)
 	if err != nil {
+		log.Printf("growatt source read failed: %v", err)
 		snapshot := cachedSnapshot{
 			plant:     plant,
 			energy:    PlantEnergy{PlantID: plant.ID},
 			fetchedAt: time.Now(),
 			success:   false,
-		}
-		if isRateLimit(err) {
-			c.mu.Lock()
-			if c.cached != nil {
-				snapshot = *c.cached
-				snapshot.fetchedAt = time.Now()
-			}
-			c.mu.Unlock()
 		}
 		c.storeSnapshot(snapshot)
 		c.collectAll(ch)
@@ -142,7 +137,6 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		success:   true,
 	}
 	c.storeSnapshot(snapshot)
-	c.applySnapshot(snapshot)
 	c.collectAll(ch)
 }
 
@@ -150,6 +144,7 @@ func (c *MetricsCollector) storeSnapshot(snapshot cachedSnapshot) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cached = &snapshot
+	c.applySnapshot(snapshot)
 }
 
 func (c *MetricsCollector) applySnapshot(snapshot cachedSnapshot) {
@@ -160,12 +155,14 @@ func (c *MetricsCollector) applySnapshot(snapshot cachedSnapshot) {
 	c.totalEnergy.Reset()
 	c.lastUpdated.Reset()
 
-	if snapshot.plant.ID != 0 {
+	if snapshot.success && snapshot.plant.ID != 0 {
 		labels := prometheus.Labels{
 			"plant_id":   strconv.FormatInt(snapshot.plant.ID, 10),
 			"plant_name": snapshot.plant.Name,
 		}
-		c.currentPower.With(labels).Set(snapshot.energy.CurrentPowerW)
+		if snapshot.energy.LastUpdate != nil && time.Since(*snapshot.energy.LastUpdate) <= 15*time.Minute {
+			c.currentPower.With(labels).Set(snapshot.energy.CurrentPowerW)
+		}
 		c.todayEnergy.With(labels).Set(snapshot.energy.TodayEnergyKWh)
 		c.monthEnergy.With(labels).Set(snapshot.energy.MonthlyEnergyKWh)
 		c.yearEnergy.With(labels).Set(snapshot.energy.YearlyEnergyKWh)

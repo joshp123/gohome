@@ -177,11 +177,6 @@ func (c *Client) gatewayDevicesRaw(ctx context.Context) ([]json.RawMessage, erro
 		return cached, nil
 	}
 	if time.Now().Before(c.cooldownUntil) {
-		if len(c.lastGatewayRaw) > 0 {
-			cached := cloneRawMessages(c.lastGatewayRaw)
-			c.cloudMu.Unlock()
-			return cached, nil
-		}
 		until := c.cooldownUntil
 		c.cloudMu.Unlock()
 		return nil, fmt.Errorf("daikin api rate limited until %s", until.UTC().Format(time.RFC3339))

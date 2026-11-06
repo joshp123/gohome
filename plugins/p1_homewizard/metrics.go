@@ -2,9 +2,11 @@ package p1_homewizard
 
 import (
 	"context"
+	"log"
 	"math"
 	"time"
 
+	"github.com/joshp123/gohome/internal/core"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -207,9 +209,11 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	data, err := c.client.Data(ctx)
 	if err != nil {
+		log.Printf("p1_homewizard source read failed: %v", err)
 		c.success.Set(0)
 		c.telegramSuccess.Set(0)
-		c.collectAll(ch)
+		c.success.Collect(ch)
+		c.lastSuccess.Collect(ch)
 		return
 	}
 
@@ -254,8 +258,8 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	telegram, tErr := c.client.Telegram(ctx)
 	if tErr != nil {
 		c.telegramSuccess.Set(0)
-		c.importPowerW.Set(0)
-		c.exportPowerW.Set(0)
+		c.importPowerW.Set(math.NaN())
+		c.exportPowerW.Set(math.NaN())
 	} else {
 		metrics, ok := ParseTelegram(telegram)
 		if ok {
@@ -267,8 +271,8 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 		} else {
 			c.telegramSuccess.Set(0)
-			c.importPowerW.Set(0)
-			c.exportPowerW.Set(0)
+			c.importPowerW.Set(math.NaN())
+			c.exportPowerW.Set(math.NaN())
 		}
 	}
 
@@ -277,23 +281,23 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
-	c.activePowerW.Collect(ch)
-	c.activePowerL1W.Collect(ch)
-	c.importPowerW.Collect(ch)
-	c.exportPowerW.Collect(ch)
-	c.activeCurrentA.Collect(ch)
-	c.activeCurrentL1A.Collect(ch)
-	c.activeTariff.Collect(ch)
-	c.totalImportKWh.Collect(ch)
-	c.totalImportT1KWh.Collect(ch)
-	c.totalImportT2KWh.Collect(ch)
-	c.totalExportKWh.Collect(ch)
-	c.totalExportT1KWh.Collect(ch)
-	c.totalExportT2KWh.Collect(ch)
-	c.voltageSagL1Count.Collect(ch)
-	c.voltageSwellL1Count.Collect(ch)
-	c.anyPowerFailCount.Collect(ch)
-	c.longPowerFailCount.Collect(ch)
+	core.CollectPresent(c.activePowerW, ch)
+	core.CollectPresent(c.activePowerL1W, ch)
+	core.CollectPresent(c.importPowerW, ch)
+	core.CollectPresent(c.exportPowerW, ch)
+	core.CollectPresent(c.activeCurrentA, ch)
+	core.CollectPresent(c.activeCurrentL1A, ch)
+	core.CollectPresent(c.activeTariff, ch)
+	core.CollectPresent(c.totalImportKWh, ch)
+	core.CollectPresent(c.totalImportT1KWh, ch)
+	core.CollectPresent(c.totalImportT2KWh, ch)
+	core.CollectPresent(c.totalExportKWh, ch)
+	core.CollectPresent(c.totalExportT1KWh, ch)
+	core.CollectPresent(c.totalExportT2KWh, ch)
+	core.CollectPresent(c.voltageSagL1Count, ch)
+	core.CollectPresent(c.voltageSwellL1Count, ch)
+	core.CollectPresent(c.anyPowerFailCount, ch)
+	core.CollectPresent(c.longPowerFailCount, ch)
 	c.tariffImportT1.Collect(ch)
 	c.tariffImportT2.Collect(ch)
 	c.tariffExportT1.Collect(ch)
@@ -310,6 +314,7 @@ func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
 
 func setGauge(g prometheus.Gauge, value *float64) {
 	if value == nil {
+		g.Set(math.NaN())
 		return
 	}
 	g.Set(*value)
@@ -317,6 +322,7 @@ func setGauge(g prometheus.Gauge, value *float64) {
 
 func setGaugeInt(g prometheus.Gauge, value *int) {
 	if value == nil {
+		g.Set(math.NaN())
 		return
 	}
 	g.Set(float64(*value))

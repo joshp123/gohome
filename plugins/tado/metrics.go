@@ -2,9 +2,12 @@ package tado
 
 import (
 	"context"
+	"log"
+	"math"
 	"strconv"
 	"time"
 
+	"github.com/joshp123/gohome/internal/core"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -102,15 +105,19 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	zones, err := c.client.Zones(ctx)
 	if err != nil {
+		log.Printf("tado source read failed: %v", err)
 		c.success.Set(0)
-		c.collectAll(ch)
+		c.success.Collect(ch)
+		c.lastSuccess.Collect(ch)
 		return
 	}
 
 	states, err := c.client.ZoneStates(ctx)
 	if err != nil {
+		log.Printf("tado source read failed: %v", err)
 		c.success.Set(0)
-		c.collectAll(ch)
+		c.success.Collect(ch)
+		c.lastSuccess.Collect(ch)
 		return
 	}
 
@@ -123,6 +130,8 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	c.heatingActive.Reset()
 	c.lastUpdated.Reset()
 
+	c.outsideTemp.Set(math.NaN())
+	c.solarIntensity.Set(math.NaN())
 	if weather, err := c.client.Weather(ctx); err == nil {
 		if weather.OutsideTemperatureCelsius != nil {
 			c.outsideTemp.Set(*weather.OutsideTemperatureCelsius)
@@ -183,8 +192,8 @@ func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
 	c.override.Collect(ch)
 	c.heatingActive.Collect(ch)
 	c.lastUpdated.Collect(ch)
-	c.outsideTemp.Collect(ch)
-	c.solarIntensity.Collect(ch)
+	core.CollectPresent(c.outsideTemp, ch)
+	core.CollectPresent(c.solarIntensity, ch)
 	c.lastSuccess.Collect(ch)
 	c.success.Collect(ch)
 }

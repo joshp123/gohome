@@ -2,7 +2,6 @@ package daikin
 
 import (
 	_ "embed"
-	"time"
 
 	"github.com/joshp123/gohome/internal/core"
 	"github.com/joshp123/gohome/internal/oauth"
@@ -81,7 +80,6 @@ func (p Plugin) RateLimits() rate.Declaration {
 	return rate.Provider("daikin").
 		MaxRequestsPer(rate.Minute, 20).
 		MaxRequestsPer(rate.Day, 200).
-		CacheFor(10 * time.Minute).
 		ReadHeaders(rate.StandardHeaders())
 }
 

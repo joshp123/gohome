@@ -4,11 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"log"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/joshp123/gohome/internal/core"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -241,14 +244,17 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if c.client == nil {
 		c.scrapeSuccess.Set(0)
-		c.collectAll(ch)
+		c.scrapeSuccess.Collect(ch)
+		c.lastSuccess.Collect(ch)
 		return
 	}
 
 	current, err := c.client.Current(ctx)
 	if err != nil {
+		log.Printf("airgradient source read failed: %v", err)
 		c.scrapeSuccess.Set(0)
-		c.collectAll(ch)
+		c.scrapeSuccess.Collect(ch)
+		c.lastSuccess.Collect(ch)
 		return
 	}
 
@@ -319,8 +325,8 @@ func (c *MetricsCollector) applyOpenMetrics(ctx context.Context) {
 	payload, err := c.client.Metrics(ctx)
 	if err != nil {
 		c.openMetricsSuccess.Set(0)
-		c.configOK.Set(0)
-		c.postOK.Set(0)
+		c.configOK.Set(math.NaN())
+		c.postOK.Set(math.NaN())
 		return
 	}
 
@@ -357,33 +363,33 @@ func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
 	c.lastSuccess.Collect(ch)
 	c.lastUpdated.Collect(ch)
 	c.openMetricsSuccess.Collect(ch)
-	c.configOK.Collect(ch)
-	c.postOK.Collect(ch)
+	core.CollectPresent(c.configOK, ch)
+	core.CollectPresent(c.postOK, ch)
 	c.info.Collect(ch)
-	c.wifiRssiDbm.Collect(ch)
-	c.co2Ppm.Collect(ch)
-	c.pm01Ugm3.Collect(ch)
-	c.pm02Ugm3.Collect(ch)
-	c.pm10Ugm3.Collect(ch)
-	c.pm02CompUgm3.Collect(ch)
-	c.pm01StdUgm3.Collect(ch)
-	c.pm02StdUgm3.Collect(ch)
-	c.pm10StdUgm3.Collect(ch)
-	c.pm003CountPerDl.Collect(ch)
-	c.pm005CountPerDl.Collect(ch)
-	c.pm01CountPerDl.Collect(ch)
-	c.pm02CountPerDl.Collect(ch)
-	c.pm50CountPerDl.Collect(ch)
-	c.pm10CountPerDl.Collect(ch)
-	c.tempCelsius.Collect(ch)
-	c.tempCompCelsius.Collect(ch)
-	c.humidityPercent.Collect(ch)
-	c.humidityComp.Collect(ch)
-	c.tvocIndex.Collect(ch)
-	c.tvocRaw.Collect(ch)
-	c.noxIndex.Collect(ch)
-	c.noxRaw.Collect(ch)
-	c.bootCount.Collect(ch)
+	core.CollectPresent(c.wifiRssiDbm, ch)
+	core.CollectPresent(c.co2Ppm, ch)
+	core.CollectPresent(c.pm01Ugm3, ch)
+	core.CollectPresent(c.pm02Ugm3, ch)
+	core.CollectPresent(c.pm10Ugm3, ch)
+	core.CollectPresent(c.pm02CompUgm3, ch)
+	core.CollectPresent(c.pm01StdUgm3, ch)
+	core.CollectPresent(c.pm02StdUgm3, ch)
+	core.CollectPresent(c.pm10StdUgm3, ch)
+	core.CollectPresent(c.pm003CountPerDl, ch)
+	core.CollectPresent(c.pm005CountPerDl, ch)
+	core.CollectPresent(c.pm01CountPerDl, ch)
+	core.CollectPresent(c.pm02CountPerDl, ch)
+	core.CollectPresent(c.pm50CountPerDl, ch)
+	core.CollectPresent(c.pm10CountPerDl, ch)
+	core.CollectPresent(c.tempCelsius, ch)
+	core.CollectPresent(c.tempCompCelsius, ch)
+	core.CollectPresent(c.humidityPercent, ch)
+	core.CollectPresent(c.humidityComp, ch)
+	core.CollectPresent(c.tvocIndex, ch)
+	core.CollectPresent(c.tvocRaw, ch)
+	core.CollectPresent(c.noxIndex, ch)
+	core.CollectPresent(c.noxRaw, ch)
+	core.CollectPresent(c.bootCount, ch)
 	c.satelliteTempCelsius.Collect(ch)
 	c.satelliteHumidity.Collect(ch)
 	c.satelliteWifiRssiDbm.Collect(ch)
@@ -391,6 +397,7 @@ func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
 
 func setGauge(g prometheus.Gauge, value *float64) {
 	if value == nil {
+		g.Set(math.NaN())
 		return
 	}
 	g.Set(*value)

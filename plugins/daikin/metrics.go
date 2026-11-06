@@ -2,6 +2,7 @@ package daikin
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -11,8 +12,9 @@ import (
 type MetricsCollector struct {
 	client *Client
 
-	cloudUp *prometheus.GaugeVec
-	success prometheus.Gauge
+	cloudUp     *prometheus.GaugeVec
+	success     prometheus.Gauge
+	lastSuccess prometheus.Gauge
 
 	onOffMode       *prometheus.GaugeVec
 	operationMode   *prometheus.GaugeVec
@@ -37,7 +39,8 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 	embeddedLabels := []string{"unit_id", "unit_name", "embedded_id"}
 	setpointLabels := []string{"unit_id", "unit_name", "embedded_id", "operation_mode", "setpoint"}
 	return &MetricsCollector{
-		client: client,
+		client:      client,
+		lastSuccess: prometheus.NewGauge(prometheus.GaugeOpts{Name: "gohome_daikin_last_success_timestamp_seconds", Help: "Last successful source read (epoch seconds)"}),
 		cloudUp: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "gohome_daikin_cloud_connected",
 			Help: "Whether the unit reports cloud connectivity (1=up, 0=down)",
@@ -112,6 +115,7 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	c.cloudUp.Describe(ch)
 	c.success.Describe(ch)
+	c.lastSuccess.Describe(ch)
 	c.onOffMode.Describe(ch)
 	c.operationMode.Describe(ch)
 	c.roomTemp.Describe(ch)
@@ -135,6 +139,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	states, err := c.client.DeviceStates(ctx)
 	if err != nil {
+		log.Printf("daikin source read failed: %v", err)
 		c.success.Set(0)
 		limits := c.client.RateLimits()
 		c.rateLimitLimit.WithLabelValues("minute").Set(float64(limits.Minute))
@@ -144,23 +149,13 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		c.rateRetryAfter.Set(float64(limits.RetryAfter))
 		c.rateResetAfter.Set(float64(limits.ResetAfter))
 		c.rateLastStatus.Set(float64(limits.LastStatusCode))
-		c.cloudUp.Collect(ch)
-		c.onOffMode.Collect(ch)
-		c.operationMode.Collect(ch)
-		c.roomTemp.Collect(ch)
-		c.outdoorTemp.Collect(ch)
-		c.roomHumidity.Collect(ch)
-		c.setpoint.Collect(ch)
-		c.errorState.Collect(ch)
-		c.warningState.Collect(ch)
-		c.cautionState.Collect(ch)
-		c.holidayMode.Collect(ch)
 		c.rateLimitLimit.Collect(ch)
 		c.rateLimitRemain.Collect(ch)
 		c.rateRetryAfter.Collect(ch)
 		c.rateResetAfter.Collect(ch)
 		c.rateLastStatus.Collect(ch)
 		c.success.Collect(ch)
+		c.lastSuccess.Collect(ch)
 		return
 	}
 
@@ -260,6 +255,9 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	c.success.Set(1)
+	c.client.cloudMu.Lock()
+	c.lastSuccess.Set(float64(c.client.lastGatewayAt.Unix()))
+	c.client.cloudMu.Unlock()
 	limits := c.client.RateLimits()
 	c.rateLimitLimit.WithLabelValues("minute").Set(float64(limits.Minute))
 	c.rateLimitLimit.WithLabelValues("day").Set(float64(limits.Day))
@@ -285,6 +283,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	c.rateResetAfter.Collect(ch)
 	c.rateLastStatus.Collect(ch)
 	c.success.Collect(ch)
+	c.lastSuccess.Collect(ch)
 }
 
 func boolToFloat(value bool) float64 {

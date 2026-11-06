@@ -2,6 +2,8 @@ package growatt
 
 import (
 	context "context"
+	"google.golang.org/protobuf/proto"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -61,14 +63,16 @@ func (s *service) GetPlantStatus(ctx context.Context, req *v1.GetPlantStatusRequ
 			Name:    plant.Name,
 			Status:  plant.Status,
 		},
-		CurrentPowerWatts: energy.CurrentPowerW,
-		TodayEnergyKwh:    energy.TodayEnergyKWh,
-		MonthlyEnergyKwh:  energy.MonthlyEnergyKWh,
-		YearlyEnergyKwh:   energy.YearlyEnergyKWh,
-		TotalEnergyKwh:    energy.TotalEnergyKWh,
-		Timezone:          energy.Timezone,
+		TodayEnergyKwh:   energy.TodayEnergyKWh,
+		MonthlyEnergyKwh: energy.MonthlyEnergyKWh,
+		YearlyEnergyKwh:  energy.YearlyEnergyKWh,
+		TotalEnergyKwh:   energy.TotalEnergyKWh,
+		Timezone:         energy.Timezone,
 	}
 	if energy.LastUpdate != nil {
+		if time.Since(*energy.LastUpdate) <= 15*time.Minute {
+			statusResp.CurrentPowerWatts = proto.Float64(energy.CurrentPowerW)
+		}
 		statusResp.LastUpdateTime = energy.LastUpdate.Format(timeLayout)
 	}
 
