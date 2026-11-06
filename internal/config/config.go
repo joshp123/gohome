@@ -122,6 +122,9 @@ func Validate(cfg *configv1.Config) error {
 	if cfg.Roborock != nil && cfg.Roborock.BootstrapFile == "" {
 		return fmt.Errorf("roborock.bootstrap_file is required")
 	}
+	if cfg.Meaco != nil && cfg.Meaco.BootstrapFile == "" {
+		return fmt.Errorf("meaco.bootstrap_file is required")
+	}
 	// weheat uses hardcoded public client credentials; no bootstrap file needed.
 
 	return nil
@@ -153,6 +156,9 @@ func EnabledPlugins(cfg *configv1.Config) map[string]bool {
 	}
 	if cfg.Weheat != nil {
 		enabled["weheat"] = true
+	}
+	if cfg.Meaco != nil {
+		enabled["meaco"] = true
 	}
 	if cfg.Home != nil {
 		enabled["home"] = true

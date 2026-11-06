@@ -123,6 +123,11 @@ ${p1TariffLine "tariff_export_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffEx
       base_url: ${textprotoString cfg.plugins.weheat.baseUrl}
   '' + ''
     }
+  '' + optionalString (cfg.plugins.meaco != null) ''
+    meaco {
+      bootstrap_file: ${textprotoString cfg.plugins.meaco.bootstrapFile}
+      device_ip: ${textprotoString cfg.plugins.meaco.deviceIp}
+    }
   '' + optionalString (cfg.plugins.home != null) ''
     home {
     }
@@ -131,6 +136,7 @@ ${p1TariffLine "tariff_export_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffEx
 in
 {
   imports = [
+    ../plugins/meaco/module.nix
     ./nginx.nix
     ./grafana.nix
     ./victoriametrics.nix

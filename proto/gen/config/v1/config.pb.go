@@ -11,6 +11,7 @@ import (
 	v11 "github.com/joshp123/gohome/proto/gen/plugins/daikin/v1"
 	v12 "github.com/joshp123/gohome/proto/gen/plugins/growatt/v1"
 	v17 "github.com/joshp123/gohome/proto/gen/plugins/home/v1"
+	v18 "github.com/joshp123/gohome/proto/gen/plugins/meaco/v1"
 	v14 "github.com/joshp123/gohome/proto/gen/plugins/p1_homewizard/v1"
 	v13 "github.com/joshp123/gohome/proto/gen/plugins/roborock/v1"
 	v1 "github.com/joshp123/gohome/proto/gen/plugins/tado/v1"
@@ -202,6 +203,7 @@ type Config struct {
 	Airgradient   *v15.AirgradientConfig  `protobuf:"bytes,15,opt,name=airgradient,proto3" json:"airgradient,omitempty"`
 	Weheat        *v16.WeheatConfig       `protobuf:"bytes,16,opt,name=weheat,proto3" json:"weheat,omitempty"`
 	Home          *v17.HomeConfig         `protobuf:"bytes,17,opt,name=home,proto3" json:"home,omitempty"`
+	Meaco         *v18.MeacoConfig        `protobuf:"bytes,18,opt,name=meaco,proto3" json:"meaco,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -313,11 +315,18 @@ func (x *Config) GetHome() *v17.HomeConfig {
 	return nil
 }
 
+func (x *Config) GetMeaco() *v18.MeacoConfig {
+	if x != nil {
+		return x.Meaco
+	}
+	return nil
+}
+
 var File_proto_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_proto_config_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"\x1cproto/config/v1/config.proto\x12\x10gohome.config.v1\x1a\x18proto/plugins/tado.proto\x1a\x1aproto/plugins/daikin.proto\x1a\x1bproto/plugins/growatt.proto\x1a\x1cproto/plugins/roborock.proto\x1a!proto/plugins/p1_homewizard.proto\x1a\x1fproto/plugins/airgradient.proto\x1a\x1aproto/plugins/weheat.proto\x1a\x18proto/plugins/home.proto\"k\n" +
+	"\x1cproto/config/v1/config.proto\x12\x10gohome.config.v1\x1a\x18proto/plugins/tado.proto\x1a\x1aproto/plugins/daikin.proto\x1a\x1bproto/plugins/growatt.proto\x1a\x1cproto/plugins/roborock.proto\x1a!proto/plugins/p1_homewizard.proto\x1a\x1fproto/plugins/airgradient.proto\x1a\x1aproto/plugins/weheat.proto\x1a\x18proto/plugins/home.proto\x1a\x19proto/plugins/meaco.proto\"k\n" +
 	"\n" +
 	"CoreConfig\x12\x1b\n" +
 	"\tgrpc_addr\x18\x01 \x01(\tR\bgrpcAddr\x12\x1b\n" +
@@ -335,7 +344,7 @@ const file_proto_config_v1_config_proto_rawDesc = "" +
 	"blobRegion\x12,\n" +
 	"\x0frefresh_enabled\x18\a \x01(\bH\x00R\x0erefreshEnabled\x88\x01\x01\x128\n" +
 	"\x18refresh_interval_seconds\x18\b \x01(\rR\x16refreshIntervalSecondsB\x12\n" +
-	"\x10_refresh_enabled\"\xc0\x05\n" +
+	"\x10_refresh_enabled\"\xfc\x05\n" +
 	"\x06Config\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x120\n" +
 	"\x04core\x18\x02 \x01(\v2\x1c.gohome.config.v1.CoreConfigR\x04core\x123\n" +
@@ -348,7 +357,8 @@ const file_proto_config_v1_config_proto_rawDesc = "" +
 	"\rp1_homewizard\x18\x0e \x01(\v23.gohome.plugins.p1_homewizard.v1.P1HomewizardConfigR\fp1Homewizard\x12R\n" +
 	"\vairgradient\x18\x0f \x01(\v20.gohome.plugins.airgradient.v1.AirgradientConfigR\vairgradient\x12>\n" +
 	"\x06weheat\x18\x10 \x01(\v2&.gohome.plugins.weheat.v1.WeheatConfigR\x06weheat\x126\n" +
-	"\x04home\x18\x11 \x01(\v2\".gohome.plugins.home.v1.HomeConfigR\x04homeB9Z7github.com/joshp123/gohome/proto/gen/config/v1;configv1b\x06proto3"
+	"\x04home\x18\x11 \x01(\v2\".gohome.plugins.home.v1.HomeConfigR\x04home\x12:\n" +
+	"\x05meaco\x18\x12 \x01(\v2$.gohome.plugins.meaco.v1.MeacoConfigR\x05meacoB9Z7github.com/joshp123/gohome/proto/gen/config/v1;configv1b\x06proto3"
 
 var (
 	file_proto_config_v1_config_proto_rawDescOnce sync.Once
@@ -375,6 +385,7 @@ var file_proto_config_v1_config_proto_goTypes = []any{
 	(*v15.AirgradientConfig)(nil),  // 8: gohome.plugins.airgradient.v1.AirgradientConfig
 	(*v16.WeheatConfig)(nil),       // 9: gohome.plugins.weheat.v1.WeheatConfig
 	(*v17.HomeConfig)(nil),         // 10: gohome.plugins.home.v1.HomeConfig
+	(*v18.MeacoConfig)(nil),        // 11: gohome.plugins.meaco.v1.MeacoConfig
 }
 var file_proto_config_v1_config_proto_depIdxs = []int32{
 	0,  // 0: gohome.config.v1.Config.core:type_name -> gohome.config.v1.CoreConfig
@@ -387,11 +398,12 @@ var file_proto_config_v1_config_proto_depIdxs = []int32{
 	8,  // 7: gohome.config.v1.Config.airgradient:type_name -> gohome.plugins.airgradient.v1.AirgradientConfig
 	9,  // 8: gohome.config.v1.Config.weheat:type_name -> gohome.plugins.weheat.v1.WeheatConfig
 	10, // 9: gohome.config.v1.Config.home:type_name -> gohome.plugins.home.v1.HomeConfig
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	11, // 10: gohome.config.v1.Config.meaco:type_name -> gohome.plugins.meaco.v1.MeacoConfig
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_proto_config_v1_config_proto_init() }

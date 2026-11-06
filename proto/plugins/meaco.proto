@@ -1,0 +1,38 @@
+syntax = "proto3";
+package gohome.plugins.meaco.v1;
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/meaco/v1;meacov1";
+
+message MeacoConfig {
+  string bootstrap_file = 1;
+  // Optional stable address overriding the bootstrap's last-known address.
+  string device_ip = 2;
+}
+message GetStatusRequest {}
+message DeviceStatus {
+  optional bool power = 1; // Switch state, NOT compressor activity.
+  optional int32 humidity_percent = 2;
+  optional int32 target_humidity_percent = 3;
+  optional string mode = 4;
+  optional bool child_lock = 5;
+  optional uint32 fault_code = 6; // Device bitmap; not every bit is a fault.
+  optional string countdown = 7;
+  optional string on_timer = 8;
+  int64 observed_at_unix = 9;
+}
+message SetPowerRequest { bool power = 1; }
+message SetTargetHumidityRequest { int32 humidity_percent = 1; }
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_MANUAL = 1;
+  MODE_LAUNDRY = 2;
+  MODE_SLEEP = 3;
+  MODE_PURIFY = 4;
+}
+message SetModeRequest { Mode mode = 1; }
+message CommandAccepted {} // Device acknowledged; call GetStatus to observe state.
+service MeacoService {
+  rpc GetStatus(GetStatusRequest) returns (DeviceStatus);
+  rpc SetPower(SetPowerRequest) returns (CommandAccepted);
+  rpc SetTargetHumidity(SetTargetHumidityRequest) returns (CommandAccepted);
+  rpc SetMode(SetModeRequest) returns (CommandAccepted);
+}

@@ -15,4 +15,5 @@ protoc \
   proto/plugins/p1_homewizard.proto \
   proto/plugins/airgradient.proto \
   proto/plugins/weheat.proto \
+  proto/plugins/meaco.proto \
   proto/plugins/home.proto
