@@ -96,6 +96,9 @@ in
       enable = true;
     };
 
+    # gohome rewrites the dashboard files when it starts; provisioning them mid-rewrite leaves Grafana with none.
+    systemd.services.grafana.after = [ "gohome.service" ];
+
     systemd.services.grafana.serviceConfig.EnvironmentFile = mkMerge [
       (mkIf (cfg.grafanaEnvFile != null) [ cfg.grafanaEnvFile ])
       (mkIf (cfg.grafanaEnvFile == null && cfg.tailscale.enable) [ grafanaEnvPath ])
