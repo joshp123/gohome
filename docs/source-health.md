@@ -3,7 +3,7 @@
 Written by AI on 2026.11.06 by model gpt-6-astra.
 
 Registry health follows collection, not plugin construction. Before the first
-read it is DEGRADED. All of a plugin's `*_scrape_success` gauges must be 1,
+read it is DEGRADED with "Awaiting first source read". All of a plugin's `*_scrape_success` gauges must be 1,
 collection must have completed within one minute, and the oldest reported
 `*_last_success_timestamp_seconds` must be within 15 minutes. This accommodates
 the existing five-minute Growatt and ten-minute Daikin fetch intervals.

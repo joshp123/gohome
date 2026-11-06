@@ -22,6 +22,14 @@ func TestLiveSourceFailureRemovesReadings(t *testing.T) {
 	plugins := core.ObservePlugins([]core.Plugin{Plugin{client: client, health: core.HealthHealthy}})
 	metrics := core.MetricsRegistry(plugins)
 	registry := core.NewRegistryService(plugins)
+	initial, err := registry.ListPlugins(context.Background(), &registryv1.ListPluginsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending := initial.Plugins[0]
+	if pending.Status != string(core.HealthDegraded) || pending.LastSuccess != nil || pending.HealthMessage != "Awaiting first source read" {
+		t.Fatalf("unexpected health before first scrape: %v", pending)
+	}
 	var lastSuccess int64
 	for _, available := range []bool{true, false, true} {
 		client.baseURL = liveURL

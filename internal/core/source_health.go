@@ -60,7 +60,9 @@ func (p *observedPlugin) SourceHealth() (HealthStatus, string, time.Time) {
 		if lastGood.IsZero() || good.Before(lastGood) {
 			lastGood = good
 		}
-		if !success || time.Since(checked) > time.Minute || good.IsZero() || time.Since(good) > 15*time.Minute {
+		if checked.IsZero() {
+			status, message = HealthDegraded, "Awaiting first source read"
+		} else if !success || time.Since(checked) > time.Minute || good.IsZero() || time.Since(good) > 15*time.Minute {
 			status, message = HealthDegraded, "Source read failed, missing, or overdue"
 		}
 	}
