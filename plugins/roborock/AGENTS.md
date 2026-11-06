@@ -178,3 +178,8 @@ This requires exactly one vacuum in the account. It checks status, cleaning
 history, connection recovery, concurrent reads, missing metrics on failure,
 MQTT fallback and the HTTP map image. It sends no cleaning, docking or setting
 commands; connection failures are injected into the test client's own sockets.
+
+## Historical data integrity
+
+Written by AI on 2026.11.06 by model gpt-6-astra.
+

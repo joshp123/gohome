@@ -48,3 +48,8 @@ State file (written by runner): `/var/lib/gohome/daikin-credentials.json`
   "scope": "openid onecta:basic.integration"
 }
 ```
+
+## Historical data integrity
+
+Written by AI on 2026.11.06 by model gpt-6-astra.
+

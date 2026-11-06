@@ -42,3 +42,8 @@ p1_homewizard {
   tariff_export_t2_eur_per_kwh: 0.08
 }
 ```
+
+## Historical data integrity
+
+Written by AI on 2026.11.06 by model gpt-6-astra.
+

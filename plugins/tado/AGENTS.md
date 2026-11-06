@@ -56,3 +56,8 @@ State file (written by runner): `/var/lib/gohome/tado-token.json`
   "scope": "offline_access"
 }
 ```
+
+## Historical data integrity
+
+Written by AI on 2026.11.06 by model gpt-6-astra.
+

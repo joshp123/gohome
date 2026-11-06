@@ -73,3 +73,8 @@ airgradient {
   base_url: "http://192.0.2.43"
 }
 ```
+
+## Historical data integrity
+
+Written by AI on 2026.11.06 by model gpt-6-astra.
+
