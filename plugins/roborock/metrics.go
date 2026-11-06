@@ -33,6 +33,7 @@ type MetricsCollector struct {
 	charging           *prometheus.GaugeVec
 	lastCleanStart     *prometheus.GaugeVec
 	lastCleanEnd       *prometheus.GaugeVec
+	lastCleanFinished  *prometheus.GaugeVec
 }
 
 func NewMetricsCollector(client *Client) *MetricsCollector {
@@ -116,6 +117,10 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 			Name: "gohome_roborock_last_clean_end_timestamp_seconds",
 			Help: "Last clean end timestamp (seconds since epoch)",
 		}, labels),
+		lastCleanFinished: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gohome_roborock_last_clean_finished",
+			Help: "Whether the last run finished (1) or stopped early (0), from the device's cleaning record",
+		}, labels),
 	}
 }
 
@@ -138,6 +143,7 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	c.charging.Describe(ch)
 	c.lastCleanStart.Describe(ch)
 	c.lastCleanEnd.Describe(ch)
+	c.lastCleanFinished.Describe(ch)
 }
 
 func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
@@ -172,6 +178,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	c.charging.Reset()
 	c.lastCleanStart.Reset()
 	c.lastCleanEnd.Reset()
+	c.lastCleanFinished.Reset()
 
 	for _, state := range states {
 		labels := prometheus.Labels{
@@ -210,6 +217,11 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 		if !state.Status.LastCleanEnd.IsZero() {
 			c.lastCleanEnd.With(labels).Set(float64(state.Status.LastCleanEnd.Unix()))
+			if state.Status.LastCleanFinished {
+				c.lastCleanFinished.With(labels).Set(1)
+			} else {
+				c.lastCleanFinished.With(labels).Set(0)
+			}
 		}
 
 		stateLabels := prometheus.Labels{
@@ -277,4 +289,5 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	c.charging.Collect(ch)
 	c.lastCleanStart.Collect(ch)
 	c.lastCleanEnd.Collect(ch)
+	c.lastCleanFinished.Collect(ch)
 }

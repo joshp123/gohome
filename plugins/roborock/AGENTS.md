@@ -84,6 +84,12 @@ Metrics:
 - `gohome_roborock_charging`
 - `gohome_roborock_last_clean_start_timestamp_seconds`
 - `gohome_roborock_last_clean_end_timestamp_seconds`
+- `gohome_roborock_last_clean_finished` (0 when the last run stopped early)
+
+Areas are in square metres; the device reports mm² (`clean_area / 1e6`, as in
+python-roborock). The cleaning area and time are the device's figures for
+the current run, or the last one when docked. A run that stopped early
+reports only what it covered.
 
 ## Errors
 - Invalid or expired bootstrap credentials

@@ -681,6 +681,7 @@ func parseStatus(statusData, consumable, cleanSummary any) Status {
 		if last, ok := summaryMap["last_clean_record"].(map[string]any); ok {
 			status.LastCleanStart = timeFromUnix(last["begin"])
 			status.LastCleanEnd = timeFromUnix(last["end"])
+			status.LastCleanFinished = intFrom(last["complete"]) == 1
 		}
 	}
 	_ = consumable

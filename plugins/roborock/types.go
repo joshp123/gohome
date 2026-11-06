@@ -31,6 +31,9 @@ type Status struct {
 	Charging                 bool
 	LastCleanStart           time.Time
 	LastCleanEnd             time.Time
+	// LastCleanFinished is false when the last run stopped before covering
+	// everything it set out to clean, for example when it was interrupted.
+	LastCleanFinished bool
 }
 
 // DeviceState ties device metadata with live status.
