@@ -181,12 +181,30 @@ func (c *MetricsCollector) applySnapshot(snapshot cachedSnapshot) {
 }
 
 func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
-	c.currentPower.Collect(ch)
-	c.todayEnergy.Collect(ch)
-	c.monthEnergy.Collect(ch)
-	c.yearEnergy.Collect(ch)
-	c.totalEnergy.Collect(ch)
+	// Growatt readings are five to nine minutes old when fetched; store them at the
+	// inverter's own reading time so they line up with the electricity meter.
+	var readAt *time.Time
+	c.mu.Lock()
+	if c.cached != nil {
+		readAt = c.cached.energy.LastUpdate
+	}
+	c.mu.Unlock()
+	for _, reading := range []prometheus.Collector{c.currentPower, c.todayEnergy, c.monthEnergy, c.yearEnergy, c.totalEnergy} {
+		collectAt(reading, readAt, ch)
+	}
 	c.lastUpdated.Collect(ch)
 	c.lastSuccess.Collect(ch)
 	c.success.Collect(ch)
+}
+
+func collectAt(collector prometheus.Collector, at *time.Time, ch chan<- prometheus.Metric) {
+	if at == nil {
+		collector.Collect(ch)
+		return
+	}
+	metrics := make(chan prometheus.Metric)
+	go func() { collector.Collect(metrics); close(metrics) }()
+	for metric := range metrics {
+		ch <- prometheus.NewMetricWithTimestamp(*at, metric)
+	}
 }
