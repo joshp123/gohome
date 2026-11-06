@@ -58,9 +58,11 @@ func (c *Client) mapSnapshot(ctx context.Context, deviceID string, labelMode str
 	if err != nil {
 		return mapImage{}, nil, err
 	}
+	fetchedAt := time.Now()
 	var data []byte
 	var trace []mapPoint
 	if snap, ok := c.cachedMap(deviceID); ok {
+		fetchedAt = snap.fetchedAt
 		data = snap.data
 		trace = snap.trace
 	}
@@ -84,7 +86,7 @@ func (c *Client) mapSnapshot(ctx context.Context, deviceID string, labelMode str
 	if len(segments) == 0 {
 		log.Printf("roborock map snapshot has 0 segments (device=%s data_bytes=%d)", device.Name, len(data))
 	}
-	c.storeMap(deviceID, data, parsed, segments, trace)
+	c.storeMap(deviceID, data, parsed, segments, trace, fetchedAt)
 	return parsed, segments, nil
 }
 
@@ -99,7 +101,7 @@ func (c *Client) cachedMap(deviceID string) (mapSnapshot, bool) {
 	return mapSnapshot{}, false
 }
 
-func (c *Client) storeMap(deviceID string, data []byte, img mapImage, segments []segmentSummary, trace []mapPoint) {
+func (c *Client) storeMap(deviceID string, data []byte, img mapImage, segments []segmentSummary, trace []mapPoint, fetchedAt time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.mapCache[deviceID] = mapSnapshot{
@@ -107,7 +109,7 @@ func (c *Client) storeMap(deviceID string, data []byte, img mapImage, segments [
 		image:     img,
 		segments:  segments,
 		trace:     trace,
-		fetchedAt: time.Now(),
+		fetchedAt: fetchedAt,
 	}
 }
 

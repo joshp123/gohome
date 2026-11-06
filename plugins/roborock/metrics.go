@@ -2,6 +2,8 @@ package roborock
 
 import (
 	"context"
+	"log"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -10,6 +12,7 @@ import (
 // MetricsCollector collects Roborock metrics.
 type MetricsCollector struct {
 	client *Client
+	mu     sync.Mutex
 
 	success prometheus.Gauge
 
@@ -138,6 +141,8 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -145,23 +150,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		c.success.Set(0)
 		c.success.Collect(ch)
-		c.batteryPercent.Collect(ch)
-		c.state.Collect(ch)
-		c.errorCode.Collect(ch)
-		c.cleaningArea.Collect(ch)
-		c.cleaningTime.Collect(ch)
-		c.totalCleaningArea.Collect(ch)
-		c.totalCleaningTime.Collect(ch)
-		c.totalCleaningCount.Collect(ch)
-		c.fanSpeed.Collect(ch)
-		c.mopMode.Collect(ch)
-		c.mopIntensity.Collect(ch)
-		c.waterTankAttached.Collect(ch)
-		c.mopAttached.Collect(ch)
-		c.waterShortage.Collect(ch)
-		c.charging.Collect(ch)
-		c.lastCleanStart.Collect(ch)
-		c.lastCleanEnd.Collect(ch)
+		log.Printf("roborock scrape failed: %v", err)
 		return
 	}
 

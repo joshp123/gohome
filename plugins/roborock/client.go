@@ -29,6 +29,8 @@ type Client struct {
 	userData        *UserData
 	api             *RoborockApiClient
 	mu              sync.Mutex
+	channelMu       sync.Mutex
+	mqttMu          sync.Mutex
 	homeData        *HomeData
 	devices         map[string]HomeDataDevice
 	products        map[string]HomeDataProduct
@@ -160,28 +162,71 @@ func (c *Client) Status(ctx context.Context, deviceID string) (Status, error) {
 	if err != nil {
 		return Status{}, err
 	}
-	channel, err := c.getLocalChannel(ctx, device)
+	statusData, err := c.readRPC(ctx, device, "get_status", nil)
 	if err != nil {
-		if c.cfg.CloudFallback {
-			return parseStatusFromDeviceStatus(device.DeviceStatus), nil
+		return Status{}, err
+	}
+	statusMap, ok := normalizeMap(statusData)
+	if !ok || statusMap["state"] == nil || statusMap["battery"] == nil {
+		return Status{}, errors.New("invalid status response")
+	}
+	summary, err := c.readRPC(ctx, device, "get_clean_summary", nil)
+	if err != nil {
+		return Status{}, err
+	}
+	summaryMap, ok := normalizeMap(summary)
+	if !ok {
+		if values, valid := summary.([]any); valid && len(values) >= 4 {
+			summaryMap = map[string]any{"clean_time": values[0], "clean_area": values[1], "clean_count": values[2], "records": values[3]}
+		} else {
+			return Status{}, errors.New("invalid cleaning summary response")
 		}
-		return Status{}, err
 	}
-	statusData, err := c.sendRPC(ctx, channel, "get_status", nil)
-	if err != nil {
-		return Status{}, err
+	if records, ok := summaryMap["records"].([]any); ok && len(records) > 0 {
+		latest := 0
+		for _, record := range records {
+			if id := intFrom(record); id > latest {
+				latest = id
+			}
+		}
+		record, err := c.readRPC(ctx, device, "get_clean_record", []any{latest})
+		if err != nil {
+			return Status{}, err
+		}
+		recordMap, valid := normalizeMap(record)
+		if !valid {
+			return Status{}, errors.New("invalid cleaning record response")
+		}
+		summaryMap["last_clean_record"] = recordMap
 	}
-	consumable, err := c.sendRPC(ctx, channel, "get_consumable", nil)
-	if err != nil {
-		return Status{}, err
-	}
-	cleanSummary, err := c.sendRPC(ctx, channel, "get_clean_summary", nil)
-	if err != nil {
-		return Status{}, err
-	}
+	return parseStatus(statusData, nil, summaryMap), nil
+}
 
-	status := parseStatus(statusData, consumable, cleanSummary)
-	return status, nil
+// Only reads are retried: a lost response must not repeat a control command.
+func (c *Client) readRPC(ctx context.Context, device HomeDataDevice, method string, params any) (any, error) {
+	var err error
+	for attempt := 0; attempt < 2; attempt++ {
+		var channel *LocalChannel
+		localCtx, cancel := context.WithTimeout(ctx, localTimeout)
+		channel, err = c.getLocalChannel(localCtx, device)
+		if err != nil {
+			cancel()
+			break
+		}
+		var result any
+		result, err = c.sendRPC(localCtx, channel, method, params)
+		cancel()
+		if err == nil {
+			return result, nil
+		}
+		if c.cfg.CloudFallback || channel.Connected() || ctx.Err() != nil {
+			break
+		}
+	}
+	if c.cfg.CloudFallback && ctx.Err() == nil {
+		return c.sendMQTTRPC(ctx, device, method, params)
+	}
+	return nil, err
 }
 
 func (c *Client) StartClean(ctx context.Context, deviceID string) error {
@@ -463,13 +508,8 @@ func (c *Client) sendRPC(ctx context.Context, channel *LocalChannel, method stri
 		Version:  channel.ProtocolVersion(),
 		Protocol: ProtocolGeneralReq,
 	}
-	var err error
-	if msg.Version == LocalProtocolL01 {
-		msg.Protocol = ProtocolRpcRequest
-		msg.Payload, err = json.Marshal(req)
-	} else {
-		msg.Payload, err = encodeRequestPayload(req)
-	}
+	payload, err := encodeRequestPayload(req)
+	msg.Payload = payload
 	if err != nil {
 		return nil, err
 	}
@@ -477,26 +517,23 @@ func (c *Client) sendRPC(ctx context.Context, channel *LocalChannel, method stri
 	unsub := channel.Subscribe(func(respMsg RoborockMessage) {
 		var resp rpcResponse
 		switch respMsg.Protocol {
-		case ProtocolGeneralReq, ProtocolGeneralResp:
+		case ProtocolGeneralReq, ProtocolGeneralResp, ProtocolRpcResponse:
 			parsed, err := decodeResponsePayload(respMsg.Payload)
 			if err != nil {
 				return
 			}
 			resp = parsed
-		case ProtocolRpcResponse:
-			if len(respMsg.Payload) == 0 {
-				return
-			}
-			if err := json.Unmarshal(respMsg.Payload, &resp); err != nil {
-				return
-			}
+
 		default:
 			return
 		}
-		if resp.RequestID != 0 && resp.RequestID != req.RequestID {
+		if resp.RequestID != req.RequestID {
 			return
 		}
-		respCh <- resp
+		select {
+		case respCh <- resp:
+		default:
+		}
 	})
 	defer unsub()
 
@@ -505,7 +542,10 @@ func (c *Client) sendRPC(ctx context.Context, channel *LocalChannel, method stri
 	}
 
 	select {
+	case <-channel.closed:
+		return nil, errors.New("local connection closed")
 	case <-rpcCtx.Done():
+		channel.Close()
 		return nil, rpcCtx.Err()
 	case resp := <-respCh:
 		if resp.Error != nil {
@@ -577,11 +617,10 @@ func (c *Client) deviceByID(id string) (HomeDataDevice, error) {
 }
 
 func (c *Client) getLocalChannel(ctx context.Context, device HomeDataDevice) (*LocalChannel, error) {
-	ctx, cancel := context.WithTimeout(ctx, localTimeout)
-	defer cancel()
-
+	c.channelMu.Lock()
+	defer c.channelMu.Unlock()
 	c.mu.Lock()
-	if channel := c.channels[device.DUID]; channel != nil {
+	if channel := c.channels[device.DUID]; channel != nil && channel.Connected() {
 		c.mu.Unlock()
 		return channel, nil
 	}
@@ -672,20 +711,6 @@ func parseStatus(statusData, consumable, cleanSummary any) Status {
 		}
 	}
 	_ = consumable
-	return status
-}
-
-func parseStatusFromDeviceStatus(deviceStatus map[string]any) Status {
-	status := Status{}
-	if deviceStatus == nil {
-		return status
-	}
-	status.State = stateName(intFrom(deviceStatus["121"]))
-	status.BatteryPercent = intFrom(deviceStatus["122"])
-	status.FanSpeed = stringFrom(deviceStatus["123"])
-	status.MopIntensity = stringFrom(deviceStatus["124"])
-	status.ErrorCode = stringFrom(deviceStatus["120"])
-	status.Charging = intFrom(deviceStatus["133"]) == 1
 	return status
 }
 

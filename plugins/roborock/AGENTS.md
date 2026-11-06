@@ -141,3 +141,30 @@ Use `devenv` for toolchain setup (Go + protoc plugins):
 devenv shell
 bash tools/generate.sh
 ```
+
+## Connection reliability
+
+Written by AI on 2026.11.06 by model gpt-6-astra.
+
+Previously, dead local connections stayed cached indefinitely, and overlapping
+requests could remove the wrong subscriber. Channels now use stable subscriber
+IDs and are replaced after read, write, RPC timeout or keepalive failures.
+Reads retry once; control commands are never retried automatically. Optional
+cloud fallback reads the vacuum over MQTT, not cached discovery metadata.
+Failed scrapes export only the failure gauge, never previous device readings.
+
+The Qrevo S was verified using protocol `1.0`; L01 remains untested on hardware.
+Dashboard map URLs must use `/gohome/roborock/map.png` through the reverse proxy;
+`/roborock/map.png` is the direct service path on port 8080.
+
+For the opt-in live test, set `ROBOROCK_TEST_BOOTSTRAP` to a private bootstrap
+file and `ROBOROCK_TEST_HOST` to the vacuum address, then run:
+
+```sh
+devenv shell -- go test -race ./plugins/roborock -run TestLiveReadOnly -v -count=1
+```
+
+This requires exactly one vacuum in the account. It checks status, cleaning
+history, connection recovery, concurrent reads, missing metrics on failure,
+MQTT fallback and the HTTP map image. It sends no cleaning, docking or setting
+commands; connection failures are injected into the test client's own sockets.

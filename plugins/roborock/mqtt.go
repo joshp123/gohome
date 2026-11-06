@@ -30,7 +30,7 @@ type mqttConfig struct {
 	password string
 }
 
-func newMQTTClient(cfg mqttConfig) (*mqttClient, error) {
+func newMQTTClient(ctx context.Context, cfg mqttConfig) (*mqttClient, error) {
 	opts := mqtt.NewClientOptions()
 	scheme := "tcp"
 	if cfg.tls {
@@ -42,23 +42,33 @@ func newMQTTClient(cfg mqttConfig) (*mqttClient, error) {
 	opts.SetPassword(cfg.password)
 	opts.SetClientID(randomClientID())
 	opts.SetAutoReconnect(true)
-	opts.SetConnectRetry(true)
+	opts.SetConnectRetry(false)
 	opts.SetConnectTimeout(10 * time.Second)
 
 	mc := &mqttClient{subs: make(map[string]map[int]func([]byte))}
 	opts.SetDefaultPublishHandler(mc.dispatch)
-	opts.OnConnect = func(_ mqtt.Client) {
-		mc.resubscribeAll()
+	opts.OnConnect = func(client mqtt.Client) {
+		mc.resubscribeAll(client)
 	}
 	client := mqtt.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		return nil, token.Error()
+	if err := waitMQTT(ctx, client.Connect()); err != nil {
+		client.Disconnect(0)
+		return nil, err
 	}
 	mc.client = client
 	return mc, nil
 }
 
-func (c *mqttClient) subscribe(topic string, cb func([]byte)) (func(), error) {
+func waitMQTT(ctx context.Context, token mqtt.Token) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-token.Done():
+		return token.Error()
+	}
+}
+
+func (c *mqttClient) subscribe(ctx context.Context, topic string, cb func([]byte)) (func(), error) {
 	c.mu.Lock()
 	if c.subs[topic] == nil {
 		c.subs[topic] = make(map[int]func([]byte))
@@ -66,39 +76,17 @@ func (c *mqttClient) subscribe(topic string, cb func([]byte)) (func(), error) {
 	id := c.nextID
 	c.nextID++
 	c.subs[topic][id] = cb
-	needSubscribe := len(c.subs[topic]) == 1
 	c.mu.Unlock()
-
-	if needSubscribe {
-		if token := c.client.Subscribe(topic, 0, nil); token.Wait() && token.Error() != nil {
-			return nil, token.Error()
-		}
+	unsub := func() { c.mu.Lock(); defer c.mu.Unlock(); delete(c.subs[topic], id) }
+	if err := waitMQTT(ctx, c.client.Subscribe(topic, 0, nil)); err != nil {
+		unsub()
+		return nil, err
 	}
-
-	return func() {
-		c.mu.Lock()
-		callbacks := c.subs[topic]
-		if callbacks == nil {
-			c.mu.Unlock()
-			return
-		}
-		delete(callbacks, id)
-		shouldUnsub := len(callbacks) == 0
-		if shouldUnsub {
-			delete(c.subs, topic)
-		}
-		c.mu.Unlock()
-		if shouldUnsub {
-			_ = c.client.Unsubscribe(topic).Wait()
-		}
-	}, nil
+	return unsub, nil
 }
 
-func (c *mqttClient) publish(topic string, payload []byte) error {
-	if token := c.client.Publish(topic, 0, false, payload); token.Wait() && token.Error() != nil {
-		return token.Error()
-	}
-	return nil
+func (c *mqttClient) publish(ctx context.Context, topic string, payload []byte) error {
+	return waitMQTT(ctx, c.client.Publish(topic, 0, false, payload))
 }
 
 func (c *mqttClient) dispatch(_ mqtt.Client, msg mqtt.Message) {
@@ -114,7 +102,7 @@ func (c *mqttClient) dispatch(_ mqtt.Client, msg mqtt.Message) {
 	}
 }
 
-func (c *mqttClient) resubscribeAll() {
+func (c *mqttClient) resubscribeAll(client mqtt.Client) {
 	c.mu.Lock()
 	topics := make([]string, 0, len(c.subs))
 	for topic := range c.subs {
@@ -122,11 +110,13 @@ func (c *mqttClient) resubscribeAll() {
 	}
 	c.mu.Unlock()
 	for _, topic := range topics {
-		_ = c.client.Subscribe(topic, 0, nil).Wait()
+		client.Subscribe(topic, 0, nil)
 	}
 }
 
-func (c *Client) mqttSession() (*mqttClient, error) {
+func (c *Client) mqttSession(ctx context.Context) (*mqttClient, error) {
+	c.mqttMu.Lock()
+	defer c.mqttMu.Unlock()
 	c.mu.Lock()
 	if c.mqtt != nil {
 		mc := c.mqtt
@@ -139,7 +129,7 @@ func (c *Client) mqttSession() (*mqttClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	mc, err := newMQTTClient(cfg)
+	mc, err := newMQTTClient(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +196,24 @@ func newSecurityData(rriot RRiot) (securityData, []byte, error) {
 }
 
 func (c *Client) fetchMapViaMQTT(ctx context.Context, device HomeDataDevice) ([]byte, error) {
-	mqttSession, err := c.mqttSession()
+	result, err := c.sendMQTTRPC(ctx, device, "get_map_v1", nil)
+	if err != nil {
+		return nil, err
+	}
+	data, ok := result.([]byte)
+	if !ok {
+		return nil, errors.New("invalid map response")
+	}
+	return data, nil
+}
+
+func (c *Client) sendMQTTRPC(ctx context.Context, device HomeDataDevice, method string, params any) (any, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if params == nil {
+		params = []any{}
+	}
+	mqttSession, err := c.mqttSession(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -215,8 +222,8 @@ func (c *Client) fetchMapViaMQTT(ctx context.Context, device HomeDataDevice) ([]
 		return nil, err
 	}
 	req := requestMessage{
-		Method:    "get_map_v1",
-		Params:    []any{},
+		Method:    method,
+		Params:    params,
 		RequestID: nextInt(10000, 32767),
 		Timestamp: nowTimestamp(),
 		Security:  &sec,
@@ -234,11 +241,11 @@ func (c *Client) fetchMapViaMQTT(ctx context.Context, device HomeDataDevice) ([]
 	mqttUser := md5Hex([]byte(c.userData.RRIOT.U + ":" + c.userData.RRIOT.K))[2:10]
 	pubTopic, subTopic := mqttTopics(c.userData, device.DUID, mqttUser)
 
-	respCh := make(chan []byte, 1)
+	respCh := make(chan any, 1)
 	errCh := make(chan error, 1)
 	decoder := newMessageDecoder(device.LocalKey, 0, nil)
 
-	unsub, err := mqttSession.subscribe(subTopic, func(data []byte) {
+	unsub, err := mqttSession.subscribe(ctx, subTopic, func(data []byte) {
 		messages, err := decoder.Feed(data)
 		if err != nil {
 			return
@@ -246,13 +253,22 @@ func (c *Client) fetchMapViaMQTT(ctx context.Context, device HomeDataDevice) ([]
 		for _, message := range messages {
 			switch message.Protocol {
 			case ProtocolMapResponse:
+				if method != "get_map_v1" || len(message.Payload) < 24 || int(int16le(message.Payload, 16)) != req.RequestID {
+					continue
+				}
 				mapResp, err := decodeMapResponse(message.Payload, sec, nonce)
 				if err != nil {
-					errCh <- err
+					select {
+					case errCh <- err:
+					default:
+					}
 					return
 				}
 				if mapResp.RequestID == req.RequestID {
-					respCh <- mapResp.Data
+					select {
+					case respCh <- mapResp.Data:
+					default:
+					}
 					return
 				}
 			case ProtocolRpcResponse, ProtocolGeneralResp:
@@ -264,7 +280,17 @@ func (c *Client) fetchMapViaMQTT(ctx context.Context, device HomeDataDevice) ([]
 					continue
 				}
 				if resp.Error != nil {
-					errCh <- fmt.Errorf("device error: %v", resp.Error)
+					select {
+					case errCh <- fmt.Errorf("device error: %v", resp.Error):
+					default:
+					}
+					return
+				}
+				if method != "get_map_v1" {
+					select {
+					case respCh <- resp.Result:
+					default:
+					}
 					return
 				}
 				if resp.Result == nil {
@@ -275,7 +301,10 @@ func (c *Client) fetchMapViaMQTT(ctx context.Context, device HomeDataDevice) ([]
 						return
 					}
 					if s == "unknown_method" {
-						errCh <- fmt.Errorf("map request failed: %v", resp.Result)
+						select {
+						case errCh <- fmt.Errorf("map request failed: %v", resp.Result):
+						default:
+						}
 						return
 					}
 				}
@@ -291,7 +320,7 @@ func (c *Client) fetchMapViaMQTT(ctx context.Context, device HomeDataDevice) ([]
 	if err != nil {
 		return nil, err
 	}
-	if err := mqttSession.publish(pubTopic, frame); err != nil {
+	if err := mqttSession.publish(ctx, pubTopic, frame); err != nil {
 		return nil, err
 	}
 

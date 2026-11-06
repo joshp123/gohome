@@ -27,13 +27,16 @@ type LocalChannel struct {
 	decoder *messageDecoder
 	mu      sync.Mutex
 
-	subscribers []func(RoborockMessage)
-	closed      chan struct{}
+	subscribers    map[int]func(RoborockMessage)
+	nextSubscriber int
+	writeMu        sync.Mutex
+	closed         chan struct{}
 }
 
 func NewLocalChannel(host, localKey, deviceID string) *LocalChannel {
 	return &LocalChannel{
 		host:         host,
+		subscribers:  make(map[int]func(RoborockMessage)),
 		localKey:     localKey,
 		deviceID:     deviceID,
 		protocol:     LocalProtocolV1,
@@ -43,6 +46,8 @@ func NewLocalChannel(host, localKey, deviceID string) *LocalChannel {
 }
 
 func (c *LocalChannel) ProtocolVersion() LocalProtocolVersion {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.protocol
 }
 
@@ -53,7 +58,7 @@ func (c *LocalChannel) Connect(ctx context.Context) error {
 		return nil
 	}
 
-	dialer := net.Dialer{}
+	dialer := net.Dialer{Timeout: localTimeout}
 	conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", c.host, localPort))
 	if err != nil {
 		c.mu.Unlock()
@@ -62,7 +67,7 @@ func (c *LocalChannel) Connect(ctx context.Context) error {
 	c.conn = conn
 	c.decoder = newMessageDecoder(c.localKey, c.connectNonce, c.ackNonce)
 	c.mu.Unlock()
-	go c.readLoop()
+	go c.readLoop(conn)
 
 	if err := c.hello(ctx); err != nil {
 		c.mu.Lock()
@@ -77,19 +82,25 @@ func (c *LocalChannel) Connect(ctx context.Context) error {
 func (c *LocalChannel) hello(ctx context.Context) error {
 	attempts := []LocalProtocolVersion{LocalProtocolV1, LocalProtocolL01}
 	for _, version := range attempts {
+		c.mu.Lock()
 		c.protocol = version
-		resp, err := c.sendRaw(ctx, RoborockMessage{
+		c.mu.Unlock()
+		attemptCtx, cancel := context.WithTimeout(ctx, localTimeout/2)
+		resp, err := c.sendRaw(attemptCtx, RoborockMessage{
 			Version:  version,
 			Protocol: ProtocolHelloRequest,
 			Seq:      1,
 			Random:   c.connectNonce,
 		}, ProtocolHelloResponse)
+		cancel()
 		if err != nil {
 			continue
 		}
 		ack := resp.Random
+		c.mu.Lock()
 		c.ackNonce = &ack
-		c.decoder = newMessageDecoder(c.localKey, c.connectNonce, c.ackNonce)
+		c.decoder.ackNonce = c.ackNonce
+		c.mu.Unlock()
 		return nil
 	}
 	return errors.New("local hello failed")
@@ -104,34 +115,44 @@ func (c *LocalChannel) keepAlive() {
 			return
 		case <-ticker.C:
 			ctx, cancel := context.WithTimeout(context.Background(), localTimeout)
-			_ = c.sendPing(ctx)
+			err := c.sendPing(ctx)
 			cancel()
+			if err != nil {
+				c.Close()
+				return
+			}
 		}
 	}
 }
 
 func (c *LocalChannel) sendPing(ctx context.Context) error {
 	_, err := c.sendRaw(ctx, RoborockMessage{
-		Version:  c.protocol,
+		Version:  c.ProtocolVersion(),
 		Protocol: ProtocolPingRequest,
 	}, ProtocolPingResponse)
 	return err
 }
 
-func (c *LocalChannel) readLoop() {
+func (c *LocalChannel) readLoop(conn net.Conn) {
 	buf := make([]byte, 4096)
 	for {
-		n, err := c.conn.Read(buf)
+		n, err := conn.Read(buf)
 		if err != nil {
 			c.close()
 			return
 		}
+		c.mu.Lock()
 		messages, err := c.decoder.Feed(buf[:n])
+		c.mu.Unlock()
 		if err != nil {
-			continue
+			c.Close()
+			return
 		}
 		c.mu.Lock()
-		subs := append([]func(RoborockMessage){}, c.subscribers...)
+		subs := make([]func(RoborockMessage), 0, len(c.subscribers))
+		for _, cb := range c.subscribers {
+			subs = append(subs, cb)
+		}
 		c.mu.Unlock()
 		for _, msg := range messages {
 			for _, cb := range subs {
@@ -144,19 +165,19 @@ func (c *LocalChannel) readLoop() {
 func (c *LocalChannel) Subscribe(cb func(RoborockMessage)) func() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.subscribers = append(c.subscribers, cb)
-	idx := len(c.subscribers) - 1
+	id := c.nextSubscriber
+	c.nextSubscriber++
+	c.subscribers[id] = cb
 	return func() {
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		if idx < 0 || idx >= len(c.subscribers) {
-			return
-		}
-		c.subscribers = append(c.subscribers[:idx], c.subscribers[idx+1:]...)
+		delete(c.subscribers, id)
 	}
 }
 
 func (c *LocalChannel) Publish(ctx context.Context, msg RoborockMessage) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 	c.mu.Lock()
 	conn := c.conn
 	localKey := c.localKey
@@ -181,6 +202,9 @@ func (c *LocalChannel) Publish(ctx context.Context, msg RoborockMessage) error {
 	}
 	_, err = conn.Write(payload)
 	_ = conn.SetWriteDeadline(time.Time{})
+	if err != nil {
+		c.Close()
+	}
 	return err
 }
 
@@ -191,7 +215,10 @@ func (c *LocalChannel) sendRaw(ctx context.Context, msg RoborockMessage, respons
 	respCh := make(chan RoborockMessage, 1)
 	unsub := c.Subscribe(func(resp RoborockMessage) {
 		if resp.Protocol == responseProtocol && resp.Seq == msg.Seq {
-			respCh <- resp
+			select {
+			case respCh <- resp:
+			default:
+			}
 		}
 	})
 	defer unsub()
@@ -199,6 +226,8 @@ func (c *LocalChannel) sendRaw(ctx context.Context, msg RoborockMessage, respons
 		return RoborockMessage{}, err
 	}
 	select {
+	case <-c.closed:
+		return RoborockMessage{}, errors.New("local connection closed")
 	case <-ctx.Done():
 		return RoborockMessage{}, ctx.Err()
 	case resp := <-respCh:
@@ -229,4 +258,10 @@ func (c *LocalChannel) close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.closeLocked()
+}
+
+func (c *LocalChannel) Connected() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.conn != nil
 }
