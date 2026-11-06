@@ -63,7 +63,7 @@
                 agenix.nixosModules.default
                 ./nix/hosts/gohome.nix
                 ./nix/module.nix
-                { system.configurationRevision = self.rev or self.dirtyRev or "dirty"; }
+                { system.configurationRevision = self.rev or self.dirtyRev or (let revision = builtins.getEnv "GOHOME_REVISION"; in if revision == "" then null else revision); }
               ];
               specialArgs = {
                 inherit secrets;
