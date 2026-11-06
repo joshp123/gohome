@@ -17,7 +17,7 @@ var agentsMD string
 var dashboardFiles embed.FS
 
 // houseDashboards are the whole-house views, in the order they appear in Grafana's House folder.
-var houseDashboards = []string{"home", "rooms", "heating", "humidity", "energy"}
+var houseDashboards = []string{"home", "rooms", "heating", "curve", "humidity", "energy"}
 
 // Plugin implements the GoHome plugin contract.
 type Plugin struct {
