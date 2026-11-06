@@ -7,12 +7,6 @@ let
 
 in
 {
-  options.services.gohome.webRoot = mkOption {
-    type = types.path;
-    default = ./../web;
-    description = "Path to GoHome web assets";
-  };
-
   config = mkIf cfg.enable {
     services.nginx = {
       enable = true;
@@ -21,10 +15,8 @@ in
       virtualHosts."gohome" = {
         listen = [ { addr = "0.0.0.0"; port = 80; } ];
         default = true;
-        locations."/" = {
-          root = cfg.webRoot;
-          tryFiles = "$uri /index.html";
-        };
+        # The house is read in Grafana; its home dashboard is the House overview.
+        locations."= /".return = "302 /grafana/";
         locations."/grafana/".proxyPass = "http://127.0.0.1:3000";
         locations."/vm/".proxyPass = "http://127.0.0.1:8428";
         locations."/gohome/".proxyPass = "http://127.0.0.1:${toString cfg.httpPort}/";
