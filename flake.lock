@@ -125,11 +125,11 @@
     "secrets": {
       "flake": false,
       "locked": {
-        "lastModified": 1767190958,
-        "narHash": "sha256-wt9/BMtTIdpbNKtUcsU2Y9gb74+XxD9tYBaV8iJfYcs=",
+        "lastModified": 1793995208,
+        "narHash": "sha256-AJdSlO0YIZVw+od4VlLs5yVVz4fSPBAknnRIF3D68lc=",
         "ref": "refs/heads/main",
-        "rev": "16f5217beb611cfa4e34e65a11ffebc736721879",
-        "revCount": 24,
+        "rev": "81e279ee88b4e4c4d7bf8758d1e8f65576a2e62b",
+        "revCount": 156,
         "type": "git",
         "url": "ssh://git@github.com/joshp123/secrets"
       },

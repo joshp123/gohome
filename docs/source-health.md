@@ -35,6 +35,19 @@ source timestamp remain available. This covers overnight inverter inactivity.
 OAuth refresh is scheduled before the token's final minute, preventing the
 30-second unavailable-token interval seen before each Tado refresh.
 
+The host checks registry source health every 15 minutes. After six hours without
+a successful read, `gohome-source-alert` posts the affected sources, outage times,
+health messages and journal command to a chat webhook. Notifications are limited to
+one per 24 hours. Last observed successful reads survive restarts in
+`/var/lib/gohome-source-alert`; a source with no recorded success gets six hours
+from its first observation. Dashboard-only plugins are excluded. Old Growatt
+device data does not trigger an alert while API reads succeed.
+
+The service loads the alert webhook URL through a systemd credential.
+`bash scripts/source-alert.sh --dry-run` reads the registry and reports the
+decision without sending or changing state. Run it on the host to use the
+persisted observation times, or set `GOHOME_ALERT_STATE` for a separate replay.
+
 Read-only live failure/recovery probe (provide a sensor URL and an unreachable URL):
 
 ```sh
