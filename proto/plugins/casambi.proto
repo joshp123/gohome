@@ -149,8 +149,8 @@ message ListSwitchesResponse {
 
 message ListSwitchPressesRequest {}
 
-// A light whose state differed between just before a press and the end of
-// the press's observation.
+// A light that reported a state different from its state just before a press
+// while the press was under observation.
 message LightChange {
   // Casambi unit UUID.
   string light_id = 1;
@@ -159,9 +159,18 @@ message LightChange {
   // Absent when the light had not reported since the bridge started.
   optional bool on_before = 3;
   bool on_after = 4;
-  // Present only while the light was on.
+  // Before is the state just before the press; after is the state at
+  // observed_until, which equals before when the light changed and changed back.
+  // Brightness and colour are present only while the light was on, and colour
+  // only for colour lights, as in Light.
   optional uint32 brightness_percent_before = 5;
   optional uint32 brightness_percent_after = 6;
+  optional uint32 hue_degrees_before = 7;
+  optional uint32 hue_degrees_after = 8;
+  optional uint32 saturation_percent_before = 9;
+  optional uint32 saturation_percent_after = 10;
+  optional uint32 white_colour_balance_before = 11;
+  optional uint32 white_colour_balance_after = 12;
 }
 
 // One press of a switch button, and what the lights did after it. The bridge
@@ -182,10 +191,10 @@ message SwitchPress {
   // The end of the observation: a few seconds after the button's last event,
   // or the next press of any button, whichever came first.
   google.protobuf.Timestamp observed_until = 8;
-  // Lights whose on/off state or brightness differed between just before the
-  // press and observed_until. A light with a switch-off delay can change after
-  // observed_until. Anything else that changed a light in that time, such as
-  // Apple Home, shows here too.
+  // Lights that reported an on/off state, brightness or colour different from
+  // just before the press, at any time until observed_until. A light with a
+  // switch-off delay can change after observed_until. Anything else that
+  // changed a light in that time, such as Apple Home, shows here too.
   repeated LightChange light_changes = 9;
   // The bridge lost its Bluetooth session before the observation ended, so
   // observed_until is when it did and later changes are missing.

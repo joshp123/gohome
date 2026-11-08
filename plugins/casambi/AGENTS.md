@@ -20,7 +20,8 @@ serves the same `CasambiService` from gohome.
   last one.
 - List the last 100 switch presses since the bridge started: per press the
   button's configured action, whether it was held, and the lights whose on/off
-  state or brightness changed in the few seconds after it.
+  state, brightness or colour changed in the few seconds after it, even if
+  they changed back.
 - List the native Casambi scenes the bridge exposes, and whether each is available.
 
 ## Limits
