@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -24,6 +25,11 @@ type recordedBridge struct {
 	casambiv1.UnimplementedCasambiServiceServer
 	response *casambiv1.ListLightsResponse
 	switches *casambiv1.ListSwitchesResponse
+	presses  *casambiv1.ListSwitchPressesResponse
+}
+
+func (b *recordedBridge) ListSwitchPresses(context.Context, *casambiv1.ListSwitchPressesRequest) (*casambiv1.ListSwitchPressesResponse, error) {
+	return b.presses, nil
 }
 
 func (b *recordedBridge) ListLights(context.Context, *casambiv1.ListLightsRequest) (*casambiv1.ListLightsResponse, error) {
@@ -53,7 +59,12 @@ func TestLightValuesOnlyWhileTheBridgeHasCurrentState(t *testing.T) {
 	pressed := timestamppb.New(time.Unix(1794013900, 0))
 	switches := &casambiv1.ListSwitchesResponse{BluetoothConnected: true, Switches: []*casambiv1.Switch{
 		{Id: "hall", Name: "Xpress", Online: true, BatteryLevel: proto.Uint32(200), LastReportTime: reported,
-			Buttons: []*casambiv1.SwitchButton{{Number: 2, Presses: 3, LastPressTime: pressed}}},
+			Buttons: []*casambiv1.SwitchButton{
+				{Number: 1, Action: &casambiv1.ButtonAction{TargetKind: casambiv1.ButtonTargetKind_BUTTON_TARGET_KIND_GROUP, TargetName: "Kitchen"}},
+				{Number: 2, Presses: 3, LastPressTime: pressed, Action: &casambiv1.ButtonAction{TargetKind: casambiv1.ButtonTargetKind_BUTTON_TARGET_KIND_SCENE, TargetName: "Evening"}},
+				{Number: 3, Action: &casambiv1.ButtonAction{TargetKind: casambiv1.ButtonTargetKind_BUTTON_TARGET_KIND_LIGHT, TargetName: "Floor Lamp"}},
+				{Number: 4, Action: &casambiv1.ButtonAction{TargetKind: casambiv1.ButtonTargetKind_BUTTON_TARGET_KIND_NONE}},
+				{Number: 6, Presses: 1, LastPressTime: pressed}}},
 		{Id: "unreported-switch", Name: "Xpress"},
 	}}
 	// Bluetooth lost between the two reads: the switch state is old.
@@ -106,13 +117,18 @@ func TestLightValuesOnlyWhileTheBridgeHasCurrentState(t *testing.T) {
 		"gohome_casambi_light_online{unreported}":                     0,
 	}
 	withSwitches := map[string]float64{
-		"gohome_casambi_scrape_success":                                     1,
-		"gohome_casambi_switch_online{hall}":                                1,
-		"gohome_casambi_switch_battery_level{hall}":                         200,
-		"gohome_casambi_switch_last_report_timestamp_seconds{hall}":         1794013890,
-		"gohome_casambi_switch_button_presses_total{hall,2}":                3,
-		"gohome_casambi_switch_button_last_press_timestamp_seconds{hall,2}": 1794013900,
-		"gohome_casambi_switch_online{unreported-switch}":                   0,
+		"gohome_casambi_scrape_success":                                                    1,
+		"gohome_casambi_switch_online{hall}":                                               1,
+		"gohome_casambi_switch_battery_level{hall}":                                        200,
+		"gohome_casambi_switch_last_report_timestamp_seconds{hall}":                        1794013890,
+		"gohome_casambi_switch_button_presses_total{hall,1,group Kitchen}":                 0,
+		"gohome_casambi_switch_button_presses_total{hall,2,scene Evening}":                 3,
+		"gohome_casambi_switch_button_last_press_timestamp_seconds{hall,2,scene Evening}":  1794013900,
+		"gohome_casambi_switch_button_presses_total{hall,3,light Floor Lamp}":                    0,
+		"gohome_casambi_switch_button_presses_total{hall,4,none}":                          0,
+		"gohome_casambi_switch_button_presses_total{hall,6,not configured}":                1,
+		"gohome_casambi_switch_button_last_press_timestamp_seconds{hall,6,not configured}": 1794013900,
+		"gohome_casambi_switch_online{unreported-switch}":                                  0,
 	}
 	for key, value := range connectedLights {
 		withSwitches[key] = value
@@ -170,6 +186,47 @@ func TestLightValuesOnlyWhileTheBridgeHasCurrentState(t *testing.T) {
 	}
 }
 
+func TestGohomeServesTheBridgesSwitchPresses(t *testing.T) {
+	recorded := &casambiv1.ListSwitchPressesResponse{Presses: []*casambiv1.SwitchPress{{
+		SwitchId: "hall", SwitchName: "Xpress", Button: 2, PressTime: timestamppb.New(time.Unix(1794013900, 0)),
+		ConfiguredAction: &casambiv1.ButtonAction{TargetKind: casambiv1.ButtonTargetKind_BUTTON_TARGET_KIND_SCENE, TargetName: "Evening"},
+		LightChanges:     []*casambiv1.LightChange{{LightId: "kitchen", Name: "Spotlights", OnBefore: proto.Bool(false), OnAfter: true, BrightnessPercentAfter: proto.Uint32(100)}},
+	}}}
+	bridge := serve(t, func(server *grpc.Server) {
+		casambiv1.RegisterCasambiServiceServer(server, &recordedBridge{presses: recorded})
+	})
+	client, err := NewBridgeClient(bridge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gohome := serve(t, Plugin{bridge: client, health: core.HealthHealthy}.RegisterGRPC)
+	conn, err := grpc.NewClient(gohome, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { conn.Close() })
+	got, err := casambiv1.NewCasambiServiceClient(conn).ListSwitchPresses(context.Background(), &casambiv1.ListSwitchPressesRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !proto.Equal(got, recorded) {
+		t.Fatalf("got %v, want %v", got, recorded)
+	}
+}
+
+func serve(t *testing.T, register func(*grpc.Server)) string {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := grpc.NewServer()
+	register(server)
+	go server.Serve(listener)
+	t.Cleanup(server.Stop)
+	return listener.Addr().String()
+}
+
 // Opt-in: reads a running light bridge (ListLights only).
 func TestLiveBridge(t *testing.T) {
 	address := os.Getenv("CASAMBI_LIVE_BRIDGE")
@@ -215,7 +272,7 @@ func gather(t *testing.T, registry *prometheus.Registry) map[string]float64 {
 				labels[label.GetName()] = label.GetValue()
 			}
 			var ids []string
-			for _, name := range []string{"light_id", "switch_id", "button"} {
+			for _, name := range []string{"light_id", "switch_id", "button", "action"} {
 				if value, ok := labels[name]; ok {
 					ids = append(ids, value)
 				}

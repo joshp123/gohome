@@ -23,3 +23,7 @@ func (s forwardingService) ListScenes(ctx context.Context, request *casambiv1.Li
 func (s forwardingService) ListSwitches(ctx context.Context, request *casambiv1.ListSwitchesRequest) (*casambiv1.ListSwitchesResponse, error) {
 	return s.bridge.ListSwitches(ctx, request)
 }
+
+func (s forwardingService) ListSwitchPresses(ctx context.Context, request *casambiv1.ListSwitchPressesRequest) (*casambiv1.ListSwitchPressesResponse, error) {
+	return s.bridge.ListSwitchPresses(ctx, request)
+}

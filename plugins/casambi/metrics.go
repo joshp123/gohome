@@ -16,7 +16,7 @@ const readTimeout = 5 * time.Second
 var (
 	lightLabels  = []string{"light_id", "name"}
 	switchLabels = []string{"switch_id", "name"}
-	buttonLabels = []string{"switch_id", "name", "button"}
+	buttonLabels = []string{"switch_id", "name", "button", "action"}
 )
 
 var (
@@ -51,7 +51,7 @@ var (
 	switchLastReportDesc = prometheus.NewDesc("gohome_casambi_switch_last_report_timestamp_seconds",
 		"When the bridge last received a state report from the switch (epoch seconds)", switchLabels, nil)
 	buttonPressesDesc = prometheus.NewDesc("gohome_casambi_switch_button_presses_total",
-		"Presses of the switch button the bridge has seen since it started", buttonLabels, nil)
+		"Presses of the switch button the bridge has seen since it started; action is what the Casambi configuration says the button does", buttonLabels, nil)
 	buttonLastPressDesc = prometheus.NewDesc("gohome_casambi_switch_button_last_press_timestamp_seconds",
 		"When the bridge last saw the switch button pressed (epoch seconds)", buttonLabels, nil)
 )
@@ -146,9 +146,11 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 			gauge(switchLastReportDesc, float64(sw.GetLastReportTime().GetSeconds()), labels...)
 		}
 		for _, button := range sw.GetButtons() {
-			buttonLabels := []string{sw.GetId(), sw.GetName(), strconv.FormatUint(uint64(button.GetNumber()), 10)}
+			buttonLabels := []string{sw.GetId(), sw.GetName(), strconv.FormatUint(uint64(button.GetNumber()), 10), actionLabel(button.GetAction())}
 			emit(buttonPressesDesc, prometheus.CounterValue, float64(button.GetPresses()), buttonLabels...)
-			gauge(buttonLastPressDesc, float64(button.GetLastPressTime().GetSeconds()), buttonLabels...)
+			if button.LastPressTime != nil {
+				gauge(buttonLastPressDesc, float64(button.GetLastPressTime().GetSeconds()), buttonLabels...)
+			}
 		}
 	}
 	c.lastSuccess = time.Now()
@@ -159,6 +161,25 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 func (c *MetricsCollector) emitLastSuccess(gauge func(*prometheus.Desc, float64, ...string)) {
 	if !c.lastSuccess.IsZero() {
 		gauge(lastSuccessDesc, float64(c.lastSuccess.Unix()))
+	}
+}
+
+// actionLabel names what a button does, such as "scene Evening" or "light Floor Lamp".
+// One value per configured button, so the label stays bounded.
+func actionLabel(action *casambiv1.ButtonAction) string {
+	switch action.GetTargetKind() {
+	case casambiv1.ButtonTargetKind_BUTTON_TARGET_KIND_LIGHT:
+		return "light " + action.GetTargetName()
+	case casambiv1.ButtonTargetKind_BUTTON_TARGET_KIND_GROUP:
+		return "group " + action.GetTargetName()
+	case casambiv1.ButtonTargetKind_BUTTON_TARGET_KIND_SCENE:
+		return "scene " + action.GetTargetName()
+	case casambiv1.ButtonTargetKind_BUTTON_TARGET_KIND_NONE:
+		return "none"
+	case casambiv1.ButtonTargetKind_BUTTON_TARGET_KIND_OTHER:
+		return "other"
+	default:
+		return "not configured"
 	}
 }
 

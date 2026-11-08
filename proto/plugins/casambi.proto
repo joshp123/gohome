@@ -68,13 +68,54 @@ message ListScenesResponse {
 
 message ListSwitchesRequest {}
 
+// What a switch button addresses, by the Casambi network configuration.
+enum ButtonTargetKind {
+  BUTTON_TARGET_KIND_UNSPECIFIED = 0;
+  // The configuration names no light, group or scene for the button.
+  BUTTON_TARGET_KIND_NONE = 1;
+  BUTTON_TARGET_KIND_LIGHT = 2;
+  BUTTON_TARGET_KIND_GROUP = 3;
+  BUTTON_TARGET_KIND_SCENE = 4;
+  // Anything else, such as several scenes or a light the network does not have;
+  // casambi_action_type is the only description.
+  BUTTON_TARGET_KIND_OTHER = 5;
+}
+
+// What a button is configured to do, read from the Casambi network
+// configuration the bridge loads when it connects. Casambi does not document
+// the configuration's action type codes, so this reports what the button
+// addresses, and the raw code alongside. The Casambi manual: a press turns the
+// target on and a second press turns it off (unless the switch's toggle is
+// disabled); holding a button, or the switch's + and - buttons, dims it.
+message ButtonAction {
+  ButtonTargetKind target_kind = 1;
+  // The target's Casambi ID: the light's device ID, the group ID or the scene
+  // ID. 0 for NONE and OTHER.
+  uint32 target_casambi_id = 2;
+  // A light's name as Apple Home shows it, or its Casambi name when the bridge
+  // does not expose it; a group's or scene's Casambi name.
+  string target_name = 3;
+  // The lights the target addresses, by Casambi unit UUID: the light, the
+  // group's lights or the lights the scene sets.
+  repeated string light_ids = 4;
+  // Casambi's own action type code for the button. Undocumented.
+  uint32 casambi_action_type = 5;
+  // The configuration stops holding the button from dimming the target.
+  bool dimming_disabled = 6;
+}
+
 message SwitchButton {
-  // Button number, 1 upwards, as casambi-bt numbers the switch's buttons.
+  // Button number, 1 upwards, as casambi-bt numbers the switch's buttons. The
+  // configuration numbers buttons from 0; the bridge takes configured button i
+  // to be button i+1. A press's light_changes show whether that holds.
   uint32 number = 1;
   // Presses the bridge has seen since it started.
   uint64 presses = 2;
-  // When the bridge last saw this button pressed.
+  // When the bridge last saw this button pressed. Absent until the first press.
   google.protobuf.Timestamp last_press_time = 3;
+  // What the configuration says the button does. Absent when the
+  // configuration has nothing for this number.
+  ButtonAction action = 4;
 }
 
 message Switch {
@@ -89,8 +130,14 @@ message Switch {
   optional uint32 battery_level = 4;
   // When the bridge last received a state report from this switch. Absent until the first report.
   google.protobuf.Timestamp last_report_time = 5;
-  // Buttons the bridge has seen pressed since it started, by number.
+  // The buttons the configuration lists, and any other button the bridge has
+  // seen pressed since it started, by number.
   repeated SwitchButton buttons = 6;
+  // The configuration turns every light off when a button is held for about
+  // five seconds.
+  bool long_press_turns_all_off = 7;
+  // The configuration makes a press only turn its target on, never off.
+  bool toggle_disabled = 8;
 }
 
 message ListSwitchesResponse {
@@ -98,6 +145,57 @@ message ListSwitchesResponse {
   repeated Switch switches = 1;
   // The bridge currently holds an authenticated Bluetooth session.
   bool bluetooth_connected = 2;
+}
+
+message ListSwitchPressesRequest {}
+
+// A light whose state differed between just before a press and the end of
+// the press's observation.
+message LightChange {
+  // Casambi unit UUID.
+  string light_id = 1;
+  // As Apple Home shows it, or the Casambi name when the bridge does not expose the light.
+  string name = 2;
+  // Absent when the light had not reported since the bridge started.
+  optional bool on_before = 3;
+  bool on_after = 4;
+  // Present only while the light was on.
+  optional uint32 brightness_percent_before = 5;
+  optional uint32 brightness_percent_after = 6;
+}
+
+// One press of a switch button, and what the lights did after it. The bridge
+// only observes: it compares the light reports it receives anyway.
+message SwitchPress {
+  string switch_id = 1;
+  string switch_name = 2;
+  // Button number, as in SwitchButton.
+  uint32 button = 3;
+  // What the configuration says the button does. Absent when the
+  // configuration has nothing for this number.
+  ButtonAction configured_action = 4;
+  google.protobuf.Timestamp press_time = 5;
+  // The switch reported the button held (a long press) before its release.
+  bool held = 6;
+  // Absent when the bridge saw no release.
+  google.protobuf.Timestamp release_time = 7;
+  // The end of the observation: a few seconds after the button's last event,
+  // or the next press of any button, whichever came first.
+  google.protobuf.Timestamp observed_until = 8;
+  // Lights whose on/off state or brightness differed between just before the
+  // press and observed_until. A light with a switch-off delay can change after
+  // observed_until. Anything else that changed a light in that time, such as
+  // Apple Home, shows here too.
+  repeated LightChange light_changes = 9;
+  // The bridge lost its Bluetooth session before the observation ended, so
+  // observed_until is when it did and later changes are missing.
+  bool observation_interrupted = 10;
+}
+
+message ListSwitchPressesResponse {
+  // The most recent presses since the bridge started, oldest first, at most
+  // 100. A press appears once its observation has ended.
+  repeated SwitchPress presses = 1;
 }
 
 message CasambiConfig {
@@ -109,4 +207,5 @@ service CasambiService {
   rpc ListLights(ListLightsRequest) returns (ListLightsResponse);
   rpc ListScenes(ListScenesRequest) returns (ListScenesResponse);
   rpc ListSwitches(ListSwitchesRequest) returns (ListSwitchesResponse);
+  rpc ListSwitchPresses(ListSwitchPressesRequest) returns (ListSwitchPressesResponse);
 }
