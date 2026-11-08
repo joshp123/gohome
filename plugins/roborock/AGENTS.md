@@ -23,9 +23,15 @@ Roborock controls Roborock vacuums (Qrevo S) via local TCP after a one-time clou
 ## Live Map (v2)
 - Live map requires MQTT access via Roborock cloud (map RPC channel).
 - HTTP endpoint: `http://<gohome-host>:8080/roborock/map.png?device_name=<device>`
-- The PNG shows the rooms, the dock (green square), the vacuum (white circle)
-  and the path of the last run (white lines), cropped to the floor plan at
-  2.5 cm per pixel. The Qrevo S map renders at about 730 x 530.
+- The PNG shows the rooms, the dock (green square), the vacuum (white circle
+  with an arrow for where it faces), the path of the last run (white lines),
+  no-go zones and virtual walls (red) and no-mop zones (purple), cropped to
+  the floor plan at 1.25 cm per pixel (4 pixels per 5 cm map cell, as
+  python-roborock and Home Assistant draw it). The Qrevo S map renders at
+  about 1460 x 1060; the dashboard scales it to the panel.
+- Room edges are smoothed and rooms that touch are drawn with a thin gap
+  between them. Walls are one grey; furniture specks of up to 15 cm inside a
+  room are drawn as the room. Areas erased in the Roborock app are not drawn.
 - Add `labels=names` to label rooms with `roborock.segment_names` (unnamed
   rooms show as `Room <id>`), or `labels=segments` to label them with ids.
 - Add `path=false` to hide the last run's path (shown by default).

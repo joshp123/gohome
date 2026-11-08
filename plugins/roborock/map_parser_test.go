@@ -3,6 +3,7 @@ package roborock
 import (
 	"bytes"
 	"encoding/binary"
+	"image"
 	"image/png"
 	"testing"
 )
@@ -89,5 +90,93 @@ func TestParseAndRenderVacuumMap(t *testing.T) {
 		if image.Bounds().Dx() != wantWidth {
 			t.Fatalf("labels=%q width = %d, want %d", labelMode, image.Bounds().Dx(), wantWidth)
 		}
+	}
+}
+
+// One room in which the user erased an area, laid a carpet, drew a no-go
+// zone and a virtual wall, with the vacuum facing up the map.
+func TestErasedAreasZonesAndHeading(t *testing.T) {
+	const width, height, left, top = 24, 14, 400, 500
+	cells := make([]byte, width*height)
+	submap := make([]byte, width*height)
+	for y := 1; y < height-1; y++ {
+		for x := 1; x < width-1; x++ {
+			cells[x+width*y] = 0x87 // room 16
+		}
+	}
+	for y := 3; y <= 5; y++ {
+		for x := 3; x <= 5; x++ {
+			submap[x+width*y] = submapRemovedArea
+		}
+		submap[2+width*y] = submapRemovedBorder | submapCarpet
+	}
+	submap[16+width*9] = submapCarpet
+
+	millimetres := func(cellX, cellY int) []byte {
+		point := binary.LittleEndian.AppendUint16(nil, uint16((left+cellX)*50))
+		return binary.LittleEndian.AppendUint16(point, uint16((top+cellY)*50))
+	}
+	var noGoArea []byte
+	for _, corner := range [][2]int{{14, 2}, {18, 2}, {18, 5}, {14, 5}} {
+		noGoArea = append(noGoArea, millimetres(corner[0], corner[1])...)
+	}
+	vacuum := millimetrePoint((left+10)*50, (top+7)*50)
+	binary.LittleEndian.PutUint32(vacuum[8:], 90)
+
+	payload := make([]byte, 20)
+	binary.LittleEndian.PutUint16(payload[2:], 20)
+	payload = appendMapBlock(payload, mapBlockFloor, []uint32{2, top, left, height, width}, cells)
+	payload = appendMapBlock(payload, mapBlockVacuum, nil, vacuum)
+	payload = appendMapBlock(payload, mapBlockNoGoAreas, []uint32{1}, noGoArea)
+	payload = appendMapBlock(payload, mapBlockVirtualWalls, []uint32{1}, append(millimetres(8, 2), millimetres(8, 10)...))
+	payload = appendMapBlock(payload, mapBlockSubmap, nil, submap)
+
+	parsed, err := parseVacuumMap(payload, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.vacuumHeadingDegrees == nil || *parsed.vacuumHeadingDegrees != 90 {
+		t.Fatalf("heading = %v, want 90", parsed.vacuumHeadingDegrees)
+	}
+	if len(parsed.noGoAreas) != 1 || parsed.noGoAreas[0][2] != parsed.floor.imagePosition((left+18)*50, (top+5)*50) {
+		t.Fatalf("no-go areas = %+v", parsed.noGoAreas)
+	}
+	if len(parsed.virtualWalls) != 1 || parsed.virtualWalls[0][1] != parsed.floor.imagePosition((left+8)*50, (top+10)*50) {
+		t.Fatalf("virtual walls = %+v", parsed.virtualWalls)
+	}
+	if !parsed.carpetCells[16+width*9] || parsed.carpetCells[2+width*4] {
+		t.Fatal("carpet must come from bit 0x01 of cells that were not erased")
+	}
+	if parsed.rooms[0].pixelCount != (width-2)*(height-2)-9-3 {
+		t.Fatalf("room 16 has %d cells; erased cells must not count", parsed.rooms[0].pixelCount)
+	}
+
+	render := func(vacuumMapData vacuumMap) image.Image {
+		encoded, err := renderVacuumMap(vacuumMapData, "", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		decoded, err := png.Decode(bytes.NewReader(encoded))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return decoded
+	}
+	crop, _ := floorPlanBounds(parsed)
+	outputPixel := func(cellX, deviceRow int) (int, int) {
+		return (cellX-crop.Min.X)*outputPixelsPerCell + outputPixelsPerCell/2,
+			(height-1-deviceRow-crop.Min.Y)*outputPixelsPerCell + outputPixelsPerCell/2
+	}
+	withZones := render(parsed)
+	if _, _, _, alpha := withZones.At(outputPixel(4, 4)).RGBA(); alpha != 0 {
+		t.Fatalf("erased area drawn with alpha %d, want transparent", alpha)
+	}
+	if _, _, _, alpha := withZones.At(outputPixel(12, 11)).RGBA(); alpha != 0xffff {
+		t.Fatalf("room drawn with alpha %d, want opaque", alpha)
+	}
+	withoutZones := parsed
+	withoutZones.noGoAreas = nil
+	if withZones.At(outputPixel(16, 3)) == render(withoutZones).At(outputPixel(16, 3)) {
+		t.Fatal("no-go zone not drawn")
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
 	"image/png"
 	"math"
 	"sort"
@@ -19,21 +18,25 @@ import (
 	"golang.org/x/image/vector"
 )
 
-// The map answers three questions at a glance: which rooms the vacuum knows
-// and what they are called, where the vacuum and its dock are, and where the
-// last run went. Everything else in the device's map is left out.
+// The map answers four questions at a glance: which rooms the vacuum knows
+// and what they are called, where the vacuum and its dock are, where the
+// last run went, and where the vacuum is told not to go.
 const (
-	outputPixelsPerCell   = 2  // one cell is 50 mm
-	cropMarginCells       = 8  // 40 cm of empty space around the floor plan
-	roomLabelFontSize     = 22 // output pixels
-	roomLabelPaddingX     = 9
-	roomLabelPaddingY     = 5
-	roomLabelCornerRadius = 7
-	roomLabelGap          = 6
-	vacuumMarkerRadius    = 10
-	dockMarkerHalfSide    = 13
-	markerOutlineWidth    = 2.5
-	pathStrokeRadius      = 1.1
+	outputPixelsPerCell   = 4 // one cell is 50 mm, so one pixel is 1.25 cm
+	cropMarginCells       = 8 // 40 cm of empty space around the floor plan
+	roomLabelFontSize     = 36
+	roomLabelPaddingX     = 14
+	roomLabelPaddingY     = 8
+	roomLabelCornerRadius = 12
+	roomLabelGap          = 10
+	vacuumMarkerRadius    = 17
+	dockMarkerHalfSide    = 15
+	markerOutlineWidth    = 4
+	pathStrokeWidth       = 3
+	roomSeamWidth         = 2.5 // background left between two rooms that touch
+	zoneOutlineWidth      = 3
+	virtualWallWidth      = 5
+	speckleMaxCells       = 3 // 15 cm: chair legs and lidar noise, not furniture
 )
 
 var (
@@ -47,10 +50,15 @@ var (
 		{0xfd, 0xd6, 0x63, 0xff}, // yellow
 		{0xff, 0x8b, 0xcb, 0xff}, // pink
 	}
-	colourWall             = color.NRGBA{0xe4, 0xe7, 0xec, 0xff}
+	colourWall             = color.NRGBA{0x8a, 0x91, 0x9c, 0xff}
+	colourObstacle         = color.NRGBA{0x2f, 0x34, 0x3c, 0xff}
 	colourUnassignedFloor  = color.NRGBA{0xb4, 0xba, 0xc4, 0xff}
-	colourObstacle         = color.NRGBA{0x4a, 0x50, 0x5c, 0xff}
-	colourLastRunPath      = color.NRGBA{0xff, 0xff, 0xff, 0xb0}
+	colourLastRunPath      = color.NRGBA{0xff, 0xff, 0xff, 0xc0}
+	colourNoGoFill         = color.NRGBA{0xe0, 0x40, 0x40, 0x50}
+	colourNoGoOutline      = color.NRGBA{0xe0, 0x40, 0x40, 0xff}
+	colourNoMopFill        = color.NRGBA{0xb8, 0x77, 0xd9, 0x50}
+	colourNoMopOutline     = color.NRGBA{0xb8, 0x77, 0xd9, 0xff}
+	colourVirtualWall      = color.NRGBA{0xe0, 0x40, 0x40, 0xff}
 	colourMarkerOutline    = color.NRGBA{0x18, 0x1b, 0x1f, 0xff}
 	colourVacuum           = color.NRGBA{0xff, 0xff, 0xff, 0xff}
 	colourDock             = color.NRGBA{0x5a, 0xa4, 0x69, 0xff}
@@ -78,52 +86,64 @@ func loadRoomLabelFace() (font.Face, error) {
 // renderVacuumMap draws the map as a PNG. labelMode is "names" (room names),
 // "segments" (room ids, for configuring names) or "" (no labels).
 func renderVacuumMap(vacuumMapData vacuumMap, labelMode string, showLastRunPath bool) ([]byte, error) {
-	grid := vacuumMapData.floor
 	crop, ok := floorPlanBounds(vacuumMapData)
 	if !ok {
 		return nil, fmt.Errorf("map has no floor plan yet")
 	}
 	canvas := image.NewNRGBA(image.Rect(0, 0, crop.Dx()*outputPixelsPerCell, crop.Dy()*outputPixelsPerCell))
-	toOutput := func(position mapPosition) (float64, float64) {
-		return (position.x - float64(crop.Min.X) + 0.5) * outputPixelsPerCell,
-			(position.y - float64(crop.Min.Y) + 0.5) * outputPixelsPerCell
+	toOutput := func(position mapPosition) mapPosition {
+		return mapPosition{
+			x: (position.x - float64(crop.Min.X) + 0.5) * outputPixelsPerCell,
+			y: (position.y - float64(crop.Min.Y) + 0.5) * outputPixelsPerCell,
+		}
+	}
+	allToOutput := func(positions []mapPosition) []mapPosition {
+		converted := make([]mapPosition, len(positions))
+		for index, position := range positions {
+			converted[index] = toOutput(position)
+		}
+		return converted
 	}
 
 	roomColours := make(map[int]color.NRGBA, len(vacuumMapData.rooms))
 	for index, room := range vacuumMapData.rooms {
 		roomColours[room.id] = roomPalette[index%len(roomPalette)]
 	}
-	for y := max(crop.Min.Y, 0); y < min(crop.Max.Y, grid.height); y++ {
-		for x := max(crop.Min.X, 0); x < min(crop.Max.X, grid.width); x++ {
-			cellColour, visible := floorCellColour(grid, vacuumMapData.carpetCells, roomColours, x, y)
-			if !visible {
-				continue
-			}
-			outputX := (x - crop.Min.X) * outputPixelsPerCell
-			outputY := (y - crop.Min.Y) * outputPixelsPerCell
-			draw.Draw(canvas, image.Rect(outputX, outputY, outputX+outputPixelsPerCell, outputY+outputPixelsPerCell),
-				image.NewUniform(cellColour), image.Point{}, draw.Src)
+	paintFloor(canvas, vacuumMapData, crop, roomColours)
+
+	for _, zones := range []struct {
+		areas         []mapArea
+		fill, outline color.NRGBA
+	}{
+		{vacuumMapData.noGoAreas, colourNoGoFill, colourNoGoOutline},
+		{vacuumMapData.noMopAreas, colourNoMopFill, colourNoMopOutline},
+	} {
+		for _, area := range zones.areas {
+			corners := allToOutput(area[:])
+			fillPolygon(canvas, zones.fill, corners)
+			strokePolyline(canvas, zones.outline, zoneOutlineWidth, append(corners, corners[0]))
 		}
+	}
+	for _, wall := range vacuumMapData.virtualWalls {
+		strokePolyline(canvas, colourVirtualWall, virtualWallWidth, allToOutput(wall[:]))
 	}
 
 	if showLastRunPath && len(vacuumMapData.lastRunPath) > 1 {
-		drawLastRunPath(canvas, vacuumMapData.lastRunPath, toOutput)
+		strokePolyline(canvas, colourLastRunPath, pathStrokeWidth, allToOutput(vacuumMapData.lastRunPath))
 	}
 
 	var occupied []image.Rectangle
 	if vacuumMapData.dock != nil {
-		x, y := toOutput(*vacuumMapData.dock)
+		dock := toOutput(*vacuumMapData.dock)
 		half := float64(dockMarkerHalfSide)
-		fillPolygon(canvas, colourMarkerOutline, roundedRectangle(x-half-markerOutlineWidth, y-half-markerOutlineWidth, x+half+markerOutlineWidth, y+half+markerOutlineWidth, 4))
-		fillPolygon(canvas, colourDock, roundedRectangle(x-half, y-half, x+half, y+half, 3))
-		occupied = append(occupied, markerBounds(x, y, half+markerOutlineWidth))
+		fillPolygon(canvas, colourMarkerOutline, roundedRectangle(dock.x-half-markerOutlineWidth, dock.y-half-markerOutlineWidth, dock.x+half+markerOutlineWidth, dock.y+half+markerOutlineWidth, 6))
+		fillPolygon(canvas, colourDock, roundedRectangle(dock.x-half, dock.y-half, dock.x+half, dock.y+half, 4))
+		occupied = append(occupied, markerBounds(dock.x, dock.y, half+markerOutlineWidth))
 	}
 	if vacuumMapData.vacuum != nil {
-		x, y := toOutput(*vacuumMapData.vacuum)
-		fillPolygon(canvas, colourMarkerOutline, circle(x, y, vacuumMarkerRadius+markerOutlineWidth))
-		fillPolygon(canvas, colourVacuum, circle(x, y, vacuumMarkerRadius))
-		fillPolygon(canvas, colourMarkerOutline, circle(x, y, 3))
-		occupied = append(occupied, markerBounds(x, y, vacuumMarkerRadius+markerOutlineWidth))
+		vacuum := toOutput(*vacuumMapData.vacuum)
+		drawVacuum(canvas, vacuum, vacuumMapData.vacuumHeadingDegrees)
+		occupied = append(occupied, markerBounds(vacuum.x, vacuum.y, vacuumMarkerRadius+markerOutlineWidth))
 	}
 
 	if labelMode != "" {
@@ -171,32 +191,303 @@ func floorPlanBounds(vacuumMapData vacuumMap) (image.Rectangle, bool) {
 	return bounds.Inset(-cropMarginCells), true
 }
 
-func floorCellColour(grid floorGrid, carpetCells map[int]bool, roomColours map[int]color.NRGBA, x, y int) (color.NRGBA, bool) {
-	pixel := grid.pixelAt(x, y)
+// cellClass is what a floor cell is drawn as. Rooms are cellRoom plus the room id.
+type cellClass uint8
+
+const (
+	cellOutside cellClass = iota
+	cellWall
+	cellObstacle
+	cellUnassignedFloor
+	cellRoom
+)
+
+func classifyCell(pixel byte) cellClass {
 	if roomID, ok := roomIDForPixel(pixel); ok {
-		roomColour := roomColours[roomID]
-		// Carpet shows as faint diagonal stripes in the room's colour.
-		if carpetCells[grid.cellIndex(x, y)] && (x+y)%4 < 2 {
-			return shade(roomColour, 0.84), true
-		}
-		return roomColour, true
-	}
-	if roomID, ok := roomIDForWallOrObstacle(pixel); ok && pixel&0x07 == 0x01 {
-		// Walls the vacuum attributes to a room, including furniture it
-		// bumped into, show as a darker tone of that room.
-		return shade(roomColours[roomID], 0.68), true
+		return cellRoom + cellClass(roomID)
 	}
 	switch {
 	case pixel == floorPixelOutside:
-		return color.NRGBA{}, false
-	case pixel == floorPixelWall || pixel&0x07 == 0x01:
-		return colourWall, true
+		return cellOutside
 	case pixel == floorPixelScanned || pixel == floorPixelUnassignedFloor:
-		return colourUnassignedFloor, true
+		return cellUnassignedFloor
+	case pixel&0x07 == 0x01:
+		// Walls, including the ones the vacuum attributes to a room.
+		return cellWall
 	default:
-		// Furniture and other obstacles the vacuum detected.
-		return colourObstacle, true
+		// Furniture and other obstacles, and what the lidar saw beyond them.
+		return cellObstacle
 	}
+}
+
+// floorClasses classifies every floor cell in image order (y*width+x) and
+// paints over furniture specks: a blob of at most speckleMaxCells wall or
+// obstacle cells with one room all round it becomes that room.
+func floorClasses(grid floorGrid) []cellClass {
+	classes := make([]cellClass, grid.width*grid.height)
+	for y := 0; y < grid.height; y++ {
+		for x := 0; x < grid.width; x++ {
+			classes[y*grid.width+x] = classifyCell(grid.pixelAt(x, y))
+		}
+	}
+	isBlocked := func(class cellClass) bool { return class == cellWall || class == cellObstacle }
+	visited := make([]bool, len(classes))
+	for start, class := range classes {
+		if visited[start] || !isBlocked(class) {
+			continue
+		}
+		blob := []int{start}
+		visited[start] = true
+		for next := 0; next < len(blob); next++ {
+			x, y := blob[next]%grid.width, blob[next]/grid.width
+			for _, step := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+				neighbourX, neighbourY := x+step[0], y+step[1]
+				if neighbourX < 0 || neighbourY < 0 || neighbourX >= grid.width || neighbourY >= grid.height {
+					continue
+				}
+				neighbour := neighbourY*grid.width + neighbourX
+				if !visited[neighbour] && isBlocked(classes[neighbour]) {
+					visited[neighbour] = true
+					blob = append(blob, neighbour)
+				}
+			}
+		}
+		if len(blob) > speckleMaxCells {
+			continue
+		}
+		if room, ok := surroundingRoom(classes, grid, blob, isBlocked); ok {
+			for _, cell := range blob {
+				classes[cell] = room
+			}
+		}
+	}
+	return classes
+}
+
+// surroundingRoom reports the room on every side of a blob, if there is only one.
+func surroundingRoom(classes []cellClass, grid floorGrid, blob []int, isBlocked func(cellClass) bool) (cellClass, bool) {
+	room := cellOutside
+	for _, cell := range blob {
+		x, y := cell%grid.width, cell/grid.width
+		for neighbourY := y - 1; neighbourY <= y+1; neighbourY++ {
+			for neighbourX := x - 1; neighbourX <= x+1; neighbourX++ {
+				if neighbourX < 0 || neighbourY < 0 || neighbourX >= grid.width || neighbourY >= grid.height {
+					return cellOutside, false
+				}
+				class := classes[neighbourY*grid.width+neighbourX]
+				if isBlocked(class) {
+					continue
+				}
+				if class < cellRoom || (room != cellOutside && class != room) {
+					return cellOutside, false
+				}
+				room = class
+			}
+		}
+	}
+	return room, room != cellOutside
+}
+
+type classWeight struct {
+	class        cellClass
+	weight       float64
+	carpetWeight float64
+}
+
+// classTally sums the weight of each class over the cells near one pixel.
+type classTally struct {
+	entries [16]classWeight
+	count   int
+	total   float64
+}
+
+func (t *classTally) add(class cellClass, weight float64, carpet bool) {
+	entry := 0
+	for entry < t.count && t.entries[entry].class != class {
+		entry++
+	}
+	if entry == t.count {
+		t.entries[entry] = classWeight{class: class}
+		t.count++
+	}
+	t.entries[entry].weight += weight
+	if carpet {
+		t.entries[entry].carpetWeight += weight
+	}
+	t.total += weight
+}
+
+// topTwo returns the two classes with the most weight; a missing runner-up
+// is outside with no weight.
+func (t *classTally) topTwo() (winner, runnerUp classWeight) {
+	for _, entry := range t.entries[:t.count] {
+		if entry.weight > winner.weight {
+			winner, runnerUp = entry, winner
+		} else if entry.weight > runnerUp.weight {
+			runnerUp = entry
+		}
+	}
+	return winner, runnerUp
+}
+
+// cubicBSplineWeights weighs the four cells at offsets -1, 0, 1 and 2 from a
+// point a fraction of the way from cell 0 to cell 1.
+func cubicBSplineWeights(fraction float64) [4]float64 {
+	inverse := 1 - fraction
+	return [4]float64{
+		inverse * inverse * inverse / 6,
+		(3*fraction*fraction*fraction - 6*fraction*fraction + 4) / 6,
+		(-3*fraction*fraction*fraction + 3*fraction*fraction + 3*fraction + 1) / 6,
+		fraction * fraction * fraction / 6,
+	}
+}
+
+// paintFloor draws the floor cells with smooth edges, in two layers.
+//
+// Floor (rooms, unassigned floor and outside) is weighed over the 4 x 4
+// cells round each output pixel with a cubic B-spline, which turns the
+// cells' staircases into smooth curves. Where two rooms meet, a thin seam
+// of background is left between them, as in the Roborock app.
+//
+// Walls and obstacles are one cell thin, which that wider kernel would
+// erode, so they are weighed bilinearly over the nearest 2 x 2 cells and
+// drawn on top.
+//
+// In both layers the class with the most weight wins, and its edge is
+// blended with the runner-up over about one output pixel.
+func paintFloor(canvas *image.NRGBA, vacuumMapData vacuumMap, crop image.Rectangle, roomColours map[int]color.NRGBA) {
+	grid := vacuumMapData.floor
+	classes := floorClasses(grid)
+	classAt := func(x, y int) cellClass {
+		if x < 0 || y < 0 || x >= grid.width || y >= grid.height {
+			return cellOutside
+		}
+		return classes[y*grid.width+x]
+	}
+	carpet := make([]bool, len(classes))
+	for y := 0; y < grid.height; y++ {
+		for x := 0; x < grid.width; x++ {
+			carpet[y*grid.width+x] = vacuumMapData.carpetCells[grid.cellIndex(x, y)]
+		}
+	}
+	isCarpet := func(x, y int) bool {
+		return x >= 0 && y >= 0 && x < grid.width && y < grid.height && carpet[y*grid.width+x]
+	}
+	isWall := func(class cellClass) bool { return class == cellWall }
+	// Most of the margin and the space between wings is outside; skip it.
+	isEmptyAround := func(left, top int) bool {
+		for y := top - 1; y <= top+2; y++ {
+			for x := left - 1; x <= left+2; x++ {
+				if classAt(x, y) != cellOutside {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	classColour := func(class cellClass) color.NRGBA {
+		switch class {
+		case cellOutside:
+			return color.NRGBA{}
+		case cellWall:
+			return colourWall
+		case cellObstacle:
+			return colourObstacle
+		case cellUnassignedFloor:
+			return colourUnassignedFloor
+		default:
+			return roomColours[int(class-cellRoom)]
+		}
+	}
+
+	const scale = float64(outputPixelsPerCell)
+	// The smoothed step a B-spline makes of an edge rises by 2/3 per cell at
+	// the edge, so the weight difference rises by 4/3 per cell.
+	const bSplineCellsPerWeight = 0.75
+	bounds := canvas.Bounds()
+	cellPosition := func(output, cropStart int) (int, float64) {
+		position := float64(cropStart) + (float64(output)+0.5)/scale - 0.5
+		cell := int(math.Floor(position))
+		return cell, position - float64(cell)
+	}
+	for outputY := 0; outputY < bounds.Dy(); outputY++ {
+		top, fractionY := cellPosition(outputY, crop.Min.Y)
+		bilinearY := [2]float64{1 - fractionY, fractionY}
+		splineY := cubicBSplineWeights(fractionY)
+		for outputX := 0; outputX < bounds.Dx(); outputX++ {
+			left, fractionX := cellPosition(outputX, crop.Min.X)
+			bilinearX := [2]float64{1 - fractionX, fractionX}
+			splineX := cubicBSplineWeights(fractionX)
+
+			if isEmptyAround(left, top) {
+				continue
+			}
+			var nearest, floor classTally
+			for row := 0; row < 4; row++ {
+				for column := 0; column < 4; column++ {
+					x, y := left+column-1, top+row-1
+					class := classAt(x, y)
+					if row == 1 || row == 2 {
+						if column == 1 || column == 2 {
+							nearest.add(class, bilinearX[column-1]*bilinearY[row-1], false)
+						}
+					}
+					if !isWall(class) {
+						floor.add(class, splineX[column]*splineY[row], isCarpet(x, y))
+					}
+				}
+			}
+
+			floorColour := color.NRGBA{}
+			if floor.total > 0 {
+				winner, runnerUp := floor.topTwo()
+				distance := (winner.weight - runnerUp.weight) / floor.total * bSplineCellsPerWeight * scale
+				winnerColour := classColour(winner.class)
+				if winner.class >= cellRoom && winner.carpetWeight > winner.weight/2 && (outputX+outputY)%8 < 3 {
+					// Carpet shows as fine diagonal stripes in the room's colour.
+					winnerColour = shade(winnerColour, 0.88)
+				}
+				if winner.class >= cellRoom && runnerUp.class >= cellRoom && runnerUp.weight > 0 {
+					floorColour = winnerColour
+					floorColour.A = uint8(math.Round(float64(winnerColour.A) * clamp01(distance-roomSeamWidth/2+0.5)))
+				} else {
+					floorColour = mixColours(classColour(runnerUp.class), winnerColour, clamp01(distance+0.5))
+				}
+			}
+
+			winner, runnerUp := nearest.topTwo()
+			distance := (winner.weight - runnerUp.weight) * scale / 2
+			pixel := floorColour
+			switch {
+			case isWall(winner.class) && floor.total == 0:
+				pixel = classColour(winner.class)
+			case isWall(winner.class):
+				pixel = mixColours(floorColour, classColour(winner.class), clamp01(distance+0.5))
+			case isWall(runnerUp.class):
+				pixel = mixColours(floorColour, classColour(runnerUp.class), clamp01(0.5-distance))
+			}
+			if pixel.A != 0 {
+				canvas.SetNRGBA(outputX, outputY, pixel)
+			}
+		}
+	}
+}
+
+func clamp01(value float64) float64 {
+	return math.Max(0, math.Min(1, value))
+}
+
+// mixColours blends from a to b by fraction, with correct alpha.
+func mixColours(a, b color.NRGBA, fraction float64) color.NRGBA {
+	alphaA, alphaB := float64(a.A)/255, float64(b.A)/255
+	alpha := alphaA*(1-fraction) + alphaB*fraction
+	if alpha == 0 {
+		return color.NRGBA{}
+	}
+	channel := func(channelA, channelB uint8) uint8 {
+		return uint8(math.Round((float64(channelA)*alphaA*(1-fraction) + float64(channelB)*alphaB*fraction) / alpha))
+	}
+	return color.NRGBA{channel(a.R, b.R), channel(a.G, b.G), channel(a.B, b.B), uint8(math.Round(alpha * 255))}
 }
 
 func shade(base color.NRGBA, factor float64) color.NRGBA {
@@ -208,32 +499,96 @@ func shade(base color.NRGBA, factor float64) color.NRGBA {
 	}
 }
 
-func drawLastRunPath(canvas *image.NRGBA, path []mapPosition, toOutput func(mapPosition) (float64, float64)) {
-	// Stroke into a mask first so overlapping passes do not build up opacity.
-	mask := image.NewAlpha(canvas.Bounds())
-	for index := 1; index < len(path); index++ {
-		startX, startY := toOutput(path[index-1])
-		endX, endY := toOutput(path[index])
-		steps := int(math.Ceil(math.Hypot(endX-startX, endY-startY) * 2))
-		for step := 0; step <= steps; step++ {
-			fraction := 0.0
-			if steps > 0 {
-				fraction = float64(step) / float64(steps)
-			}
-			stampDisc(mask, startX+(endX-startX)*fraction, startY+(endY-startY)*fraction, pathStrokeRadius)
+// drawVacuum draws the vacuum as a white disc. A dark arrowhead points where
+// it faces; without a heading, a dot marks its centre.
+func drawVacuum(canvas *image.NRGBA, centre mapPosition, headingDegrees *float64) {
+	fillPolygon(canvas, colourMarkerOutline, circle(centre.x, centre.y, vacuumMarkerRadius+markerOutlineWidth))
+	fillPolygon(canvas, colourVacuum, circle(centre.x, centre.y, vacuumMarkerRadius))
+	if headingDegrees == nil {
+		fillPolygon(canvas, colourMarkerOutline, circle(centre.x, centre.y, 5))
+		return
+	}
+	// The device measures counter-clockwise with y up; the image has y down.
+	angle := *headingDegrees * math.Pi / 180
+	forwardX, forwardY := math.Cos(angle), -math.Sin(angle)
+	sideX, sideY := -forwardY, forwardX
+	at := func(forward, side float64) mapPosition {
+		radius := float64(vacuumMarkerRadius)
+		return mapPosition{
+			x: centre.x + radius*(forward*forwardX+side*sideX),
+			y: centre.y + radius*(forward*forwardY+side*sideY),
 		}
 	}
-	draw.DrawMask(canvas, canvas.Bounds(), image.NewUniform(colourLastRunPath), image.Point{}, mask, image.Point{}, draw.Over)
+	fillPolygon(canvas, colourMarkerOutline, []mapPosition{at(0.72, 0), at(-0.4, 0.5), at(-0.18, 0), at(-0.4, -0.5)})
 }
 
-func stampDisc(mask *image.Alpha, centreX, centreY, radius float64) {
-	for y := int(math.Floor(centreY - radius)); y <= int(math.Ceil(centreY+radius)); y++ {
-		for x := int(math.Floor(centreX - radius)); x <= int(math.Ceil(centreX+radius)); x++ {
-			if math.Hypot(float64(x)+0.5-centreX, float64(y)+0.5-centreY) <= radius {
-				mask.SetAlpha(x, y, color.Alpha{A: 0xff})
-			}
+// strokePolyline draws a line of the given width through points, with round
+// joins and ends.
+func strokePolyline(canvas *image.NRGBA, stroke color.NRGBA, width float64, points []mapPosition) {
+	radius := width / 2
+	shapes := make([][]mapPosition, 0, 2*len(points))
+	for index := 1; index < len(points); index++ {
+		start, end := points[index-1], points[index]
+		length := math.Hypot(end.x-start.x, end.y-start.y)
+		if length == 0 {
+			continue
+		}
+		normalX, normalY := -(end.y-start.y)/length*radius, (end.x-start.x)/length*radius
+		shapes = append(shapes, []mapPosition{
+			{start.x + normalX, start.y + normalY}, {end.x + normalX, end.y + normalY},
+			{end.x - normalX, end.y - normalY}, {start.x - normalX, start.y - normalY},
+		})
+	}
+	for _, point := range points {
+		shapes = append(shapes, circle(point.x, point.y, radius))
+	}
+	fillShapes(canvas, stroke, shapes)
+}
+
+func fillPolygon(canvas *image.NRGBA, fill color.NRGBA, points []mapPosition) {
+	fillShapes(canvas, fill, [][]mapPosition{points})
+}
+
+// fillShapes fills closed polygons in one rasterizer pass over their bounding
+// box, so that where they overlap they do not build up opacity.
+func fillShapes(canvas *image.NRGBA, fill color.NRGBA, shapes [][]mapPosition) {
+	area := image.Rectangle{}
+	for _, shape := range shapes {
+		for _, point := range shape {
+			area = area.Union(image.Rect(int(math.Floor(point.x)), int(math.Floor(point.y)), int(math.Ceil(point.x))+1, int(math.Ceil(point.y))+1))
 		}
 	}
+	area = area.Intersect(canvas.Bounds())
+	if area.Empty() {
+		return
+	}
+	rasterizer := vector.NewRasterizer(area.Dx(), area.Dy())
+	for _, shape := range shapes {
+		addShape(rasterizer, shape, area.Min)
+	}
+	rasterizer.Draw(canvas, area, image.NewUniform(fill), image.Point{})
+}
+
+// addShape adds a closed polygon to a rasterizer whose top left is at origin,
+// always wound the same way, so that overlapping shapes add up instead of
+// cancelling out.
+func addShape(rasterizer *vector.Rasterizer, points []mapPosition, origin image.Point) {
+	signedArea := 0.0
+	for index, point := range points {
+		next := points[(index+1)%len(points)]
+		signedArea += point.x*next.y - next.x*point.y
+	}
+	at := func(index int) (float32, float32) {
+		if signedArea < 0 {
+			index = len(points) - 1 - index
+		}
+		return float32(points[index].x - float64(origin.X)), float32(points[index].y - float64(origin.Y))
+	}
+	rasterizer.MoveTo(at(0))
+	for index := 1; index < len(points); index++ {
+		rasterizer.LineTo(at(index))
+	}
+	rasterizer.ClosePath()
 }
 
 func markerBounds(x, y, radius float64) image.Rectangle {
@@ -265,17 +620,6 @@ func roundedRectangle(left, top, right, bottom, radius float64) []mapPosition {
 		}
 	}
 	return points
-}
-
-func fillPolygon(canvas *image.NRGBA, fill color.NRGBA, points []mapPosition) {
-	bounds := canvas.Bounds()
-	rasterizer := vector.NewRasterizer(bounds.Dx(), bounds.Dy())
-	rasterizer.MoveTo(float32(points[0].x), float32(points[0].y))
-	for _, point := range points[1:] {
-		rasterizer.LineTo(float32(point.x), float32(point.y))
-	}
-	rasterizer.ClosePath()
-	rasterizer.Draw(canvas, bounds, image.NewUniform(fill), image.Point{})
 }
 
 func roomLabelText(room segmentSummary, labelMode string) string {

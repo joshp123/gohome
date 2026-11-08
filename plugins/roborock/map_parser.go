@@ -17,8 +17,19 @@ const (
 	mapBlockFloor          = 2
 	mapBlockLastRunPath    = 3
 	mapBlockVacuum         = 8
-	mapBlockCarpet         = 17
+	mapBlockNoGoAreas      = 9
+	mapBlockVirtualWalls   = 10
+	mapBlockNoMopAreas     = 12
+	mapBlockSubmap         = 17
 	millimetresPerMapPixel = 50
+)
+
+// Each submap byte is a bitfield over the floor cell with the same index.
+// Removed cells are areas the user erased in the Roborock app.
+const (
+	submapCarpet        = 0x01
+	submapRemovedBorder = 0x08
+	submapRemovedArea   = 0x10
 )
 
 const (
@@ -65,13 +76,25 @@ type mapPosition struct {
 	y float64
 }
 
+// mapArea is a four-cornered zone the user drew in the app.
+type mapArea [4]mapPosition
+
+// virtualWall is a line the user drew in the app that the vacuum must not cross.
+type virtualWall [2]mapPosition
+
 type vacuumMap struct {
 	floor       floorGrid
 	carpetCells map[int]bool
 	dock        *mapPosition
 	vacuum      *mapPosition
-	lastRunPath []mapPosition
-	rooms       []segmentSummary
+	// vacuumHeadingDegrees is where the vacuum faces, counter-clockwise from
+	// the map's rightward direction; nil when the device does not report it.
+	vacuumHeadingDegrees *float64
+	lastRunPath          []mapPosition
+	noGoAreas            []mapArea
+	noMopAreas           []mapArea
+	virtualWalls         []virtualWall
+	rooms                []segmentSummary
 }
 
 // segmentSummary describes one room (segment) in floor-grid image coordinates.
@@ -221,24 +244,42 @@ func parseVacuumMap(raw []byte, roomNames map[uint32]string) (vacuumMap, error) 
 			parsed.dock = parseMapPosition(parsed.floor, block.data)
 		case mapBlockVacuum:
 			parsed.vacuum = parseMapPosition(parsed.floor, block.data)
+			parsed.vacuumHeadingDegrees = parseHeadingDegrees(block.data)
 		case mapBlockLastRunPath:
-			for offset := 0; offset+4 <= len(block.data); offset += 4 {
-				parsed.lastRunPath = append(parsed.lastRunPath, parsed.floor.imagePosition(
-					float64(uint16le(block.data, offset)),
-					float64(uint16le(block.data, offset+2)),
-				))
-			}
-		case mapBlockCarpet:
-			parsed.carpetCells = make(map[int]bool)
-			for index, value := range block.data {
-				if value != 0 {
-					parsed.carpetCells[index] = true
-				}
-			}
+			parsed.lastRunPath = parseMillimetrePoints(parsed.floor, block.data)
+		case mapBlockNoGoAreas:
+			parsed.noGoAreas = parseAreas(parsed.floor, block)
+		case mapBlockNoMopAreas:
+			parsed.noMopAreas = parseAreas(parsed.floor, block)
+		case mapBlockVirtualWalls:
+			parsed.virtualWalls = parseVirtualWalls(parsed.floor, block)
+		case mapBlockSubmap:
+			parsed.carpetCells, parsed.floor.cells = applySubmap(parsed.floor.cells, block.data)
 		}
 	}
 	parsed.rooms = summariseRooms(parsed.floor, roomNames)
 	return parsed, nil
+}
+
+// applySubmap returns the carpet cells and a copy of the floor cells with
+// erased areas turned into outside, so that cropping, rooms and labels all
+// ignore them.
+func applySubmap(floorCells, submap []byte) (map[int]bool, []byte) {
+	cells := append([]byte(nil), floorCells...)
+	carpetCells := make(map[int]bool)
+	for index, value := range submap {
+		if index >= len(cells) {
+			break
+		}
+		if value&(submapRemovedBorder|submapRemovedArea) != 0 {
+			cells[index] = floorPixelOutside
+			continue
+		}
+		if value&submapCarpet != 0 {
+			carpetCells[index] = true
+		}
+	}
+	return carpetCells, cells
 }
 
 func parseMapPosition(grid floorGrid, data []byte) *mapPosition {
@@ -247,6 +288,54 @@ func parseMapPosition(grid floorGrid, data []byte) *mapPosition {
 	}
 	position := grid.imagePosition(float64(int32(uint32le(data, 0))), float64(int32(uint32le(data, 4))))
 	return &position
+}
+
+// parseHeadingDegrees reads the signed heading that follows a position.
+func parseHeadingDegrees(data []byte) *float64 {
+	if len(data) < 12 {
+		return nil
+	}
+	heading := float64(int32(uint32le(data, 8)))
+	return &heading
+}
+
+// parseMillimetrePoints reads consecutive (x, y) pairs of unsigned 16-bit millimetres.
+func parseMillimetrePoints(grid floorGrid, data []byte) []mapPosition {
+	points := make([]mapPosition, 0, len(data)/4)
+	for offset := 0; offset+4 <= len(data); offset += 4 {
+		points = append(points, grid.imagePosition(float64(uint16le(data, offset)), float64(uint16le(data, offset+2))))
+	}
+	return points
+}
+
+// zoneCount is the number of zones or walls a block says it holds.
+func zoneCount(block mapBlock) int {
+	if len(block.header) < 0x0a {
+		return 0
+	}
+	return int(uint16le(block.header, 0x08))
+}
+
+func parseAreas(grid floorGrid, block mapBlock) []mapArea {
+	const areaBytes = 16
+	count := min(zoneCount(block), len(block.data)/areaBytes)
+	areas := make([]mapArea, 0, count)
+	for index := 0; index < count; index++ {
+		corners := parseMillimetrePoints(grid, block.data[index*areaBytes:(index+1)*areaBytes])
+		areas = append(areas, mapArea{corners[0], corners[1], corners[2], corners[3]})
+	}
+	return areas
+}
+
+func parseVirtualWalls(grid floorGrid, block mapBlock) []virtualWall {
+	const wallBytes = 8
+	count := min(zoneCount(block), len(block.data)/wallBytes)
+	walls := make([]virtualWall, 0, count)
+	for index := 0; index < count; index++ {
+		ends := parseMillimetrePoints(grid, block.data[index*wallBytes:(index+1)*wallBytes])
+		walls = append(walls, virtualWall{ends[0], ends[1]})
+	}
+	return walls
 }
 
 func summariseRooms(grid floorGrid, roomNames map[uint32]string) []segmentSummary {
