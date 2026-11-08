@@ -591,6 +591,8 @@ in
       description = "GoHome";
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
+      # gohome reads its config only at start, so a config change must restart it.
+      restartTriggers = [ config.environment.etc."gohome/config.pbtxt".source ];
 
       serviceConfig = {
         User = "gohome";
