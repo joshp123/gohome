@@ -31,6 +31,9 @@ the camera or update its firmware, and it has no method that could.
 - While an event lasts the camera repeats a notification about once a second
   and never says it has ended. gohome turns the repeats into one event: it
   starts with the first notification and ends after 10 s without a repeat.
+  gohome reports the end only when a later message, such as the camera's
+  ten-second keep-alive, shows the stream is still alive, so 10 to 20 s
+  after the event was last seen. A silent connection never ends an event.
   Each line-crossing or intrusion rule is its own event.
 - Events that happen while the event stream is disconnected are lost; the
   camera does not replay them.

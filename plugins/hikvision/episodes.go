@@ -29,11 +29,15 @@ func episodeKeyOf(event cameraEvent) episodeKey {
 
 type episode struct {
 	start, latest cameraEvent
-	end           *time.Timer
 }
 
 // episodeTracker turns the camera's repeated active notifications into one
 // active event when an event starts and one inactive event when it ends.
+//
+// An event ends only when a later message shows the stream is still alive:
+// silence alone could be a dead connection, and then nobody knows whether the
+// event ended. The camera sends a keep-alive every ten seconds, so an end is
+// emitted 10 to 20 s after the event's last notification.
 type episodeTracker struct {
 	quiet time.Duration
 	// emit is called with the tracker's lock held, so transitions arrive in order.
@@ -47,36 +51,29 @@ func newEpisodeTracker(quiet time.Duration, emit func(cameraEvent)) *episodeTrac
 	return &episodeTracker{quiet: quiet, emit: emit, open: map[episodeKey]*episode{}}
 }
 
-func (t *episodeTracker) notify(notification cameraEvent) {
-	if notification.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
-		return
-	}
-	key := episodeKeyOf(notification)
+// observe takes every message from the event stream, keep-alives included, in
+// the order they arrive.
+func (t *episodeTracker) observe(message cameraEvent) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	for key, current := range t.open {
+		if message.ReceivedAt.Sub(current.latest.ReceivedAt) >= t.quiet {
+			delete(t.open, key)
+			ended := current.latest
+			ended.State = hikvisionv1.EventState_EVENT_STATE_INACTIVE
+			t.emit(ended)
+		}
+	}
+	if message.isKeepAlive() || message.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+		return
+	}
+	key := episodeKeyOf(message)
 	if current, ok := t.open[key]; ok {
-		current.latest = notification
-		current.end.Reset(t.quiet)
+		current.latest = message
 		return
 	}
-	started := &episode{start: notification, latest: notification}
-	t.open[key] = started
-	started.end = time.AfterFunc(t.quiet, func() { t.finish(key, started) })
-	t.emit(notification)
-}
-
-// finish ends the episode, unless a repeat arrived after its timer fired; that
-// repeat's Reset has scheduled finish again.
-func (t *episodeTracker) finish(key episodeKey, ending *episode) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if t.open[key] != ending || time.Since(ending.latest.ReceivedAt) < t.quiet {
-		return
-	}
-	delete(t.open, key)
-	ended := ending.latest
-	ended.State = hikvisionv1.EventState_EVENT_STATE_INACTIVE
-	t.emit(ended)
+	t.open[key] = &episode{start: message, latest: message}
+	t.emit(message)
 }
 
 // abandon forgets every event under way without saying it ended: with the
@@ -85,13 +82,8 @@ func (t *episodeTracker) finish(key episodeKey, ending *episode) {
 func (t *episodeTracker) abandon(fn func(underWay []cameraEvent)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	underWay := make([]cameraEvent, 0, len(t.open))
-	for key, current := range t.open {
-		current.end.Stop()
-		delete(t.open, key)
-		underWay = append(underWay, current.start)
-	}
-	fn(underWay)
+	fn(t.startsLocked())
+	clear(t.open)
 }
 
 // whileHeld runs fn with the starts of events still under way. No start or end
@@ -99,9 +91,13 @@ func (t *episodeTracker) abandon(fn func(underWay []cameraEvent)) {
 func (t *episodeTracker) whileHeld(fn func(underWay []cameraEvent)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	underWay := make([]cameraEvent, 0, len(t.open))
+	fn(t.startsLocked())
+}
+
+func (t *episodeTracker) startsLocked() []cameraEvent {
+	starts := make([]cameraEvent, 0, len(t.open))
 	for _, current := range t.open {
-		underWay = append(underWay, current.start)
+		starts = append(starts, current.start)
 	}
-	fn(underWay)
+	return starts
 }

@@ -213,9 +213,7 @@ func (s *alertStream) readPart(header textproto.MIMEHeader, body []byte) error {
 	if err != nil {
 		return err
 	}
-	if !event.isKeepAlive() {
-		s.episodes.notify(event)
-	}
+	s.episodes.observe(event)
 	return nil
 }
 

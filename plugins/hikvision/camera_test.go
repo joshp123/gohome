@@ -43,6 +43,7 @@ type fakeCamera struct {
 	unavailable        atomic.Bool
 	authorisedRequests atomic.Int32
 	stream             []byte
+	keepAlivesStopped  atomic.Bool
 	streamOpened       chan struct{}
 	once               sync.Once
 }
@@ -102,7 +103,18 @@ func (c *fakeCamera) serve(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(c.stream)
 		w.(http.Flusher).Flush()
 		c.once.Do(func() { close(c.streamOpened) })
-		<-r.Context().Done()
+		// The real camera sends a keep-alive every ten seconds; this one sends them faster than testQuiet.
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+			case <-time.After(testQuiet / 3):
+			}
+			if !c.keepAlivesStopped.Load() {
+				_, _ = w.Write([]byte(keepAlivePart))
+				w.(http.Flusher).Flush()
+			}
+		}
 	default:
 		name, ok := recordedPaths[r.URL.Path]
 		if !ok {
@@ -188,6 +200,9 @@ func TestRejectedCredentialsAreNotRetried(t *testing.T) {
 
 // testQuiet stands in for eventEndsAfterQuiet so tests do not wait 10 s.
 const testQuiet = 300 * time.Millisecond
+
+const keepAlivePart = "--boundary\r\nContent-Type: application/xml; charset=\"UTF-8\"\r\n\r\n" +
+	"<EventNotificationAlert><channelID>1</channelID><eventType>videoloss</eventType><eventState>inactive</eventState></EventNotificationAlert>\r\n"
 
 var motionLabels = prometheus.Labels{"kind": "motion", "target": "unspecified"}
 
@@ -311,6 +326,26 @@ func TestLostStreamDoesNotClaimEventsEnded(t *testing.T) {
 	}
 }
 
+// A connection that goes silent without closing is not proof that an event
+// ended: the end waits for the stream to show it is alive.
+func TestSilentStreamDoesNotEndEvents(t *testing.T) {
+	camera, plugin := runRecordedStream(t)
+	camera.keepAlivesStopped.Store(true)
+	sub := subscribeOnceConnected(t, plugin.stream)
+	if start := nextEvent(t, sub, "start"); start.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+		t.Fatalf("start: %+v", start)
+	}
+	expectNoEvent(t, sub, 3*testQuiet)
+	if v := gaugeValue(t, plugin.metrics.eventsActive.With(motionLabels)); v != 1 {
+		t.Fatalf("motion under way while the stream is silent = %v, want 1", v)
+	}
+
+	camera.keepAlivesStopped.Store(false)
+	if end := nextEvent(t, sub, "end"); end.State != hikvisionv1.EventState_EVENT_STATE_INACTIVE {
+		t.Fatalf("end after the stream spoke again: %+v", end)
+	}
+}
+
 func connectedStream() *alertStream {
 	stream := newAlertStream(nil, func(cameraEvent) {}, func(cameraEvent) {})
 	stream.episodes = newEpisodeTracker(testQuiet, stream.publish)
@@ -323,22 +358,34 @@ func motionNotification() cameraEvent {
 		EventType: "VMD", ChannelID: 1, ReceivedAt: time.Now()}
 }
 
+func keepAlive() cameraEvent {
+	return cameraEvent{Kind: hikvisionv1.EventKind_EVENT_KIND_VIDEO_LOSS, State: hikvisionv1.EventState_EVENT_STATE_INACTIVE,
+		EventType: "videoloss", ChannelID: 1, ReceivedAt: time.Now()}
+}
+
+// keepAliveAfterQuiet sends the camera's keep-alive once the quiet period has passed.
+func keepAliveAfterQuiet(stream *alertStream) {
+	time.Sleep(testQuiet)
+	stream.episodes.observe(keepAlive())
+}
+
 // Repeats closer together than the quiet period are one event; a longer gap starts another.
 func TestRepeatsAreOneEventUntilQuiet(t *testing.T) {
 	stream := connectedStream()
 	sub := subscribeOnceConnected(t, stream)
 
 	for range 5 {
-		stream.episodes.notify(motionNotification())
+		stream.episodes.observe(motionNotification())
 		time.Sleep(testQuiet / 3)
 	}
 	if first := nextEvent(t, sub, "first start"); first.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
 		t.Fatalf("first: %+v", first)
 	}
+	keepAliveAfterQuiet(stream)
 	if end := nextEvent(t, sub, "first end"); end.State != hikvisionv1.EventState_EVENT_STATE_INACTIVE {
 		t.Fatalf("want the end after a quiet period, got %+v", end)
 	}
-	stream.episodes.notify(motionNotification())
+	stream.episodes.observe(motionNotification())
 	if second := nextEvent(t, sub, "second start"); second.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
 		t.Fatalf("second: %+v", second)
 	}
@@ -358,12 +405,13 @@ func TestRulesAreSeparateEvents(t *testing.T) {
 			Target: hikvisionv1.DetectionTarget_DETECTION_TARGET_HUMAN, EventType: "linedetection", CameraWords: "human",
 			ChannelID: 1, RuleID: rule, ReceivedAt: time.Now()}
 	}
-	stream.episodes.notify(crossing(1))
-	stream.episodes.notify(crossing(2))
+	stream.episodes.observe(crossing(1))
+	stream.episodes.observe(crossing(2))
 	humanCrossing := prometheus.Labels{"kind": "line_crossing", "target": "human"}
 	if v := gaugeValue(t, plugin.metrics.eventsActive.With(humanCrossing)); v != 2 {
 		t.Fatalf("line crossings under way = %v, want 2", v)
 	}
+	keepAliveAfterQuiet(stream)
 	seen := map[string]bool{}
 	for range 4 {
 		event := nextEvent(t, sub, "line crossing")
@@ -381,12 +429,13 @@ func TestRulesAreSeparateEvents(t *testing.T) {
 
 func TestLateSubscriberGetsEventsUnderWay(t *testing.T) {
 	stream := connectedStream()
-	stream.episodes.notify(motionNotification())
+	stream.episodes.observe(motionNotification())
 
 	sub := subscribeOnceConnected(t, stream)
 	if start := nextEvent(t, sub, "start"); start.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
 		t.Fatalf("want the start of the motion under way, got %+v", start)
 	}
+	keepAliveAfterQuiet(stream)
 	if end := nextEvent(t, sub, "end"); end.State != hikvisionv1.EventState_EVENT_STATE_INACTIVE {
 		t.Fatalf("end: %+v", end)
 	}

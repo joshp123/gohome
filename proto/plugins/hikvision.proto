@@ -36,7 +36,9 @@ enum EventKind {
 
 // While an event lasts the camera repeats a notification about once a second
 // and does not say when the event ends. gohome sends one ACTIVE when an event
-// starts and one INACTIVE when 10 s pass without a repeat.
+// starts and one INACTIVE once 10 s have passed without a repeat and a later
+// message, such as the camera's ten-second keep-alive, shows the stream is
+// still alive.
 enum EventState {
   EVENT_STATE_UNSPECIFIED = 0;
   EVENT_STATE_ACTIVE = 1;   // the event started
@@ -105,7 +107,7 @@ message Camera {
 
 // The start or end of one event. An end carries the fields of the event's
 // last notification, so its times say when the event was last seen; it
-// arrives 10 s after that.
+// arrives 10 to 20 s after that.
 message CameraEvent {
   EventKind kind = 1;
   EventState state = 2;
