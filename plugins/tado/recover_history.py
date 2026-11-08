@@ -25,6 +25,19 @@ def http(url, data):
     return urllib.request.urlopen(urllib.request.Request(url, data=data), timeout=120).read()
 
 
+def import_samples(vm, payload):
+    # Keep requests below the reverse proxy's body limit. Complete JSONL rows
+    # make interrupted imports resumable through the existing timestamp check.
+    batch = bytearray()
+    for line in payload.splitlines(keepends=True):
+        if batch and len(batch) + len(line) > 512 * 1024:
+            http(vm + "/api/v1/import", bytes(batch))
+            batch.clear()
+        batch.extend(line)
+    if batch:
+        http(vm + "/api/v1/import", bytes(batch))
+
+
 def series_key(metric):
     return tuple(sorted(metric.items()))
 
@@ -86,7 +99,7 @@ def recover(source, fetch):
     (args.directory / "missing.jsonl").write_bytes(payload)
     report = {"prepared_samples": len(rows), "series": len({key for key, _ in proposed}), "existing_conflicts_left_unchanged": len(conflicts), "imported_samples": 0}
     if args.import_data and payload:
-        http(args.vm + "/api/v1/import", payload)
+        import_samples(args.vm, payload)
         for attempt in range(30):
             actual = observations(export(args.vm, selector))
             if all(actual.get(identity) == value for identity, value in proposed.items()):
@@ -167,6 +180,8 @@ def fetch_history(args):
     day = args.start
     while day < args.end:
         for zone in zones:
+            if zone.get("dateCreated") and day < dt.date.fromisoformat(zone["dateCreated"][:10]):
+                continue
             archive = args.directory / (str(zone["id"])+"-"+day.isoformat()+".json")
             if archive.exists():
                 report = json.loads(archive.read_text())
