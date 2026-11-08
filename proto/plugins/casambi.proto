@@ -27,20 +27,32 @@ message Light {
   optional uint32 brightness_percent = 5;
   // When the bridge last received a report from this light. Absent until the first report.
   google.protobuf.Timestamp last_report_time = 6;
-  // Colour, for lights with a colour channel, present only while the light is on.
-  // Casambi reports colour as hue and saturation; how bright is brightness_percent.
+  // The colour of the colour LEDs, present only while the light is on and its
+  // colour LEDs are lit (see lit_channels). Casambi reports colour as hue and
+  // saturation; how bright is brightness_percent.
   // Hue, 0 to 359 degrees. Absent when saturation is 0, where hue has no meaning.
   optional uint32 hue_degrees = 7;
   // Saturation, 0 (white) to 100 (pure colour).
   optional uint32 saturation_percent = 8;
-  // For lights with colour and white channels, present only while the light is on:
-  // Casambi's balance between the colour and the white channel, on Casambi's
-  // own scale of 0 to 63. 31 is Casambi's default. Casambi does not document
-  // which end of the scale is white only.
+  // For lights with colour and white LEDs, present only while the light is on:
+  // Casambi's mixer between them, 0 to 63. At 0 only the white LEDs are lit;
+  // at 63 only the colour LEDs. 31 is Casambi's default.
   optional uint32 white_colour_balance = 9;
   // For drivers with an overheat indicator: the driver's raw indicator, 0 to 3.
   // 0 is Casambi's default; Casambi does not document the other values.
   optional uint32 overheat_indicator = 10;
+  // For lights with colour and white LEDs, while the light is on: which of them are lit.
+  LitChannels lit_channels = 11;
+}
+
+// Which LEDs of a light with colour and white LEDs are lit. The white LEDs have
+// one fixed colour temperature, which the light does not report.
+enum LitChannels {
+  // Not a light with colour and white LEDs, or the light is off.
+  LIT_CHANNELS_UNSPECIFIED = 0;
+  LIT_CHANNELS_WHITE = 1;
+  LIT_CHANNELS_COLOUR = 2;
+  LIT_CHANNELS_WHITE_AND_COLOUR = 3;
 }
 
 message ListLightsResponse {

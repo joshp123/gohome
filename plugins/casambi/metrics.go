@@ -17,6 +17,12 @@ var (
 	lightLabels  = []string{"light_id", "name"}
 	switchLabels = []string{"switch_id", "name"}
 	buttonLabels = []string{"switch_id", "name", "button", "action"}
+	// Which LEDs of a light with colour and white LEDs are lit, by the label each gets.
+	litChannelsLabels = map[casambiv1.LitChannels]string{
+		casambiv1.LitChannels_LIT_CHANNELS_WHITE:            "white",
+		casambiv1.LitChannels_LIT_CHANNELS_COLOUR:           "colour",
+		casambiv1.LitChannels_LIT_CHANNELS_WHITE_AND_COLOUR: "white_and_colour",
+	}
 )
 
 var (
@@ -34,11 +40,13 @@ var (
 	lightBrightnessDesc = prometheus.NewDesc("gohome_casambi_light_brightness_percent",
 		"The light's brightness, 0 to 100; present only while it is online and on", lightLabels, nil)
 	lightHueDesc = prometheus.NewDesc("gohome_casambi_light_hue_degrees",
-		"The colour light's hue, 0 to 359 degrees; present only while it is online and on, with saturation above 0", lightLabels, nil)
+		"The hue of the light's colour LEDs, 0 to 359 degrees; present only while it is online and on, its colour LEDs are lit, and saturation is above 0", lightLabels, nil)
 	lightSaturationDesc = prometheus.NewDesc("gohome_casambi_light_saturation_percent",
-		"The colour light's saturation, 0 (white) to 100 (pure colour); present only while it is online and on", lightLabels, nil)
+		"The saturation of the light's colour LEDs, 0 (white) to 100 (pure colour); present only while it is online and on and its colour LEDs are lit", lightLabels, nil)
 	lightWhiteColourBalanceDesc = prometheus.NewDesc("gohome_casambi_light_white_colour_balance",
-		"Casambi's balance between the colour and white channels, raw 0 to 63 (Casambi's default 31; which end is white only is undocumented); present only while online and on", lightLabels, nil)
+		"Casambi's mixer between the light's white and colour LEDs, 0 (white only) to 63 (colour only), default 31; present only while online and on", lightLabels, nil)
+	lightLitChannelsDesc = prometheus.NewDesc("gohome_casambi_light_lit_channels",
+		"For a light with white and colour LEDs: 1 for the LEDs lit now (channels white, colour or white_and_colour), 0 for the others; present only while online and on", append(lightLabels, "channels"), nil)
 	lightOverheatDesc = prometheus.NewDesc("gohome_casambi_light_overheat_indicator",
 		"The driver's raw overheat indicator, 0 to 3 (0 is Casambi's default; other values are undocumented); absent while offline", lightLabels, nil)
 	lightLastReportDesc = prometheus.NewDesc("gohome_casambi_light_last_report_timestamp_seconds",
@@ -72,7 +80,7 @@ func NewMetricsCollector(bridge casambiv1.CasambiServiceClient) *MetricsCollecto
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	for _, desc := range []*prometheus.Desc{scrapeSuccessDesc, lastSuccessDesc, bluetoothConnectedDesc,
 		lightOnlineDesc, lightOnDesc, lightBrightnessDesc, lightHueDesc, lightSaturationDesc,
-		lightWhiteColourBalanceDesc, lightOverheatDesc, lightLastReportDesc,
+		lightWhiteColourBalanceDesc, lightLitChannelsDesc, lightOverheatDesc, lightLastReportDesc,
 		switchOnlineDesc, switchBatteryDesc, switchLastReportDesc, buttonPressesDesc, buttonLastPressDesc} {
 		ch <- desc
 	}
@@ -126,6 +134,11 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		optionalGauge(lightHueDesc, light.HueDegrees)
 		optionalGauge(lightSaturationDesc, light.SaturationPercent)
 		optionalGauge(lightWhiteColourBalanceDesc, light.WhiteColourBalance)
+		if lit := light.GetLitChannels(); lit != casambiv1.LitChannels_LIT_CHANNELS_UNSPECIFIED {
+			for channels, label := range litChannelsLabels {
+				gauge(lightLitChannelsDesc, boolValue(channels == lit), append(labels, label)...)
+			}
+		}
 		optionalGauge(lightOverheatDesc, light.OverheatIndicator)
 	}
 

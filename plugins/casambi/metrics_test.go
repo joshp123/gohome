@@ -51,7 +51,11 @@ func TestLightValuesOnlyWhileTheBridgeHasCurrentState(t *testing.T) {
 	connected := &casambiv1.ListLightsResponse{BluetoothConnected: true, Lights: []*casambiv1.Light{
 		{Id: "kitchen", Name: "Spotlights", Online: true, On: proto.Bool(true), BrightnessPercent: proto.Uint32(80), LastReportTime: reported},
 		{Id: "strip", Name: "Front LED Strip", Online: true, On: proto.Bool(true), BrightnessPercent: proto.Uint32(50),
-			HueDegrees: proto.Uint32(120), SaturationPercent: proto.Uint32(50), WhiteColourBalance: proto.Uint32(40), LastReportTime: reported},
+			HueDegrees: proto.Uint32(120), SaturationPercent: proto.Uint32(50), WhiteColourBalance: proto.Uint32(40),
+			LitChannels: casambiv1.LitChannels_LIT_CHANNELS_WHITE_AND_COLOUR, LastReportTime: reported},
+		// White LEDs only: the bridge sends no hue or saturation for colour LEDs that are dark.
+		{Id: "rear-strip", Name: "Rear LED Strip", Online: true, On: proto.Bool(true), BrightnessPercent: proto.Uint32(100),
+			WhiteColourBalance: proto.Uint32(0), LitChannels: casambiv1.LitChannels_LIT_CHANNELS_WHITE, LastReportTime: reported},
 		{Id: "table", Name: "Table Lamp", Online: true, On: proto.Bool(false), OverheatIndicator: proto.Uint32(0), LastReportTime: reported},
 		{Id: "sofa", Name: "Floor Lamp", Online: false, On: proto.Bool(true), BrightnessPercent: proto.Uint32(64), OverheatIndicator: proto.Uint32(1), LastReportTime: reported},
 		{Id: "unreported", Name: "Unreported"},
@@ -96,25 +100,36 @@ func TestLightValuesOnlyWhileTheBridgeHasCurrentState(t *testing.T) {
 	metrics := core.MetricsRegistry(plugins)
 
 	connectedLights := map[string]float64{
-		"gohome_casambi_bluetooth_connected":                          1,
-		"gohome_casambi_light_online{kitchen}":                        1,
-		"gohome_casambi_light_on{kitchen}":                            1,
-		"gohome_casambi_light_brightness_percent{kitchen}":            80,
-		"gohome_casambi_light_last_report_timestamp_seconds{kitchen}": 1794013890,
-		"gohome_casambi_light_online{strip}":                          1,
-		"gohome_casambi_light_on{strip}":                              1,
-		"gohome_casambi_light_brightness_percent{strip}":              50,
-		"gohome_casambi_light_hue_degrees{strip}":                     120,
-		"gohome_casambi_light_saturation_percent{strip}":              50,
-		"gohome_casambi_light_white_colour_balance{strip}":            40,
-		"gohome_casambi_light_last_report_timestamp_seconds{strip}":   1794013890,
-		"gohome_casambi_light_online{table}":                          1,
-		"gohome_casambi_light_on{table}":                              0,
-		"gohome_casambi_light_overheat_indicator{table}":              0,
-		"gohome_casambi_light_last_report_timestamp_seconds{table}":   1794013890,
-		"gohome_casambi_light_online{sofa}":                           0,
-		"gohome_casambi_light_last_report_timestamp_seconds{sofa}":    1794013890,
-		"gohome_casambi_light_online{unreported}":                     0,
+		"gohome_casambi_bluetooth_connected":                             1,
+		"gohome_casambi_light_online{kitchen}":                           1,
+		"gohome_casambi_light_on{kitchen}":                               1,
+		"gohome_casambi_light_brightness_percent{kitchen}":               80,
+		"gohome_casambi_light_last_report_timestamp_seconds{kitchen}":    1794013890,
+		"gohome_casambi_light_online{strip}":                             1,
+		"gohome_casambi_light_on{strip}":                                 1,
+		"gohome_casambi_light_brightness_percent{strip}":                 50,
+		"gohome_casambi_light_hue_degrees{strip}":                        120,
+		"gohome_casambi_light_saturation_percent{strip}":                 50,
+		"gohome_casambi_light_white_colour_balance{strip}":               40,
+		"gohome_casambi_light_lit_channels{strip,white}":                 0,
+		"gohome_casambi_light_lit_channels{strip,colour}":                0,
+		"gohome_casambi_light_lit_channels{strip,white_and_colour}":      1,
+		"gohome_casambi_light_online{rear-strip}":                        1,
+		"gohome_casambi_light_on{rear-strip}":                            1,
+		"gohome_casambi_light_brightness_percent{rear-strip}":            100,
+		"gohome_casambi_light_white_colour_balance{rear-strip}":          0,
+		"gohome_casambi_light_lit_channels{rear-strip,white}":            1,
+		"gohome_casambi_light_lit_channels{rear-strip,colour}":           0,
+		"gohome_casambi_light_lit_channels{rear-strip,white_and_colour}": 0,
+		"gohome_casambi_light_last_report_timestamp_seconds{rear-strip}": 1794013890,
+		"gohome_casambi_light_last_report_timestamp_seconds{strip}":      1794013890,
+		"gohome_casambi_light_online{table}":                             1,
+		"gohome_casambi_light_on{table}":                                 0,
+		"gohome_casambi_light_overheat_indicator{table}":                 0,
+		"gohome_casambi_light_last_report_timestamp_seconds{table}":      1794013890,
+		"gohome_casambi_light_online{sofa}":                              0,
+		"gohome_casambi_light_last_report_timestamp_seconds{sofa}":       1794013890,
+		"gohome_casambi_light_online{unreported}":                        0,
 	}
 	withSwitches := map[string]float64{
 		"gohome_casambi_scrape_success":                                                    1,
@@ -272,7 +287,7 @@ func gather(t *testing.T, registry *prometheus.Registry) map[string]float64 {
 				labels[label.GetName()] = label.GetValue()
 			}
 			var ids []string
-			for _, name := range []string{"light_id", "switch_id", "button", "action"} {
+			for _, name := range []string{"light_id", "switch_id", "button", "action", "channels"} {
 				if value, ok := labels[name]; ok {
 					ids = append(ids, value)
 				}
