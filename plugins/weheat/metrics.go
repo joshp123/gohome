@@ -440,9 +440,19 @@ func (c *MetricsCollector) applyLog(labels prometheus.Labels, log *latestLog) {
 		if !ok {
 			continue
 		}
+		if thermostatFields[field.jsonName] && val == thermostatNoReading {
+			continue
+		}
 		metric.With(labels).Set(val)
 	}
 }
+
+// Weheat reports -1 for the room thermostat's temperature and target while it has no reading
+// from the thermostat (observed in short bursts, jumping from 20.9 and 22 °C straight to -1).
+// Air temperatures pass through -1 for real, so the rule applies only to these fields.
+const thermostatNoReading = -1
+
+var thermostatFields = map[string]bool{"tRoom": true, "tRoomTarget": true}
 
 func (c *MetricsCollector) applyEnergy(labels prometheus.Labels, energy *weheatapi.TotalEnergyAggregate) {
 	if energy == nil {

@@ -42,7 +42,11 @@ func TestScrapeDropsUnavailableReadings(t *testing.T) {
 			if phase == "missing" {
 				fields = ""
 			}
-			fmt.Fprintf(w, `{"timestamp":%q,"tRoom":20.9%s}`, timestamp.UTC().Format(time.RFC3339Nano), fields)
+			room := `"tRoom":20.9,"tRoomTarget":22`
+			if phase == "no thermostat" {
+				room = `"tRoom":-1,"tRoomTarget":-1`
+			}
+			fmt.Fprintf(w, `{"timestamp":%q,%s%s}`, timestamp.UTC().Format(time.RFC3339Nano), room, fields)
 		case strings.HasSuffix(r.URL.Path, "/total"):
 			fmt.Fprint(w, `{"totalEInHeating":10}`)
 		default:
@@ -92,6 +96,19 @@ func TestScrapeDropsUnavailableReadings(t *testing.T) {
 	gather()
 	if !c.lastRead.Equal(readAt) {
 		t.Fatal("cache hit advanced successful read time")
+	}
+	phase = "no thermostat"
+	c.cachedAt = time.Time{}
+	c.logFetchedAt["test-pump"] = time.Time{}
+	noThermostat := gather()
+	if _, ok := noThermostat["gohome_weheat_log_t_room"]; ok {
+		t.Fatal("thermostat's no-reading -1 exported as a room temperature")
+	}
+	if _, ok := noThermostat["gohome_weheat_log_t_room_target"]; ok {
+		t.Fatal("thermostat's no-reading -1 exported as a room target")
+	}
+	if noThermostat["gohome_weheat_log_cm_mass_power_in"] != 442 {
+		t.Fatal("other readings dropped with the thermostat's")
 	}
 	for _, next := range []string{"missing", "read failure", "stale", "discovery failure"} {
 		phase = next

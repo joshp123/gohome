@@ -70,3 +70,9 @@ These are separate from live metrics: never splice averages into raw
 series or interpolate missing instantaneous readings. The false device readings
 are excluded.
 
+
+## Thermostat no-reading value
+
+Weheat reports -1 for `tRoom` and `tRoomTarget` while it has no reading from the
+room thermostat; the collector drops those, so they never appear as -1 °C.
+Air temperatures pass through -1 for real and are kept.
