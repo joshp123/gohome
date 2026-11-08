@@ -95,11 +95,13 @@ func (c *observedCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 			if strings.Contains(desc, "_last_success_timestamp_seconds\"") {
 				timestampFound = true
-				if value.GetGauge().GetValue() > 0 {
-					timestamp := time.Unix(int64(value.GetGauge().GetValue()), 0)
-					if lastGood.IsZero() || timestamp.Before(lastGood) {
-						lastGood = timestamp
-					}
+				if value.GetGauge().GetValue() <= 0 {
+					// No successful read since gohome started: the time is unknown, not 1970.
+					continue
+				}
+				timestamp := time.Unix(int64(value.GetGauge().GetValue()), 0)
+				if lastGood.IsZero() || timestamp.Before(lastGood) {
+					lastGood = timestamp
 				}
 			}
 		}
