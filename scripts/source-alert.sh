@@ -35,47 +35,56 @@ if [ "$mode" = --test ]; then
   exit 0
 fi
 [ "$mode" = --dry-run ] || mkdir -p "$state"
-if registry=$(timeout 30 "${GOHOME_CLI:-gohome-cli}" call --data '{}' gohome.registry.v1.Registry/ListPlugins) &&
-  jq -e '.plugins | type == "array"' <<< "$registry" >/dev/null; then
-  transition registry healthy "GoHome's plugin registry is responding again."
-  [ "$mode" = --dry-run ] || printf '0\n' > "$state/registry-first-failure"
-  while IFS= read -r plugin; do
-    id=$(jq -r '.pluginId' <<< "$plugin")
-    # Dashboard-only plugins have healthy status without a source timestamp.
-    if jq -e '.status == "HEALTHY" and .lastSuccess == null' <<< "$plugin" >/dev/null; then
-      continue
+# Every gohome to watch: this host's, then each other gohome whose plugins this host scrapes.
+check_registry() {
+  local addr="$1" registry_id="$2" where="$3"
+  if registry=$(GOHOME_GRPC_ADDR="$addr" timeout 30 "${GOHOME_CLI:-gohome-cli}" call --data '{}' gohome.registry.v1.Registry/ListPlugins) &&
+    jq -e '.plugins | type == "array"' <<< "$registry" >/dev/null; then
+    transition "$registry_id" healthy "The plugin registry of $where is responding again."
+    [ "$mode" = --dry-run ] || printf '0\n' > "$state/$registry_id-first-failure"
+    while IFS= read -r plugin; do
+      id=$(jq -r '.pluginId' <<< "$plugin")
+      # Dashboard-only plugins have healthy status without a source timestamp.
+      if jq -e '.status == "HEALTHY" and .lastSuccess == null' <<< "$plugin" >/dev/null; then
+        continue
+      fi
+      first_seen=$now
+      [ ! -f "$state/$id-first-seen" ] || first_seen=$(cat "$state/$id-first-seen")
+      last_read=0
+      [ ! -f "$state/$id-last-read" ] || last_read=$(cat "$state/$id-last-read")
+      reported=$(jq -r '(.lastSuccess // "") | if . == "" then 0 else sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 end' <<< "$plugin")
+      [ "$reported" -le "$last_read" ] || last_read=$reported
+      if [ "$mode" != --dry-run ]; then
+        printf '%s\n' "$first_seen" > "$state/$id-first-seen"
+        printf '%s\n' "$last_read" > "$state/$id-last-read"
+      fi
+      reference=$last_read
+      [ "$reference" -ne 0 ] || reference=$first_seen
+      if [ $((now - reference)) -lt 21600 ]; then
+        [ "$mode" != --dry-run ] || echo "$id: no alert (less than six hours without a successful read)"
+        transition "$id" healthy "$id is reading successfully again."
+        continue
+      fi
+      transition "$id" failed "$id has had no successful read for at least six hours. Last reference: $(jq -nr --argjson t "$reference" '$t | todateiso8601')."
+    done < <(jq -c '.plugins[]' <<< "$registry")
+  else
+    first_failure=0
+    [ ! -f "$state/$registry_id-first-failure" ] || first_failure=$(cat "$state/$registry_id-first-failure")
+    if [ "$first_failure" -eq 0 ]; then
+      first_failure=$now
+      [ "$mode" = --dry-run ] || printf '%s\n' "$now" > "$state/$registry_id-first-failure"
     fi
-    first_seen=$now
-    [ ! -f "$state/$id-first-seen" ] || first_seen=$(cat "$state/$id-first-seen")
-    last_read=0
-    [ ! -f "$state/$id-last-read" ] || last_read=$(cat "$state/$id-last-read")
-    reported=$(jq -r '(.lastSuccess // "") | if . == "" then 0 else sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 end' <<< "$plugin")
-    [ "$reported" -le "$last_read" ] || last_read=$reported
-    if [ "$mode" != --dry-run ]; then
-      printf '%s\n' "$first_seen" > "$state/$id-first-seen"
-      printf '%s\n' "$last_read" > "$state/$id-last-read"
+    echo "plugin registry of $where unavailable"
+    if [ $((now - first_failure)) -ge 900 ]; then
+      transition "$registry_id" failed "The plugin registry of $where has not answered for at least 15 minutes. Its sources are not being monitored."
     fi
-    reference=$last_read
-    [ "$reference" -ne 0 ] || reference=$first_seen
-    if [ $((now - reference)) -lt 21600 ]; then
-      [ "$mode" != --dry-run ] || echo "$id: no alert (less than six hours without a successful read)"
-      transition "$id" healthy "$id is reading successfully again."
-      continue
-    fi
-    transition "$id" failed "$id has had no successful read for at least six hours. Last reference: $(jq -nr --argjson t "$reference" '$t | todateiso8601')."
-  done < <(jq -c '.plugins[]' <<< "$registry")
-else
-  first_failure=0
-  [ ! -f "$state/registry-first-failure" ] || first_failure=$(cat "$state/registry-first-failure")
-  if [ "$first_failure" -eq 0 ]; then
-    first_failure=$now
-    [ "$mode" = --dry-run ] || printf '%s\n' "$now" > "$state/registry-first-failure"
   fi
-  echo "GoHome plugin registry unavailable"
-  if [ $((now - first_failure)) -ge 900 ]; then
-    transition registry failed "GoHome's plugin registry has not answered for at least 15 minutes. Source monitoring is unavailable."
-  fi
-fi
+}
+
+check_registry "$GOHOME_GRPC_ADDR" registry "the gohome on this host"
+for addr in ${GOHOME_REMOTE_REGISTRIES:-}; do
+  check_registry "$addr" "registry-$addr" "the gohome at $addr"
+done
 # Publish only after the check and any required notifications have succeeded.
 if [ "$mode" != --dry-run ]; then
   printf '%s\n' "$now" > "$GOHOME_ALERT_HEARTBEAT.tmp"
