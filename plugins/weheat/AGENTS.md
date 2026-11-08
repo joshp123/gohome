@@ -75,4 +75,7 @@ are excluded.
 
 Weheat reports -1 for `tRoom` and `tRoomTarget` while it has no reading from the
 room thermostat; the collector drops those, so they never appear as -1 °C.
+The recovered hourly history (`history_log_t_room_*`, `history_log_t_room_target_*`)
+averaged the -1 into real readings, so those hours showed false lows.
+Hours whose minimum was -1 are removed from all six series.
 Air temperatures pass through -1 for real and are kept.
