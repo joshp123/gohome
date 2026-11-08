@@ -1,0 +1,2 @@
+# Responses recorded from the camera keep its CRLF line endings.
+plugins/hikvision/testdata/** -text

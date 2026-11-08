@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package gohome.plugins.casambi.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/casambi/v1;casambiv1";
+
+// Casambi Bluetooth lights, read through the light bridge, which owns
+// the only Bluetooth session to the Casambi network. The bridge serves
+// CasambiService; gohome's casambi plugin serves the same service by calling it.
+// Reads only: nothing here sends anything to a light.
+
+message ListLightsRequest {}
+
+message Light {
+  // Casambi unit UUID. Stable across renames.
+  string id = 1;
+  // The name the bridge shows in Apple Home.
+  string name = 2;
+  // The bridge has a Bluetooth session and the light's last report said it was online.
+  bool online = 3;
+  // The light's last report. Absent until the light has reported since the bridge started.
+  optional bool on = 4;
+  optional uint32 brightness_percent = 5;
+  // When the bridge last received a report from this light. Absent until the first report.
+  google.protobuf.Timestamp last_report_time = 6;
+}
+
+message ListLightsResponse {
+  // Every light the bridge exposes to Apple Home, in Apple Home accessory order.
+  repeated Light lights = 1;
+  // The bridge currently holds an authenticated Bluetooth session.
+  bool bluetooth_connected = 2;
+}
+
+message ListScenesRequest {}
+
+message Scene {
+  // Native Casambi scene ID.
+  uint32 id = 1;
+  // The name the bridge shows in Apple Home.
+  string name = 2;
+  // The bridge is connected and the Casambi network has this scene.
+  bool available = 3;
+}
+
+message ListScenesResponse {
+  // Scenes the bridge is configured to expose.
+  repeated Scene scenes = 1;
+}
+
+message CasambiConfig {
+  // host:port of the bridge's gRPC API, e.g. "bridge.example.ts.net:50061".
+  string bridge_address = 1;
+}
+
+service CasambiService {
+  rpc ListLights(ListLightsRequest) returns (ListLightsResponse);
+  rpc ListScenes(ListScenesRequest) returns (ListScenesResponse);
+}

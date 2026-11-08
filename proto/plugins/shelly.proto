@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package gohome.plugins.shelly.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/shelly/v1;shellyv1";
+
+import "google/protobuf/timestamp.proto";
+
+// One roller shutter driven by a Shelly relay in cover mode.
+message CoverConfig {
+  // The relay's own ID, e.g. "Shelly2PMG3-AAAAAAAAAAAA". A read fails if the
+  // relay at `address` reports a different ID.
+  string device_id = 1;
+  // Host or IP on the home network, e.g. "192.0.2.30".
+  string address = 2;
+  // Human name used in the API, metrics and dashboards.
+  string name = 3;
+}
+
+message ShellyConfig {
+  repeated CoverConfig covers = 1;
+}
+
+message ListCoversRequest {}
+
+message Cover {
+  string device_id = 1;
+  string name = 2;
+  string address = 3;
+  // Set when the relay could not be read; no state fields are set then.
+  string read_error = 4;
+  // When gohome read this state from the relay.
+  google.protobuf.Timestamp read_at = 5;
+  // 0 is fully closed, 100 fully open. The relay estimates it from motor run
+  // time; absent when the relay does not know it.
+  optional int32 position_percent = 6;
+  // Where the shutter is heading; equals position when it is still.
+  optional int32 target_position_percent = 7;
+  // The motor is running (moving, stopping or calibrating).
+  bool moving = 8;
+  // The relay has measured the shutter's full travel time.
+  bool calibrated = 9;
+  // The relay's state word: idle, move, rampup, moving, stop, stopping,
+  // precal0..postcal1 (calibration) or error.
+  string state = 10;
+}
+
+message ListCoversResponse {
+  repeated Cover covers = 1;
+}
+
+service ShellyService {
+  // Reads every configured shutter live from its relay.
+  rpc ListCovers(ListCoversRequest) returns (ListCoversResponse);
+}

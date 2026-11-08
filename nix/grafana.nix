@@ -22,9 +22,16 @@ GF_SERVER_ROOT_URL=http://$host/grafana/
 EOF
   '';
 
+  # The dashboards of the plugins another gohome runs, from this build's copy of each plugin.
+  remoteDashboards = pkgs.runCommand "gohome-remote-dashboards" { } (''
+    mkdir -p $out/Devices
+  '' + concatMapStrings (plugin: ''
+    cp ${../plugins + "/${plugin}/dashboard.json"} $out/Devices/${plugin}-overview.json
+  '') (attrNames cfg.remotePlugins));
+
 in
 {
-  config = mkIf cfg.enable {
+  config = mkIf (cfg.enable && cfg.monitoring.enable) {
     systemd.services.gohome-grafana-env = mkIf (cfg.grafanaEnvFile == null && cfg.tailscale.enable) {
       description = "Generate Grafana env from Tailscale MagicDNS";
       before = [ "grafana.service" ];
@@ -88,7 +95,11 @@ in
             options.foldersFromFilesStructure = true;
             updateIntervalSeconds = 10;
           }
-        ];
+        ] ++ optional (cfg.remotePlugins != { }) {
+          name = "GoHome remote plugins";
+          options.path = remoteDashboards;
+          options.foldersFromFilesStructure = true;
+        };
       };
     };
 

@@ -94,20 +94,23 @@ func Validate(cfg *configv1.Config) error {
 		return fmt.Errorf("core.dashboard_dir is required")
 	}
 
-	if cfg.Oauth == nil {
-		return fmt.Errorf("oauth config is required")
-	}
-	if cfg.Oauth.BlobEndpoint == "" {
-		return fmt.Errorf("oauth.blob_endpoint is required")
-	}
-	if cfg.Oauth.BlobBucket == "" {
-		return fmt.Errorf("oauth.blob_bucket is required")
-	}
-	if cfg.Oauth.BlobAccessKeyFile == "" {
-		return fmt.Errorf("oauth.blob_access_key_file is required")
-	}
-	if cfg.Oauth.BlobSecretKeyFile == "" {
-		return fmt.Errorf("oauth.blob_secret_key_file is required")
+	// Tado, Daikin and Weheat keep their rotating OAuth tokens in the blob store.
+	if cfg.Tado != nil || cfg.Daikin != nil || cfg.Weheat != nil {
+		if cfg.Oauth == nil {
+			return fmt.Errorf("oauth config is required")
+		}
+		if cfg.Oauth.BlobEndpoint == "" {
+			return fmt.Errorf("oauth.blob_endpoint is required")
+		}
+		if cfg.Oauth.BlobBucket == "" {
+			return fmt.Errorf("oauth.blob_bucket is required")
+		}
+		if cfg.Oauth.BlobAccessKeyFile == "" {
+			return fmt.Errorf("oauth.blob_access_key_file is required")
+		}
+		if cfg.Oauth.BlobSecretKeyFile == "" {
+			return fmt.Errorf("oauth.blob_secret_key_file is required")
+		}
 	}
 
 	if cfg.Tado != nil && cfg.Tado.BootstrapFile == "" {
@@ -121,6 +124,18 @@ func Validate(cfg *configv1.Config) error {
 	}
 	if cfg.Roborock != nil && cfg.Roborock.BootstrapFile == "" {
 		return fmt.Errorf("roborock.bootstrap_file is required")
+	}
+	if cfg.Sonos != nil && cfg.Sonos.BaseUrl == "" {
+		return fmt.Errorf("sonos.base_url is required")
+	}
+	if cfg.Hikvision != nil && cfg.Hikvision.BaseUrl == "" {
+		return fmt.Errorf("hikvision.base_url is required")
+	}
+	if cfg.Hikvision != nil && cfg.Hikvision.CredentialsFile == "" {
+		return fmt.Errorf("hikvision.credentials_file is required")
+	}
+	if cfg.Casambi != nil && cfg.Casambi.BridgeAddress == "" {
+		return fmt.Errorf("casambi.bridge_address is required")
 	}
 	// weheat uses hardcoded public client credentials; no bootstrap file needed.
 
@@ -156,6 +171,18 @@ func EnabledPlugins(cfg *configv1.Config) map[string]bool {
 	}
 	if cfg.Home != nil {
 		enabled["home"] = true
+	}
+	if cfg.Shelly != nil {
+		enabled["shelly"] = true
+	}
+	if cfg.Hikvision != nil {
+		enabled["hikvision"] = true
+	}
+	if cfg.Sonos != nil {
+		enabled["sonos"] = true
+	}
+	if cfg.Casambi != nil {
+		enabled["casambi"] = true
 	}
 	return enabled
 }

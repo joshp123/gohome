@@ -72,6 +72,8 @@ func main() {
 		roborockCmd(ctx, conn, args[1:], jsonOutput)
 	case "airgradient":
 		airgradientCmd(ctx, conn, args[1:], jsonOutput)
+	case "hikvision":
+		hikvisionCmd(ctx, conn, args[1:], jsonOutput)
 	default:
 		usage()
 		os.Exit(2)
@@ -190,6 +192,9 @@ func callCmd(ctx context.Context, conn *grpc.ClientConn, args []string) {
 	if err := grpcurl.InvokeRPC(ctx, descSource, conn, method, nil, handler, parser.Next); err != nil {
 		fatal("invoke", err)
 	}
+	if err := handler.Status.Err(); err != nil {
+		fatal(method, err)
+	}
 }
 
 func reflectionSource(ctx context.Context, conn *grpc.ClientConn) grpcurl.DescriptorSource {
@@ -282,6 +287,7 @@ func usage() {
 	fmt.Println("  tado <zones|set>")
 	fmt.Println("  roborock <status|rooms|clean|dock|locate|map>")
 	fmt.Println("  airgradient <current|snapshot|metrics|config>")
+	fmt.Println("  hikvision <camera|snapshot|events>")
 	fmt.Println("  plugins list")
 	fmt.Println("  plugins describe <plugin_id>")
 	fmt.Println("  services")

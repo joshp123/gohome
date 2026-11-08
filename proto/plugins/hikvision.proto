@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package gohome.plugins.hikvision.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/hikvision/v1;hikvisionv1";
+
+import "google/protobuf/timestamp.proto";
+
+// What the camera says it detected. The camera's own word is kept in
+// CameraEvent.camera_target; this is that word in a fixed vocabulary.
+enum DetectionTarget {
+  // The camera did not say. Motion events never say, even when motion
+  // detection is filtered to people and vehicles.
+  DETECTION_TARGET_UNSPECIFIED = 0;
+  DETECTION_TARGET_HUMAN = 1;
+  DETECTION_TARGET_VEHICLE = 2;
+  // The camera's "all": people and vehicles.
+  DETECTION_TARGET_ALL = 3;
+  // A word this plugin does not know yet.
+  DETECTION_TARGET_OTHER = 4;
+}
+
+// The kind of on-camera event. The camera's own word is in CameraEvent.camera_event_type.
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_MOTION = 1;          // VMD
+  EVENT_KIND_LINE_CROSSING = 2;   // linedetection
+  EVENT_KIND_INTRUSION = 3;       // fielddetection
+  EVENT_KIND_REGION_ENTRANCE = 4; // regionEntrance
+  EVENT_KIND_REGION_EXITING = 5;  // regionExiting
+  EVENT_KIND_TAMPER = 6;          // shelteralarm / tamperdetection
+  EVENT_KIND_SCENE_CHANGE = 7;    // scenechangedetection
+  EVENT_KIND_VIDEO_LOSS = 8;      // videoloss while active
+  EVENT_KIND_OTHER = 9;
+}
+
+enum EventState {
+  EVENT_STATE_UNSPECIFIED = 0;
+  EVENT_STATE_ACTIVE = 1;
+  EVENT_STATE_INACTIVE = 2;
+}
+
+message HikvisionConfig {
+  // Camera origin, including the HTTP port, e.g. http://192.0.2.20.
+  string base_url = 1;
+  // File holding one line, "username:password". Read-only secret (agenix).
+  string credentials_file = 2;
+}
+
+message Identity {
+  string device_name = 1;
+  string model = 2;
+  string serial_number = 3;
+  string mac_address = 4;
+  string firmware_version = 5;      // e.g. V5.0.0
+  string firmware_build = 6;        // e.g. build 200101
+  string encoder_version = 7;
+  string hardware_version = 8;
+  string firmware_version_info = 9; // hardware platform, as the camera reports it
+}
+
+message MotionDetection {
+  bool enabled = 1;
+  int32 sensitivity = 2; // 0-100
+  // The targets motion is filtered to (AcuSense). Empty: any motion.
+  repeated DetectionTarget targets = 3;
+}
+
+message SmartRule {
+  uint32 id = 1;
+  bool enabled = 2;
+  int32 sensitivity = 3; // 1-100
+  DetectionTarget target = 4;
+}
+
+// Line crossing or intrusion: one switch for the event and up to four rules.
+message SmartDetection {
+  bool enabled = 1;
+  repeated DetectionTarget supported_targets = 2;
+  repeated SmartRule rules = 3;
+}
+
+message AlertStreamStatus {
+  bool connected = 1;
+  google.protobuf.Timestamp connected_since = 2;
+  // Any message, including the camera's keep-alive every ten seconds.
+  google.protobuf.Timestamp last_message = 3;
+  // Why the last connection ended or failed. Empty while connected.
+  string last_error = 4;
+}
+
+message Camera {
+  Identity identity = 1;
+  // Event capabilities the camera reports as supported, in its own words
+  // (e.g. "MotionDetection", "LineDetection", "FieldDetection").
+  repeated string supported_events = 2;
+  MotionDetection motion = 3;
+  SmartDetection line_crossing = 4;
+  SmartDetection intrusion = 5;
+  AlertStreamStatus alert_stream = 6;
+}
+
+message CameraEvent {
+  EventKind kind = 1;
+  EventState state = 2;
+  DetectionTarget target = 3;
+  // The camera's clock. Check it against received_at before correlating.
+  google.protobuf.Timestamp camera_time = 4;
+  // When gohome received the event.
+  google.protobuf.Timestamp received_at = 5;
+  uint32 channel_id = 6;
+  // The smart-event rule that fired (line or region). 0 when not given.
+  uint32 rule_id = 7;
+  string camera_event_type = 8;
+  string camera_target = 9;
+}
+
+message GetCameraRequest {}
+
+message GetCameraResponse {
+  Camera camera = 1;
+}
+
+message GetSnapshotRequest {}
+
+message GetSnapshotResponse {
+  bytes jpeg = 1; // main stream, full resolution
+  google.protobuf.Timestamp captured_at = 2;
+}
+
+message WatchEventsRequest {}
+
+// Read-only. No method changes the camera.
+service HikvisionService {
+  // Identity, firmware, detection settings and alert-stream status.
+  rpc GetCamera(GetCameraRequest) returns (GetCameraResponse);
+  // One JPEG from the main stream.
+  rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
+  // On-camera events as they arrive. Keep-alives are not sent. Motion repeats
+  // about once a second while it lasts. A subscriber that falls behind is
+  // ended with RESOURCE_EXHAUSTED and should reconnect.
+  rpc WatchEvents(WatchEventsRequest) returns (stream CameraEvent);
+}

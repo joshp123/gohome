@@ -1,0 +1,288 @@
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 584
+
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.20</ipAddress>
+<ipv6Address>2001:0db8:0000:0000:0000:0000:0000:0001</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:06+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>videoloss</eventType>
+<eventState>inactive</eventState>
+<eventDescription>videoloss alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:06+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:07+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:08+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:09+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:15+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 584
+
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.20</ipAddress>
+<ipv6Address>2001:0db8:0000:0000:0000:0000:0000:0001</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:16+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>videoloss</eventType>
+<eventState>inactive</eventState>
+<eventDescription>videoloss alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:16+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:17+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:18+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:19+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:20+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:22+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--
+--boundary
+Content-Type: application/xml; charset="UTF-8"
+Content-Length: 590
+
+<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.0.2.1</ipAddress>
+<ipv6Address>::ffff:192.0.2.20</ipv6Address>
+<portNo>80</portNo>
+<protocol>HTTP</protocol>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<channelID>1</channelID>
+<dateTime>2000-01-01T12:00:23+00:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>VMD</eventType>
+<eventState>active</eventState>
+<eventDescription>Motion alarm</eventDescription>
+<channelName>Camera 01</channelName>
+</EventNotificationAlert>
+
+--boundary--

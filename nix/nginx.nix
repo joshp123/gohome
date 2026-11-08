@@ -7,7 +7,7 @@ let
 
 in
 {
-  config = mkIf cfg.enable {
+  config = mkIf (cfg.enable && cfg.monitoring.enable) {
     services.nginx = {
       enable = true;
       recommendedProxySettings = true;

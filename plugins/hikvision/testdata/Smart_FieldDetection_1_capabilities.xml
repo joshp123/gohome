@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FieldDetection version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<id>1</id>
+<enabled opt="true,false">false</enabled>
+<normalizedScreenSize>
+<normalizedScreenWidth>1000</normalizedScreenWidth>
+<normalizedScreenHeight>1000</normalizedScreenHeight>
+</normalizedScreenSize>
+<FieldDetectionRegionList size="4" >
+<FieldDetectionRegion version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<id>1</id>
+<minRegionCoordinatesNum>4</minRegionCoordinatesNum>
+<maxRegionCoordinatesNum>4</maxRegionCoordinatesNum>
+<sensitivityLevel min="1" max="100">50</sensitivityLevel>
+<timeThreshold min="0" max="10">0</timeThreshold>
+<CoordinatesList>
+</CoordinatesList>
+<detectionTarget opt="all,human,vehicle">human</detectionTarget>
+<alarmConfidence opt="low,mediumLow,mediumHigh,high" def="low"/>
+</FieldDetectionRegion>
+<FieldDetectionRegion version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<id>2</id>
+<minRegionCoordinatesNum>4</minRegionCoordinatesNum>
+<maxRegionCoordinatesNum>4</maxRegionCoordinatesNum>
+<sensitivityLevel min="1" max="100">50</sensitivityLevel>
+<timeThreshold min="0" max="10">0</timeThreshold>
+<CoordinatesList>
+</CoordinatesList>
+<detectionTarget opt="all,human,vehicle">human</detectionTarget>
+<alarmConfidence opt="low,mediumLow,mediumHigh,high" def="low"/>
+</FieldDetectionRegion>
+<FieldDetectionRegion version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<id>3</id>
+<minRegionCoordinatesNum>4</minRegionCoordinatesNum>
+<maxRegionCoordinatesNum>4</maxRegionCoordinatesNum>
+<sensitivityLevel min="1" max="100">50</sensitivityLevel>
+<timeThreshold min="0" max="10">0</timeThreshold>
+<CoordinatesList>
+</CoordinatesList>
+<detectionTarget opt="all,human,vehicle">human</detectionTarget>
+<alarmConfidence opt="low,mediumLow,mediumHigh,high" def="low"/>
+</FieldDetectionRegion>
+<FieldDetectionRegion version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<id>4</id>
+<minRegionCoordinatesNum>4</minRegionCoordinatesNum>
+<maxRegionCoordinatesNum>4</maxRegionCoordinatesNum>
+<sensitivityLevel min="1" max="100">50</sensitivityLevel>
+<timeThreshold min="0" max="10">0</timeThreshold>
+<CoordinatesList>
+</CoordinatesList>
+<detectionTarget opt="all,human,vehicle">human</detectionTarget>
+<alarmConfidence opt="low,mediumLow,mediumHigh,high" def="low"/>
+</FieldDetectionRegion>
+</FieldDetectionRegionList>
+<isSupportMultiScene>false</isSupportMultiScene>
+<isSupportHumanMisinfoFilter>true</isSupportHumanMisinfoFilter>
+<isSupportVehicleMisinfoFilter>true</isSupportVehicleMisinfoFilter>
+<isSupportTargetMultiSelect>true</isSupportTargetMultiSelect>
+<isSupportAllDayUpload>true</isSupportAllDayUpload>
+</FieldDetection>

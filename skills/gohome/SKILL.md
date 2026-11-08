@@ -18,6 +18,10 @@ export GOHOME_HTTP_BASE="http://${GOHOME_HOST}:8080"
 export GOHOME_GRPC_ADDR="${GOHOME_HOST}:9000"
 ```
 
+The shutter, camera, speaker and light plugins (`shelly`, `hikvision`, `sonos`,
+`casambi`) can run in a second gohome node. Call them at that node's address,
+port 9000 (`GOHOME_GRPC_ADDR="<node>:9000"`).
+
 Use the CLI on PATH (preferred, installed by the nix-openclaw plugin):
 
 ```sh
@@ -113,6 +117,13 @@ jq -n '{state: 3}' | GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cl
 
 jq -n '{heat_pump_id: "<id>"}' | GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli call \
   gohome.plugins.weheat.v1.WeheatService/GetLatestLog
+```
+
+Sonos (read-only: what's playing and at what volume; it cannot play, pause or change volume):
+
+```sh
+GOHOME_GRPC_ADDR="$GOHOME_GRPC_ADDR" go run ./cmd/gohome-cli call \
+  gohome.plugins.sonos.v1.SonosService/GetPlayback --data '{}'
 ```
 
 ## Metrics validation

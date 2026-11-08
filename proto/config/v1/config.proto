@@ -12,6 +12,10 @@ import "proto/plugins/p1_homewizard.proto";
 import "proto/plugins/airgradient.proto";
 import "proto/plugins/weheat.proto";
 import "proto/plugins/home.proto";
+import "proto/plugins/shelly.proto";
+import "proto/plugins/hikvision.proto";
+import "proto/plugins/sonos.proto";
+import "proto/plugins/casambi.proto";
 
 message CoreConfig {
   string grpc_addr = 1;
@@ -42,4 +46,8 @@ message Config {
   gohome.plugins.airgradient.v1.AirgradientConfig airgradient = 15;
   gohome.plugins.weheat.v1.WeheatConfig weheat = 16;
   gohome.plugins.home.v1.HomeConfig home = 17;
+  gohome.plugins.shelly.v1.ShellyConfig shelly = 18;
+  gohome.plugins.hikvision.v1.HikvisionConfig hikvision = 19;
+  gohome.plugins.sonos.v1.SonosConfig sonos = 20;
+  gohome.plugins.casambi.v1.CasambiConfig casambi = 21;
 }

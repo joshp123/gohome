@@ -14,5 +14,9 @@ protoc \
   proto/plugins/roborock.proto \
   proto/plugins/p1_homewizard.proto \
   proto/plugins/airgradient.proto \
+  proto/plugins/shelly.proto \
   proto/plugins/weheat.proto \
-  proto/plugins/home.proto
+  proto/plugins/home.proto \
+  proto/plugins/hikvision.proto \
+  proto/plugins/sonos.proto \
+  proto/plugins/casambi.proto

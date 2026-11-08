@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package gohome.plugins.sonos.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/sonos/v1;sonosv1";
+
+// Read-only. GoHome never sends Sonos a command that makes sound.
+service SonosService {
+  // Rooms and the speakers in each, from the system's own topology.
+  rpc GetZones(GetZonesRequest) returns (GetZonesResponse);
+  // What each zone is playing, and at what volume.
+  rpc GetPlayback(GetPlaybackRequest) returns (GetPlaybackResponse);
+}
+
+message GetZonesRequest {}
+
+message GetZonesResponse {
+  repeated Zone zones = 1;
+}
+
+message Zone {
+  string name = 1;
+  // The player that owns playback and volume for the zone.
+  string coordinator_uuid = 2;
+  repeated Player players = 3;
+}
+
+message Player {
+  string uuid = 1;
+  string name = 2;
+  // Address of the player's UPnP interface, for example "192.0.2.10:1400".
+  string host = 3;
+  string software_version = 4;
+  // Home-theatre channels this player plays: LF,RF (front), LR, RR (rear surrounds), SW (sub).
+  repeated string channels = 5;
+  // Bonded to another player (surround or sub) rather than a room of its own.
+  bool satellite = 6;
+}
+
+message GetPlaybackRequest {}
+
+message GetPlaybackResponse {
+  repeated ZonePlayback zones = 1;
+}
+
+enum TransportState {
+  TRANSPORT_STATE_UNSPECIFIED = 0;
+  TRANSPORT_STATE_STOPPED = 1;
+  TRANSPORT_STATE_PLAYING = 2;
+  TRANSPORT_STATE_PAUSED = 3;
+  TRANSPORT_STATE_TRANSITIONING = 4;
+  TRANSPORT_STATE_NO_MEDIA = 5;
+}
+
+message ZonePlayback {
+  string zone_name = 1;
+  TransportState state = 2;
+  // Coordinator volume, 0 to 100.
+  uint32 volume = 3;
+  bool muted = 4;
+  // Absent when nothing is loaded.
+  optional Track track = 5;
+}
+
+message Track {
+  optional string title = 1;
+  optional string artist = 2;
+  optional string album = 3;
+  // Source URI. "x-sonos-htastream:" means TV audio over HDMI; "x-rincon-queue:" the Sonos queue.
+  string uri = 4;
+  optional uint32 duration_seconds = 5;
+  optional uint32 position_seconds = 6;
+}
+
+message SonosConfig {
+  // Any player's UPnP address; the system's topology names the rest.
+  string base_url = 1;
+}

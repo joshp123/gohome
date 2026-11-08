@@ -6,6 +6,9 @@ let
   cfg = config.services.gohome;
 
   enabledPlugins = builtins.attrNames (filterAttrs (_: v: v != null) cfg.plugins);
+
+  # Tado, Daikin and Weheat keep their rotating OAuth tokens in the blob store.
+  usesOAuthBlob = cfg.plugins.tado != null || cfg.plugins.daikin != null || cfg.plugins.weheat != null;
   pluginTags = map (name: "gohome_plugin_${name}") enabledPlugins;
 
   gohomePkg = pkgs.callPackage ./package.nix {
@@ -74,18 +77,18 @@ ${lib.concatStringsSep "\n" lines}
       blob_region: ${textprotoString cfg.oauth.blobRegion}
   '' + ''
     }
-  '' + optionalString (cfg.plugins.tado != null) ''
+  '' + optionalString (cfg.plugins.tado != null) (''
     tado {
       bootstrap_file: ${textprotoString cfg.plugins.tado.bootstrapFile}
   '' + optionalString (cfg.plugins.tado.homeId != null) ''
       home_id: ${toString cfg.plugins.tado.homeId}
   '' + ''
     }
-  '' + optionalString (cfg.plugins.daikin != null) ''
+  '') + optionalString (cfg.plugins.daikin != null) ''
     daikin {
       bootstrap_file: ${textprotoString cfg.plugins.daikin.bootstrapFile}
     }
-  '' + optionalString (cfg.plugins.growatt != null) ''
+  '' + optionalString (cfg.plugins.growatt != null) (''
     growatt {
       token_file: ${textprotoString cfg.plugins.growatt.tokenFile}
       region: ${textprotoString (if cfg.plugins.growatt.region == null then "other_regions" else cfg.plugins.growatt.region)}
@@ -93,7 +96,7 @@ ${lib.concatStringsSep "\n" lines}
       plant_id: ${toString cfg.plugins.growatt.plantId}
   '' + ''
     }
-  '' + optionalString (cfg.plugins.roborock != null) ''
+  '') + optionalString (cfg.plugins.roborock != null) (''
     roborock {
       bootstrap_file: ${textprotoString cfg.plugins.roborock.bootstrapFile}
       cloud_fallback: ${if cfg.plugins.roborock.cloudFallback then "true" else "false"}
@@ -105,7 +108,7 @@ ${textprotoMapUIntString "segment_names" cfg.plugins.roborock.segmentNames}
 ${textprotoProfile "default_profile" cfg.plugins.roborock.defaultProfile}
   '' + ''
     }
-  '' + optionalString (cfg.plugins.p1_homewizard != null) ''
+  '') + optionalString (cfg.plugins.p1_homewizard != null) ''
     p1_homewizard {
       base_url: ${textprotoString (if cfg.plugins.p1_homewizard.baseUrl == null then "http://192.0.2.48" else cfg.plugins.p1_homewizard.baseUrl)}
 ${p1TariffLine "tariff_import_t1_eur_per_kwh" cfg.plugins.p1_homewizard.tariffImportT1EurPerKwh}
@@ -117,14 +120,37 @@ ${p1TariffLine "tariff_export_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffEx
     airgradient {
       base_url: ${textprotoString (if cfg.plugins.airgradient.baseUrl == null then "http://192.0.2.43" else cfg.plugins.airgradient.baseUrl)}
     }
-  '' + optionalString (cfg.plugins.weheat != null) ''
+  '' + optionalString (cfg.plugins.sonos != null) ''
+    sonos {
+      base_url: ${textprotoString cfg.plugins.sonos.baseUrl}
+    }
+  '' + optionalString (cfg.plugins.weheat != null) (''
     weheat {
   '' + optionalString (cfg.plugins.weheat.baseUrl != null) ''
       base_url: ${textprotoString cfg.plugins.weheat.baseUrl}
   '' + ''
     }
-  '' + optionalString (cfg.plugins.home != null) ''
+  '') + optionalString (cfg.plugins.home != null) ''
     home {
+    }
+  '' + optionalString (cfg.plugins.shelly != null) ''
+    shelly {
+${lib.concatMapStringsSep "\n" (cover: ''
+      covers {
+        device_id: ${textprotoString cover.deviceId}
+        address: ${textprotoString cover.address}
+        name: ${textprotoString cover.name}
+      }'') (lib.sortOn (cover: cover.name)
+        (lib.mapAttrsToList (deviceId: cover: cover // { inherit deviceId; }) cfg.plugins.shelly.covers))}
+    }
+  '' + optionalString (cfg.plugins.hikvision != null) ''
+    hikvision {
+      base_url: ${textprotoString cfg.plugins.hikvision.baseUrl}
+      credentials_file: ${textprotoString cfg.plugins.hikvision.credentialsFile}
+    }
+  '' + optionalString (cfg.plugins.casambi != null) ''
+    casambi {
+      bridge_address: ${textprotoString cfg.plugins.casambi.bridgeAddress}
     }
   '';
 
@@ -162,6 +188,26 @@ in
       type = types.port;
       default = 8080;
       description = "HTTP port (health/metrics/dashboards)";
+    };
+
+    monitoring.enable = mkOption {
+      type = types.bool;
+      default = true;
+      description = ''
+        Run VictoriaMetrics, Grafana and the nginx in front of them on this machine. Turn
+        it off where another gohome's VictoriaMetrics scrapes this one.
+      '';
+    };
+
+    remotePlugins = mkOption {
+      type = types.attrsOf types.str;
+      default = { };
+      example = { shelly = "192.0.2.5:9001"; };
+      description = ''
+        Plugins that run in another gohome, mapped to that gohome's HTTP address
+        (host:port). VictoriaMetrics here scrapes their metrics from it with the labels
+        they would have here, and Grafana here shows their dashboards.
+      '';
     };
 
     grafanaEnvFile = mkOption {
@@ -394,6 +440,20 @@ in
       description = "AirGradient plugin config (presence enables the plugin)";
     };
 
+    plugins.sonos = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          baseUrl = mkOption {
+            type = types.str;
+            example = "http://192.0.2.10:1400";
+            description = "Any Sonos player's UPnP address; the player names the rest of the system";
+          };
+        };
+      });
+      default = null;
+      description = "Sonos plugin config, read-only (presence enables the plugin)";
+    };
+
     plugins.weheat = mkOption {
       type = types.nullOr (types.submodule {
         options = {
@@ -408,6 +468,49 @@ in
       description = "Weheat plugin config (presence enables the plugin)";
     };
 
+    plugins.shelly = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          covers = mkOption {
+            type = types.attrsOf (types.submodule {
+              options = {
+                address = mkOption {
+                  type = types.str;
+                  description = "Relay host or IP on the home network, e.g. 192.0.2.30";
+                };
+                name = mkOption {
+                  type = types.str;
+                  description = "Human name for the shutter, used in the API, metrics and dashboards";
+                };
+              };
+            });
+            description = "Roller shutters keyed by the relay's device ID (e.g. Shelly2PMG3-AAAAAAAAAAAA)";
+          };
+        };
+      });
+      default = null;
+      description = "Shelly shutter relays, read-only (presence enables the plugin)";
+    };
+
+    plugins.hikvision = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          baseUrl = mkOption {
+            type = types.str;
+            example = "http://192.0.2.20";
+            description = "Camera origin, including the HTTP port when it is not 80";
+          };
+
+          credentialsFile = mkOption {
+            type = types.path;
+            description = "Path to a file holding one line, username:password, for the camera (read-only secret)";
+          };
+        };
+      });
+      default = null;
+      description = "Hikvision camera plugin config, read-only (presence enables the plugin)";
+    };
+
     plugins.home = mkOption {
       type = types.nullOr (types.submodule {
         options = { };
@@ -415,25 +518,33 @@ in
       default = null;
       description = "My Home overview dashboard";
     };
+
+    plugins.casambi = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          bridgeAddress = mkOption {
+            type = types.str;
+            example = "bridge.example.ts.net:50061";
+            description = "host:port of the light bridge's read-only gRPC API";
+          };
+        };
+      });
+      default = null;
+      description = "Casambi lights via the light bridge, read-only (presence enables the plugin)";
+    };
   };
 
   config = mkIf cfg.enable {
     assertions = [
       {
-        assertion = cfg.oauth.blobEndpoint != null;
-        message = "services.gohome.oauth.blobEndpoint is required";
+        assertion = !usesOAuthBlob || (cfg.oauth.blobEndpoint != null && cfg.oauth.blobBucket != null
+          && cfg.oauth.blobAccessKeyFile != null && cfg.oauth.blobSecretKeyFile != null);
+        message = "services.gohome.oauth.blob{Endpoint,Bucket,AccessKeyFile,SecretKeyFile} are required for tado, daikin and weheat";
       }
+      # Two copies of a plugin would write the same series into VictoriaMetrics.
       {
-        assertion = cfg.oauth.blobBucket != null;
-        message = "services.gohome.oauth.blobBucket is required";
-      }
-      {
-        assertion = cfg.oauth.blobAccessKeyFile != null;
-        message = "services.gohome.oauth.blobAccessKeyFile is required";
-      }
-      {
-        assertion = cfg.oauth.blobSecretKeyFile != null;
-        message = "services.gohome.oauth.blobSecretKeyFile is required";
+        assertion = intersectLists enabledPlugins (attrNames cfg.remotePlugins) == [ ];
+        message = "services.gohome.remotePlugins lists plugins that also run here: ${concatStringsSep ", " (intersectLists enabledPlugins (attrNames cfg.remotePlugins))}";
       }
       {
         assertion = cfg.plugins.tado == null || cfg.plugins.tado.bootstrapFile != null;
@@ -446,6 +557,10 @@ in
       {
         assertion = cfg.plugins.growatt == null || cfg.plugins.growatt.tokenFile != null;
         message = "services.gohome.plugins.growatt.tokenFile is required when growatt is enabled";
+      }
+      {
+        assertion = cfg.plugins.shelly == null || cfg.plugins.shelly.covers != { };
+        message = "services.gohome.plugins.shelly.covers must list at least one cover";
       }
       {
         assertion = cfg.plugins.roborock == null || cfg.plugins.roborock.bootstrapFile != null;
@@ -462,7 +577,7 @@ in
 
     systemd.services.gohome = let
       secretChecks =
-        [
+        lib.optionals usesOAuthBlob [
           "${pkgs.coreutils}/bin/test -r ${cfg.oauth.blobAccessKeyFile}"
           "${pkgs.coreutils}/bin/test -r ${cfg.oauth.blobSecretKeyFile}"
         ]
@@ -470,6 +585,7 @@ in
         ++ lib.optional (cfg.plugins.daikin != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.daikin.bootstrapFile}"
         ++ lib.optional (cfg.plugins.growatt != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.growatt.tokenFile}"
         ++ lib.optional (cfg.plugins.roborock != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.roborock.bootstrapFile}"
+        ++ lib.optional (cfg.plugins.hikvision != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.hikvision.credentialsFile}"
         ;
     in {
       description = "GoHome";
