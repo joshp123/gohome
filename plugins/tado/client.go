@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -109,8 +110,13 @@ func (c *Client) Zones(ctx context.Context) ([]Zone, error) {
 	}
 
 	var resp []struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
+		ID      int    `json:"id"`
+		Name    string `json:"name"`
+		Devices []struct {
+			DeviceType   string  `json:"deviceType"`
+			SerialNo     string  `json:"serialNo"`
+			BatteryState *string `json:"batteryState"`
+		} `json:"devices"`
 	}
 
 	if err := c.getJSON(ctx, fmt.Sprintf("/homes/%d/zones", homeID), &resp); err != nil {
@@ -119,9 +125,35 @@ func (c *Client) Zones(ctx context.Context) ([]Zone, error) {
 
 	zones := make([]Zone, 0, len(resp))
 	for _, zone := range resp {
-		zones = append(zones, Zone{ID: zone.ID, Name: zone.Name})
+		devices := make([]Device, 0, len(zone.Devices))
+		for _, device := range zone.Devices {
+			devices = append(devices, Device{
+				SerialNumber: device.SerialNo,
+				DeviceType:   device.DeviceType,
+				BatteryLow:   batteryLow(device.SerialNo, device.BatteryState),
+			})
+		}
+		zones = append(zones, Zone{ID: zone.ID, Name: zone.Name, Devices: devices})
 	}
 	return zones, nil
+}
+
+// batteryLow reads Tado's batteryState, which is absent for devices without a battery.
+func batteryLow(serialNumber string, batteryState *string) *bool {
+	if batteryState == nil {
+		return nil
+	}
+	switch *batteryState {
+	case "LOW":
+		low := true
+		return &low
+	case "NORMAL":
+		low := false
+		return &low
+	default:
+		log.Printf("tado device %s has unknown batteryState %q", serialNumber, *batteryState)
+		return nil
+	}
 }
 
 func (c *Client) ZoneStates(ctx context.Context) (map[int]ZoneState, error) {

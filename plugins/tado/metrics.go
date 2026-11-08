@@ -23,6 +23,7 @@ type MetricsCollector struct {
 	override       *prometheus.GaugeVec
 	heatingActive  *prometheus.GaugeVec
 	lastUpdated    *prometheus.GaugeVec
+	batteryLow     *prometheus.GaugeVec
 	outsideTemp    prometheus.Gauge
 	solarIntensity prometheus.Gauge
 	lastSuccess    prometheus.Gauge
@@ -65,6 +66,10 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 			Name: "gohome_tado_zone_last_updated_timestamp_seconds",
 			Help: "Last update timestamp per zone (epoch seconds)",
 		}, labels),
+		batteryLow: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gohome_tado_device_battery_low",
+			Help: "Tado reports the device's battery low (1) or normal (0); absent for devices without a battery",
+		}, []string{"zone_name", "serial", "device_type"}),
 		outsideTemp: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "gohome_tado_outside_temperature_celsius",
 			Help: "Outside temperature from Tado",
@@ -93,6 +98,7 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	c.override.Describe(ch)
 	c.heatingActive.Describe(ch)
 	c.lastUpdated.Describe(ch)
+	c.batteryLow.Describe(ch)
 	c.outsideTemp.Describe(ch)
 	c.solarIntensity.Describe(ch)
 	c.lastSuccess.Describe(ch)
@@ -129,6 +135,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	c.override.Reset()
 	c.heatingActive.Reset()
 	c.lastUpdated.Reset()
+	c.batteryLow.Reset()
 
 	c.outsideTemp.Set(math.NaN())
 	c.solarIntensity.Set(math.NaN())
@@ -142,6 +149,11 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, zone := range zones {
+		for _, device := range zone.Devices {
+			if device.BatteryLow != nil {
+				c.batteryLow.WithLabelValues(zone.Name, device.SerialNumber, device.DeviceType).Set(boolToFloat(*device.BatteryLow))
+			}
+		}
 		state, ok := states[zone.ID]
 		if !ok {
 			continue
@@ -192,6 +204,7 @@ func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
 	c.override.Collect(ch)
 	c.heatingActive.Collect(ch)
 	c.lastUpdated.Collect(ch)
+	c.batteryLow.Collect(ch)
 	core.CollectPresent(c.outsideTemp, ch)
 	core.CollectPresent(c.solarIntensity, ch)
 	c.lastSuccess.Collect(ch)

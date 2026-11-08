@@ -60,7 +60,7 @@ func TestClientFlow(t *testing.T) {
 		case "/homes/1/zones":
 			assertAuth(t, r)
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `[{"id":2,"name":"Living"}]`)
+			_, _ = io.WriteString(w, `[{"id":2,"name":"Living","devices":[{"deviceType":"VA02","serialNo":"VA0000000001","batteryState":"LOW"},{"deviceType":"VA02","serialNo":"VA0000000002","batteryState":"NORMAL"},{"deviceType":"BR02","serialNo":"BR0000000003"}]}]`)
 			return
 		case "/homes/1/zoneStates":
 			assertAuth(t, r)
@@ -130,6 +130,16 @@ func TestClientFlow(t *testing.T) {
 	}
 	if len(zones) != 1 || zones[0].ID != 2 {
 		t.Fatalf("unexpected zones: %+v", zones)
+	}
+	devices := zones[0].Devices
+	if len(devices) != 3 || devices[0].SerialNumber != "VA0000000001" || devices[0].DeviceType != "VA02" {
+		t.Fatalf("unexpected devices: %+v", devices)
+	}
+	if devices[0].BatteryLow == nil || !*devices[0].BatteryLow || devices[1].BatteryLow == nil || *devices[1].BatteryLow {
+		t.Fatalf("expected the first valve low and the second normal: %+v", devices)
+	}
+	if devices[2].BatteryLow != nil {
+		t.Fatalf("expected no battery for a mains-powered device: %+v", devices[2])
 	}
 
 	states, err := client.ZoneStates(ctx)

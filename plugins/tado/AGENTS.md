@@ -24,6 +24,7 @@ gohome-cli tado set <zone> 20
 
 ## State
 - Metrics: inside temperature, humidity, target setpoint, heating power, power/override status, and last update timestamp per zone; outside temperature and solar intensity at home level.
+- `gohome_tado_device_battery_low{zone_name,serial,device_type}`: 1 when Tado reports the device's battery low, 0 when normal. Tado gives no battery level, as in its app. Absent for devices without a battery, and when the read fails.
 
 ## Errors
 - API auth failures
