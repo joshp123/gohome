@@ -6,8 +6,8 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/joshp123/gohome/proto/gen/plugins/casambi/v1;casambiv1";
 
-// Casambi Bluetooth lights, read through the light bridge, which owns
-// the only Bluetooth session to the Casambi network. The bridge serves
+// Casambi Bluetooth lights and switches, read through the light bridge, which
+// owns the only Bluetooth session to the Casambi network. The bridge serves
 // CasambiService; gohome's casambi plugin serves the same service by calling it.
 // Reads only: nothing here sends anything to a light.
 
@@ -22,9 +22,25 @@ message Light {
   bool online = 3;
   // The light's last report. Absent until the light has reported since the bridge started.
   optional bool on = 4;
+  // The light's dimmer level, 0 to 100. Present only while the light is on:
+  // an off light has no brightness.
   optional uint32 brightness_percent = 5;
   // When the bridge last received a report from this light. Absent until the first report.
   google.protobuf.Timestamp last_report_time = 6;
+  // Colour, for lights with a colour channel, present only while the light is on.
+  // Casambi reports colour as hue and saturation; how bright is brightness_percent.
+  // Hue, 0 to 359 degrees. Absent when saturation is 0, where hue has no meaning.
+  optional uint32 hue_degrees = 7;
+  // Saturation, 0 (white) to 100 (pure colour).
+  optional uint32 saturation_percent = 8;
+  // For lights with colour and white channels, present only while the light is on:
+  // Casambi's balance between the colour and the white channel, on Casambi's
+  // own scale of 0 to 63. 31 is Casambi's default. Casambi does not document
+  // which end of the scale is white only.
+  optional uint32 white_colour_balance = 9;
+  // For drivers with an overheat indicator: the driver's raw indicator, 0 to 3.
+  // 0 is Casambi's default; Casambi does not document the other values.
+  optional uint32 overheat_indicator = 10;
 }
 
 message ListLightsResponse {
@@ -50,6 +66,40 @@ message ListScenesResponse {
   repeated Scene scenes = 1;
 }
 
+message ListSwitchesRequest {}
+
+message SwitchButton {
+  // Button number, 1 upwards, as casambi-bt numbers the switch's buttons.
+  uint32 number = 1;
+  // Presses the bridge has seen since it started.
+  uint64 presses = 2;
+  // When the bridge last saw this button pressed.
+  google.protobuf.Timestamp last_press_time = 3;
+}
+
+message Switch {
+  // Casambi unit UUID.
+  string id = 1;
+  // The switch's name in the Casambi network.
+  string name = 2;
+  // The bridge has a Bluetooth session and the switch's last report said it was online.
+  bool online = 3;
+  // The switch's raw battery level, 0 to 255, on Casambi's undocumented scale.
+  // Absent until the switch has reported since the bridge started.
+  optional uint32 battery_level = 4;
+  // When the bridge last received a state report from this switch. Absent until the first report.
+  google.protobuf.Timestamp last_report_time = 5;
+  // Buttons the bridge has seen pressed since it started, by number.
+  repeated SwitchButton buttons = 6;
+}
+
+message ListSwitchesResponse {
+  // Every wall switch in the Casambi network.
+  repeated Switch switches = 1;
+  // The bridge currently holds an authenticated Bluetooth session.
+  bool bluetooth_connected = 2;
+}
+
 message CasambiConfig {
   // host:port of the bridge's gRPC API, e.g. "bridge.example.ts.net:50061".
   string bridge_address = 1;
@@ -58,4 +108,5 @@ message CasambiConfig {
 service CasambiService {
   rpc ListLights(ListLightsRequest) returns (ListLightsResponse);
   rpc ListScenes(ListScenesRequest) returns (ListScenesResponse);
+  rpc ListSwitches(ListSwitchesRequest) returns (ListSwitchesResponse);
 }

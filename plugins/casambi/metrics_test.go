@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 type recordedBridge struct {
 	casambiv1.UnimplementedCasambiServiceServer
 	response *casambiv1.ListLightsResponse
+	switches *casambiv1.ListSwitchesResponse
 }
 
 func (b *recordedBridge) ListLights(context.Context, *casambiv1.ListLightsRequest) (*casambiv1.ListLightsResponse, error) {
@@ -31,13 +33,35 @@ func (b *recordedBridge) ListLights(context.Context, *casambiv1.ListLightsReques
 	return b.response, nil
 }
 
+func (b *recordedBridge) ListSwitches(context.Context, *casambiv1.ListSwitchesRequest) (*casambiv1.ListSwitchesResponse, error) {
+	if b.switches == nil {
+		return nil, status.Error(codes.Unavailable, "connection refused")
+	}
+	return b.switches, nil
+}
+
 func TestLightValuesOnlyWhileTheBridgeHasCurrentState(t *testing.T) {
 	reported := timestamppb.New(time.Unix(1794013890, 0))
 	connected := &casambiv1.ListLightsResponse{BluetoothConnected: true, Lights: []*casambiv1.Light{
 		{Id: "kitchen", Name: "Spotlights", Online: true, On: proto.Bool(true), BrightnessPercent: proto.Uint32(80), LastReportTime: reported},
-		{Id: "sofa", Name: "Floor Lamp", Online: false, On: proto.Bool(false), BrightnessPercent: proto.Uint32(0), LastReportTime: reported},
+		{Id: "strip", Name: "Front LED Strip", Online: true, On: proto.Bool(true), BrightnessPercent: proto.Uint32(50),
+			HueDegrees: proto.Uint32(120), SaturationPercent: proto.Uint32(50), WhiteColourBalance: proto.Uint32(40), LastReportTime: reported},
+		{Id: "table", Name: "Table Lamp", Online: true, On: proto.Bool(false), OverheatIndicator: proto.Uint32(0), LastReportTime: reported},
+		{Id: "sofa", Name: "Floor Lamp", Online: false, On: proto.Bool(true), BrightnessPercent: proto.Uint32(64), OverheatIndicator: proto.Uint32(1), LastReportTime: reported},
 		{Id: "unreported", Name: "Unreported"},
 	}}
+	pressed := timestamppb.New(time.Unix(1794013900, 0))
+	switches := &casambiv1.ListSwitchesResponse{BluetoothConnected: true, Switches: []*casambiv1.Switch{
+		{Id: "hall", Name: "Xpress", Online: true, BatteryLevel: proto.Uint32(200), LastReportTime: reported,
+			Buttons: []*casambiv1.SwitchButton{{Number: 2, Presses: 3, LastPressTime: pressed}}},
+		{Id: "unreported-switch", Name: "Xpress"},
+	}}
+	// Bluetooth lost between the two reads: the switch state is old.
+	switchesDisconnected := proto.Clone(switches).(*casambiv1.ListSwitchesResponse)
+	switchesDisconnected.BluetoothConnected = false
+	for _, sw := range switchesDisconnected.Switches {
+		sw.Online = false
+	}
 	noBluetooth := proto.Clone(connected).(*casambiv1.ListLightsResponse)
 	noBluetooth.BluetoothConnected = false
 	for _, light := range noBluetooth.Lights {
@@ -60,33 +84,66 @@ func TestLightValuesOnlyWhileTheBridgeHasCurrentState(t *testing.T) {
 	plugins := core.ObservePlugins([]core.Plugin{Plugin{bridge: client, health: core.HealthHealthy}})
 	metrics := core.MetricsRegistry(plugins)
 
+	connectedLights := map[string]float64{
+		"gohome_casambi_bluetooth_connected":                          1,
+		"gohome_casambi_light_online{kitchen}":                        1,
+		"gohome_casambi_light_on{kitchen}":                            1,
+		"gohome_casambi_light_brightness_percent{kitchen}":            80,
+		"gohome_casambi_light_last_report_timestamp_seconds{kitchen}": 1794013890,
+		"gohome_casambi_light_online{strip}":                          1,
+		"gohome_casambi_light_on{strip}":                              1,
+		"gohome_casambi_light_brightness_percent{strip}":              50,
+		"gohome_casambi_light_hue_degrees{strip}":                     120,
+		"gohome_casambi_light_saturation_percent{strip}":              50,
+		"gohome_casambi_light_white_colour_balance{strip}":            40,
+		"gohome_casambi_light_last_report_timestamp_seconds{strip}":   1794013890,
+		"gohome_casambi_light_online{table}":                          1,
+		"gohome_casambi_light_on{table}":                              0,
+		"gohome_casambi_light_overheat_indicator{table}":              0,
+		"gohome_casambi_light_last_report_timestamp_seconds{table}":   1794013890,
+		"gohome_casambi_light_online{sofa}":                           0,
+		"gohome_casambi_light_last_report_timestamp_seconds{sofa}":    1794013890,
+		"gohome_casambi_light_online{unreported}":                     0,
+	}
+	withSwitches := map[string]float64{
+		"gohome_casambi_scrape_success":                                     1,
+		"gohome_casambi_switch_online{hall}":                                1,
+		"gohome_casambi_switch_battery_level{hall}":                         200,
+		"gohome_casambi_switch_last_report_timestamp_seconds{hall}":         1794013890,
+		"gohome_casambi_switch_button_presses_total{hall,2}":                3,
+		"gohome_casambi_switch_button_last_press_timestamp_seconds{hall,2}": 1794013900,
+		"gohome_casambi_switch_online{unreported-switch}":                   0,
+	}
+	for key, value := range connectedLights {
+		withSwitches[key] = value
+	}
+	// Lights read, switches not: the light values are current, but the read failed.
+	switchesFailed := map[string]float64{"gohome_casambi_scrape_success": 0}
+	for key, value := range connectedLights {
+		switchesFailed[key] = value
+	}
+
 	cases := []struct {
 		name     string
 		response *casambiv1.ListLightsResponse
+		switches *casambiv1.ListSwitchesResponse
 		want     map[string]float64
 	}{
-		{"connected", connected, map[string]float64{
-			"gohome_casambi_scrape_success":                               1,
-			"gohome_casambi_bluetooth_connected":                          1,
-			"gohome_casambi_light_online{kitchen}":                        1,
-			"gohome_casambi_light_on{kitchen}":                            1,
-			"gohome_casambi_light_brightness_percent{kitchen}":            80,
-			"gohome_casambi_light_last_report_timestamp_seconds{kitchen}": 1794013890,
-			"gohome_casambi_light_online{sofa}":                           0,
-			"gohome_casambi_light_last_report_timestamp_seconds{sofa}":    1794013890,
-			"gohome_casambi_light_online{unreported}":                     0,
-		}},
-		{"bridge without Bluetooth", noBluetooth, map[string]float64{
+		{"connected", connected, switches, withSwitches},
+		{"switch read failed", connected, nil, switchesFailed},
+		{"Bluetooth lost before the switch read", connected, switchesDisconnected, switchesFailed},
+		{"bridge without Bluetooth", noBluetooth, switches, map[string]float64{
 			"gohome_casambi_scrape_success":      0,
 			"gohome_casambi_bluetooth_connected": 0,
 		}},
-		{"bridge unreachable", nil, map[string]float64{
+		{"bridge unreachable", nil, nil, map[string]float64{
 			"gohome_casambi_scrape_success": 0,
 		}},
 	}
 	var firstSuccess float64
 	for _, c := range cases {
 		bridge.response = c.response
+		bridge.switches = c.switches
 		got := gather(t, metrics)
 		lastSuccess, ok := got["gohome_casambi_last_success_timestamp_seconds"]
 		if !ok {
@@ -153,12 +210,24 @@ func gather(t *testing.T, registry *prometheus.Registry) map[string]float64 {
 	for _, family := range families {
 		for _, metric := range family.GetMetric() {
 			key := family.GetName()
+			labels := map[string]string{}
 			for _, label := range metric.GetLabel() {
-				if label.GetName() == "light_id" {
-					key += "{" + label.GetValue() + "}"
+				labels[label.GetName()] = label.GetValue()
+			}
+			var ids []string
+			for _, name := range []string{"light_id", "switch_id", "button"} {
+				if value, ok := labels[name]; ok {
+					ids = append(ids, value)
 				}
 			}
-			values[key] = metric.GetGauge().GetValue()
+			if len(ids) > 0 {
+				key += "{" + strings.Join(ids, ",") + "}"
+			}
+			if metric.GetCounter() != nil {
+				values[key] = metric.GetCounter().GetValue()
+			} else {
+				values[key] = metric.GetGauge().GetValue()
+			}
 		}
 	}
 	return values
