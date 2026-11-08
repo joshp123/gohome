@@ -11,10 +11,8 @@ serves the same `CasambiService` from gohome.
 ## Capabilities
 - List every light the bridge serves to Apple Home: id (Casambi unit UUID),
   name, online, on and when the light last reported. While a light is on:
-  brightness (0 to 100) and, for lights with colour and white LEDs,
-  which LEDs are lit, Casambi's white/colour mixer, and the hue (degrees) and
-  saturation (percent) of the colour LEDs while they are lit. For drivers with
-  one, the raw overheat indicator.
+  brightness (0 to 100) and the colour of the light it gives. For drivers
+  with one, the raw overheat indicator.
 - List the wall switches: battery level, online, and per button what the
   Casambi configuration says it does (the light, group or scene it addresses)
   and the presses the bridge has seen since it started, with the time of the
@@ -33,19 +31,18 @@ serves the same `CasambiService` from gohome.
   change, so an old `last_report_time` on an online light is normal.
 - `on` is absent until a light has reported since the bridge started.
   Brightness and colour are absent while a light is off: an off light has none.
-- Hue is absent at saturation 0, where it has no meaning.
+- Colour is the colour of the light, as sRGB at full value; how bright is
+  brightness. Casambi does not report the colour temperature of a light's
+  white LEDs, so the bridge's configuration states it per light: it is
+  configured, not measured, and a light without one reports no colour. A
+  light with only white LEDs gives that white.
 - Lights with colour and white LEDs, such as a CBU-PWM4 in Casambi's
   "RGB/White" profile: "Four channel RGB fixture with White. The ratio between
-  RGB and White is selected with mixer" (CBU-PWM4 manual).
-  `white_colour_balance` is that mixer, 0 to 63. At 0 only the white LEDs are
-  lit, whatever colour the colour LEDs are set to; this was seen on real
-  lights. 63, the other end, is colour only by the same description; that
-  end has not been seen.
-  Hue and saturation describe the colour LEDs, so the bridge sends them only
-  while those are lit. How the mixer splits brightness between 1 and 62 is not
-  documented.
-- The white LEDs have one fixed colour temperature, which the driver does not
-  report, so there is no colour-temperature value.
+  RGB and White is selected with mixer" (CBU-PWM4 manual). The mixer runs 0
+  to 63; at 0 only the white LEDs are lit, whatever colour the colour LEDs are
+  set to (seen on real lights). The bridge mixes the white with the colour
+  LEDs' colour, taking mixer/63 as the colour LEDs' share of the light.
+  Casambi does not document how the mixer divides the light between 0 and 63.
 - Casambi names but does not document the scales of `overheat_indicator` (raw
   0 to 3, default 0) and a switch's `battery_level` (raw 0 to 255). They are
   reported raw.
@@ -81,12 +78,10 @@ Metrics (Prometheus):
 - `gohome_casambi_light_online{light_id,name}`
 - `gohome_casambi_light_on{light_id,name}`: online lights only.
 - `gohome_casambi_light_brightness_percent{light_id,name}`: online lights that are on.
-- `gohome_casambi_light_lit_channels{light_id,name,channels}`: for online
-  lights with colour and white LEDs that are on, one series per `channels` value (`white`, `colour`,
-  `white_and_colour`): 1 for the LEDs lit now, 0 for the others.
-- `gohome_casambi_light_hue_degrees{light_id,name}`: online colour lights that are on, while their colour LEDs are lit.
-- `gohome_casambi_light_saturation_percent{light_id,name}`: online colour lights that are on, while their colour LEDs are lit.
-- `gohome_casambi_light_white_colour_balance{light_id,name}`: online lights with colour and white LEDs that are on; 0 white only, 63 colour only.
+- `gohome_casambi_light_colour_info{light_id,name,colour}`: always 1, for
+  online lights that are on and have a configured white. `colour` is
+  `#rrggbb`, the colour of the light at full brightness. One series per light
+  at a time; a new one starts when the colour changes.
 - `gohome_casambi_light_overheat_indicator{light_id,name}`: online lights whose driver has one.
 - `gohome_casambi_light_last_report_timestamp_seconds{light_id,name}`
 - `gohome_casambi_switch_online{switch_id,name}`

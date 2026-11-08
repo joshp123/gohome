@@ -27,32 +27,27 @@ message Light {
   optional uint32 brightness_percent = 5;
   // When the bridge last received a report from this light. Absent until the first report.
   google.protobuf.Timestamp last_report_time = 6;
-  // The colour of the colour LEDs, present only while the light is on and its
-  // colour LEDs are lit (see lit_channels). Casambi reports colour as hue and
-  // saturation; how bright is brightness_percent.
-  // Hue, 0 to 359 degrees. Absent when saturation is 0, where hue has no meaning.
-  optional uint32 hue_degrees = 7;
-  // Saturation, 0 (white) to 100 (pure colour).
-  optional uint32 saturation_percent = 8;
-  // For lights with colour and white LEDs, present only while the light is on:
-  // Casambi's mixer between them, 0 to 63. At 0 only the white LEDs are lit;
-  // at 63 only the colour LEDs. 31 is Casambi's default.
-  optional uint32 white_colour_balance = 9;
   // For drivers with an overheat indicator: the driver's raw indicator, 0 to 3.
   // 0 is Casambi's default; Casambi does not document the other values.
   optional uint32 overheat_indicator = 10;
-  // For lights with colour and white LEDs, while the light is on: which of them are lit.
-  LitChannels lit_channels = 11;
+  // The colour of the light it gives now. Present only while the light
+  // is on and the bridge is configured with the colour temperature of its white.
+  Colour colour = 12;
+  reserved 7, 8, 9, 11;
 }
 
-// Which LEDs of a light with colour and white LEDs are lit. The white LEDs have
-// one fixed colour temperature, which the light does not report.
-enum LitChannels {
-  // Not a light with colour and white LEDs, or the light is off.
-  LIT_CHANNELS_UNSPECIFIED = 0;
-  LIT_CHANNELS_WHITE = 1;
-  LIT_CHANNELS_COLOUR = 2;
-  LIT_CHANNELS_WHITE_AND_COLOUR = 3;
+// The colour of a light's output as an sRGB colour at full value, each channel
+// 0 to 255; how bright the light is, is brightness_percent. Casambi does not
+// report the colour temperature of a light's white LEDs, so the bridge's
+// configuration states it: configured, not measured. A light with only white
+// LEDs gives that white. A light with white and colour LEDs gives that white
+// mixed with the colour LEDs' colour by Casambi's mixer between them, 0 (white
+// only) to 63 (colour only), taken as the colour LEDs' share of the light.
+// Casambi does not document how the mixer divides the light between 0 and 63.
+message Colour {
+  uint32 red = 1;
+  uint32 green = 2;
+  uint32 blue = 3;
 }
 
 message ListLightsResponse {
@@ -174,15 +169,12 @@ message LightChange {
   // Before is the state just before the press; after is the state at
   // observed_until, which equals before when the light changed and changed back.
   // Brightness and colour are present only while the light was on, and colour
-  // only for colour lights, as in Light.
+  // only as in Light.
   optional uint32 brightness_percent_before = 5;
   optional uint32 brightness_percent_after = 6;
-  optional uint32 hue_degrees_before = 7;
-  optional uint32 hue_degrees_after = 8;
-  optional uint32 saturation_percent_before = 9;
-  optional uint32 saturation_percent_after = 10;
-  optional uint32 white_colour_balance_before = 11;
-  optional uint32 white_colour_balance_after = 12;
+  Colour colour_before = 13;
+  Colour colour_after = 14;
+  reserved 7 to 12;
 }
 
 // One press of a switch button, and what the lights did after it. The bridge
