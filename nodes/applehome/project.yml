@@ -1,0 +1,39 @@
+# XcodeGen spec for the Mac Catalyst app. Generate the Xcode project with
+#   GOHOME_APPLE_TEAM_ID=<team ID> nix run nixpkgs#xcodegen -- generate
+# The team ID is the signing team's ten-character Apple Developer team identifier.
+name: AppleHomeNode
+options:
+  # Mac Catalyst 26 (macOS 26). Older targets make Xcode embed Swift back-deployment
+  # dylibs, and the designated-requirement flag below would sign them with the app's
+  # identifier, which they cannot satisfy.
+  deploymentTarget:
+    iOS: "26.0"
+packages:
+  AppleHomeNode:
+    path: .
+targets:
+  GohomeAppleHome:
+    type: application
+    platform: iOS
+    supportedDestinations: [macCatalyst]
+    sources: [App]
+    dependencies:
+      - package: AppleHomeNode
+      - sdk: HomeKit.framework
+    settings:
+      base:
+        PRODUCT_NAME: gohome-applehome
+        PRODUCT_BUNDLE_IDENTIFIER: com.joshp123.gohome.applehome
+        DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER: NO
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/AppleHome.entitlements
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ${GOHOME_APPLE_TEAM_ID}
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: NO
+        # Check the team, not the certificate's name: macOS ties the Home permission to
+        # this requirement, and Apple renames certificates at renewal. codesign applies
+        # it to every item signed in this target, so the app must embed no other code.
+        OTHER_CODE_SIGN_FLAGS: >-
+          "-r=designated => identifier \"com.joshp123.gohome.applehome\" and anchor apple generic and certificate leaf[subject.OU] = \"${GOHOME_APPLE_TEAM_ID}\" and certificate 1[field.1.2.840.113635.100.6.2.1]"

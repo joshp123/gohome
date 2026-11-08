@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package gohome.plugins.applehome.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/applehome/v1;applehomev1";
+
+// Apple Home, read through Apple's HomeKit framework by a Mac app.
+// Read-only: no RPC here writes to an accessory, room, scene or automation.
+service AppleHomeService {
+  // Climate readings: every temperature and humidity sensor and every thermostat,
+  // with only the values that are current (see ClimateReading).
+  rpc GetClimate(GetClimateRequest) returns (GetClimateResponse);
+
+  // Every accessory in every Apple Home home, with its services and characteristics:
+  // lights, shutters, sensors, thermostats, speakers and bridges alike. Values come
+  // from the reader's last poll of every readable characteristic (once a minute) and
+  // from HomeKit change notifications in between; only current values are set (see
+  // Characteristic).
+  rpc ListAccessories(ListAccessoriesRequest) returns (ListAccessoriesResponse);
+}
+
+message GetClimateRequest {}
+
+message GetClimateResponse {
+  repeated ClimateReading readings = 1;
+}
+
+enum HeatingCoolingMode {
+  HEATING_COOLING_MODE_UNSPECIFIED = 0;
+  HEATING_COOLING_MODE_OFF = 1;
+  HEATING_COOLING_MODE_HEAT = 2;
+  HEATING_COOLING_MODE_COOL = 3;
+  HEATING_COOLING_MODE_AUTO = 4;
+}
+
+// Values follow the same rule as ClimateReading: set only when current, each with
+// its own read time. A mode that is not current is UNSPECIFIED.
+message ThermostatState {
+  // What the thermostat is doing now: OFF, HEAT or COOL.
+  HeatingCoolingMode current_mode = 1;
+  google.protobuf.Timestamp current_mode_read_at = 4;
+  // What the thermostat is set to: OFF, HEAT, COOL or AUTO.
+  HeatingCoolingMode target_mode = 2;
+  google.protobuf.Timestamp target_mode_read_at = 5;
+  optional double target_temperature_celsius = 3;
+  google.protobuf.Timestamp target_temperature_read_at = 6;
+}
+
+// Each value is set only when it is current: the accessory is reachable and the
+// value was read from it without error within the last 3 minutes (three polls).
+// Each value's *_read_at is when the reader last got it from the accessory. It is
+// set even when the value is not, so a caller can see how long a sensor has been
+// silent.
+message ClimateReading {
+  reserved 8;
+  reserved "read_at";
+
+  string accessory_id = 1;
+  string accessory_name = 2;
+  string room = 3;
+  bool reachable = 4;
+  optional double temperature_celsius = 5;
+  google.protobuf.Timestamp temperature_read_at = 9;
+  optional double humidity_percent = 6;
+  google.protobuf.Timestamp humidity_read_at = 10;
+  // Set only for thermostats.
+  ThermostatState thermostat = 7;
+}
+
+message ListAccessoriesRequest {}
+
+message ListAccessoriesResponse {
+  repeated Accessory accessories = 1;
+}
+
+message Accessory {
+  // HomeKit's identifier for the accessory, stable for this home.
+  string id = 1;
+  string name = 2;
+  string home = 3;
+  string room = 4;
+  // HomeKit's accessory category, for example "Thermostat".
+  string category = 5;
+  string manufacturer = 6;
+  string model = 7;
+  string firmware_version = 8;
+  bool reachable = 9;
+  // True when the accessory reaches Apple Home through a bridge.
+  bool bridged = 10;
+  repeated Service services = 11;
+}
+
+message Service {
+  string id = 1;
+  string name = 2;
+  // HomeKit's name for the service type, for example "Temperature Sensor".
+  string type = 3;
+  // The HAP service type UUID.
+  string type_uuid = 4;
+  repeated Characteristic characteristics = 5;
+}
+
+message Characteristic {
+  string id = 1;
+  // HomeKit's name for the characteristic type, for example "Current Temperature".
+  string type = 2;
+  // The HAP characteristic type UUID.
+  string type_uuid = 3;
+  // Set only when current: the accessory is reachable and the value was read from it
+  // without error within the last 3 minutes (three polls). HomeKit's cached value
+  // is never returned.
+  oneof value {
+    double number_value = 4;
+    bool bool_value = 5;
+    string string_value = 6;
+    bytes data_value = 7;
+  }
+  // HomeKit's unit, for example "celsius" or "percentage"; empty when unitless.
+  string unit = 8;
+  bool readable = 9;
+  // Whether HomeKit would accept a write. gohome never writes.
+  bool writable = 10;
+  // When the reader last got this value from the accessory, by a read or a change
+  // notification. Unset when it never has; set even when the value is not current.
+  google.protobuf.Timestamp read_at = 11;
+  // Why the last read failed; empty when it succeeded.
+  string read_error = 12;
+}
