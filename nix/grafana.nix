@@ -23,11 +23,13 @@ EOF
   '';
 
   # The dashboards of the plugins another gohome runs, from this build's copy of each plugin.
+  # A remote plugin with no plugins/<name>/dashboard.json in this build gets no dashboard.
+  remoteDashboardFile = plugin: ../plugins + "/${plugin}/dashboard.json";
   remoteDashboards = pkgs.runCommand "gohome-remote-dashboards" { } (''
     mkdir -p $out/Devices
   '' + concatMapStrings (plugin: ''
-    cp ${../plugins + "/${plugin}/dashboard.json"} $out/Devices/${plugin}-overview.json
-  '') (attrNames cfg.remotePlugins));
+    cp ${remoteDashboardFile plugin} $out/Devices/${plugin}-overview.json
+  '') (filter (plugin: builtins.pathExists (remoteDashboardFile plugin)) (attrNames cfg.remotePlugins)));
 
 in
 {
