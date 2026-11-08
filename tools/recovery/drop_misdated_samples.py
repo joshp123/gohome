@@ -16,6 +16,7 @@ import gzip
 import hashlib
 import json
 import pathlib
+import time
 import urllib.parse
 import urllib.request
 
@@ -117,12 +118,19 @@ def main():
     # Range queries cache results older than a few minutes; drop the cache so panels read the repaired history.
     http(vm + "/internal/resetRollupResultCache")
 
-    _, after = export(vm, selector)
-    stored_now = {(json.dumps(r["metric"], sort_keys=True), t): v for r in after for t, v in zip(r["timestamps"], r["values"])}
-    missing = [(row["metric"], t) for row in kept for t, v in zip(row["timestamps"], row["values"])
-               if stored_now.get((json.dumps(row["metric"], sort_keys=True), t)) != v]
-    _, report_after = split(after, rule(after), since_ms)
-    still_wrong = sum(r["dropped"] for r in report_after)
+    # Imported samples become searchable only after VictoriaMetrics flushes them (a few seconds), so check until they
+    # all show or a minute has passed.
+    deadline = time.monotonic() + 60
+    while True:
+        _, after = export(vm, selector)
+        stored_now = {(json.dumps(r["metric"], sort_keys=True), t): v for r in after for t, v in zip(r["timestamps"], r["values"])}
+        missing = [(row["metric"], t) for row in kept for t, v in zip(row["timestamps"], row["values"])
+                   if stored_now.get((json.dumps(row["metric"], sort_keys=True), t)) != v]
+        _, report_after = split(after, rule(after), since_ms)
+        still_wrong = sum(r["dropped"] for r in report_after)
+        if not (missing or still_wrong) or time.monotonic() > deadline:
+            break
+        time.sleep(2)
     print(f"after: {sum(len(r['timestamps']) for r in after)} samples stored, {len(missing)} kept samples missing, "
           f"{still_wrong} stored at the wrong time")
     if missing or still_wrong:
