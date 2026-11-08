@@ -1,6 +1,7 @@
 package hikvision
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -13,9 +14,17 @@ import (
 // then, and it never sends an inactive notification for motion.
 const eventEndsAfterQuiet = 10 * time.Second
 
+// episodeKey is one event as the camera names it. It uses the camera's own
+// words, because the fixed vocabularies fold different events together (all
+// unknown types are EVENT_KIND_OTHER), and the rule, because two line-crossing
+// rules can fire at once.
 type episodeKey struct {
-	kind   hikvisionv1.EventKind
-	target hikvisionv1.DetectionTarget
+	eventType, cameraTarget string
+	channelID, ruleID       uint32
+}
+
+func episodeKeyOf(event cameraEvent) episodeKey {
+	return episodeKey{strings.ToLower(event.EventType), strings.ToLower(event.CameraWords), event.ChannelID, event.RuleID}
 }
 
 type episode struct {
@@ -42,7 +51,7 @@ func (t *episodeTracker) notify(notification cameraEvent) {
 	if notification.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
 		return
 	}
-	key := episodeKey{notification.Kind, notification.Target}
+	key := episodeKeyOf(notification)
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if current, ok := t.open[key]; ok {
@@ -68,6 +77,21 @@ func (t *episodeTracker) finish(key episodeKey, ending *episode) {
 	ended := ending.latest
 	ended.State = hikvisionv1.EventState_EVENT_STATE_INACTIVE
 	t.emit(ended)
+}
+
+// abandon forgets every event under way without saying it ended: with the
+// event stream lost, nobody can tell. fn runs with the starts of those events
+// before any new event is emitted.
+func (t *episodeTracker) abandon(fn func(underWay []cameraEvent)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	underWay := make([]cameraEvent, 0, len(t.open))
+	for key, current := range t.open {
+		current.end.Stop()
+		delete(t.open, key)
+		underWay = append(underWay, current.start)
+	}
+	fn(underWay)
 }
 
 // whileHeld runs fn with the starts of events still under way. No start or end

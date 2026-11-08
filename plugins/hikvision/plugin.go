@@ -47,7 +47,7 @@ func NewPlugin(cfg *hikvisionv1.HikvisionConfig, _ *configv1.OAuthConfig) (Plugi
 
 func newPlugin(client *Client) Plugin {
 	metrics := NewMetricsCollector(client)
-	stream := newAlertStream(client, metrics.observeTransition)
+	stream := newAlertStream(client, metrics.eventStarted, metrics.eventStopped)
 	metrics.stream = stream
 	return Plugin{client: client, stream: stream, metrics: metrics, health: core.HealthHealthy}
 }

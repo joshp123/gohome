@@ -2,6 +2,8 @@ package hikvision
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -187,12 +189,14 @@ func TestRejectedCredentialsAreNotRetried(t *testing.T) {
 // testQuiet stands in for eventEndsAfterQuiet so tests do not wait 10 s.
 const testQuiet = 300 * time.Millisecond
 
-func nextEvent(t *testing.T, events <-chan cameraEvent, what string) cameraEvent {
+var motionLabels = prometheus.Labels{"kind": "motion", "target": "unspecified"}
+
+func nextEvent(t *testing.T, sub *subscription, what string) cameraEvent {
 	t.Helper()
 	select {
-	case event, open := <-events:
+	case event, open := <-sub.events:
 		if !open {
-			t.Fatalf("%s: subscription closed", what)
+			t.Fatalf("%s: subscription ended: %v", what, sub.ended)
 		}
 		return event
 	case <-time.After(5 * time.Second):
@@ -201,53 +205,73 @@ func nextEvent(t *testing.T, events <-chan cameraEvent, what string) cameraEvent
 	return cameraEvent{}
 }
 
-func expectNoEvent(t *testing.T, events <-chan cameraEvent, within time.Duration) {
+func expectNoEvent(t *testing.T, sub *subscription, within time.Duration) {
 	t.Helper()
 	select {
-	case event := <-events:
+	case event := <-sub.events:
 		t.Fatalf("unexpected event: %+v", event)
 	case <-time.After(within):
 	}
 }
 
-func TestRecordedMotionIsOneEvent(t *testing.T) {
+// subscribeOnceConnected waits for the event stream to connect, then subscribes.
+func subscribeOnceConnected(t *testing.T, stream *alertStream) *subscription {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		sub, unsubscribe, err := stream.Subscribe()
+		if err == nil {
+			t.Cleanup(unsubscribe)
+			return sub
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("subscribe: %v", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func runRecordedStream(t *testing.T) (*fakeCamera, Plugin) {
+	t.Helper()
 	camera := newFakeCamera(t)
 	plugin := newPlugin(camera.client(t, testPassword))
 	plugin.stream.episodes = newEpisodeTracker(testQuiet, plugin.stream.publish)
-	events, unsubscribe := plugin.stream.Subscribe()
-	defer unsubscribe()
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 	go plugin.stream.Run(ctx)
+	return camera, plugin
+}
+
+func TestRecordedMotionIsOneEvent(t *testing.T) {
+	_, plugin := runRecordedStream(t)
+	sub := subscribeOnceConnected(t, plugin.stream)
 
 	// The recording has 12 motion notifications, one a second by the camera's
 	// clock, and 2 keep-alives, with the camera's closing delimiter after each
 	// motion part. They arrive together, so they are one event.
-	start := nextEvent(t, events, "start")
+	start := nextEvent(t, sub, "start")
 	if start.Kind != hikvisionv1.EventKind_EVENT_KIND_MOTION || start.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE ||
 		start.Target != hikvisionv1.DetectionTarget_DETECTION_TARGET_UNSPECIFIED || start.CameraTime.IsZero() {
 		t.Fatalf("start: %+v", start)
 	}
-	<-camera.streamOpened
-	motion := map[string]string{"kind": "motion", "target": "unspecified"}
 	families := gather(t, plugin.metrics)
-	if v := metricValue(families, "gohome_hikvision_events_total", motion); v != 1 {
+	if v := metricValue(families, "gohome_hikvision_events_total", motionLabels); v != 1 {
 		t.Fatalf("motion events = %v, want 1", v)
 	}
-	if v := metricValue(families, "gohome_hikvision_event_active", motion); v != 1 {
+	if v := metricValue(families, "gohome_hikvision_events_active", motionLabels); v != 1 {
 		t.Fatalf("motion active during the event = %v, want 1", v)
 	}
 
-	end := nextEvent(t, events, "end")
+	end := nextEvent(t, sub, "end")
 	if end.Kind != start.Kind || end.State != hikvisionv1.EventState_EVENT_STATE_INACTIVE || !end.CameraTime.After(start.CameraTime) {
 		t.Fatalf("end: %+v; want the last notification of the event that started %v", end, start.CameraTime)
 	}
-	expectNoEvent(t, events, 2*testQuiet)
+	expectNoEvent(t, sub, 2*testQuiet)
 	families = gather(t, plugin.metrics)
-	if v := metricValue(families, "gohome_hikvision_event_active", motion); v != 0 {
+	if v := metricValue(families, "gohome_hikvision_events_active", motionLabels); v != 0 {
 		t.Fatalf("motion active after the event = %v, want 0", v)
 	}
-	if v := metricValue(families, "gohome_hikvision_events_total", motion); v != 1 {
+	if v := metricValue(families, "gohome_hikvision_events_total", motionLabels); v != 1 {
 		t.Fatalf("motion events = %v, want 1", v)
 	}
 	if v := metricValue(families, "gohome_hikvision_alert_stream_connected", nil); v != 1 {
@@ -255,59 +279,116 @@ func TestRecordedMotionIsOneEvent(t *testing.T) {
 	}
 }
 
+// When the stream drops mid-event nobody can say the event ended, so gohome
+// must not: it ends subscriptions instead, and stops counting the event as under way.
+func TestLostStreamDoesNotClaimEventsEnded(t *testing.T) {
+	camera, plugin := runRecordedStream(t)
+	sub := subscribeOnceConnected(t, plugin.stream)
+	if start := nextEvent(t, sub, "start"); start.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+		t.Fatalf("start: %+v", start)
+	}
+
+	camera.server.CloseClientConnections()
+	select {
+	case event, open := <-sub.events:
+		if open {
+			t.Fatalf("got %+v after the stream was lost; want the subscription ended", event)
+		}
+		if !errors.Is(sub.ended, errStreamLost) {
+			t.Fatalf("subscription ended with %v, want %v", sub.ended, errStreamLost)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("subscription not ended after the stream was lost")
+	}
+	if _, _, err := plugin.stream.Subscribe(); !errors.Is(err, errStreamNotConnected) {
+		t.Fatalf("subscribe while disconnected: %v, want %v", err, errStreamNotConnected)
+	}
+	if _, ok := gather(t, plugin.metrics)["gohome_hikvision_events_active"]; ok {
+		t.Fatal("events_active reported while the event stream is disconnected")
+	}
+	if v := gaugeValue(t, plugin.metrics.eventsActive.With(motionLabels)); v != 0 {
+		t.Fatalf("motion under way after the stream was lost = %v, want 0", v)
+	}
+}
+
+func connectedStream() *alertStream {
+	stream := newAlertStream(nil, func(cameraEvent) {}, func(cameraEvent) {})
+	stream.episodes = newEpisodeTracker(testQuiet, stream.publish)
+	stream.status.Connected = true
+	return stream
+}
+
 func motionNotification() cameraEvent {
-	return cameraEvent{Kind: hikvisionv1.EventKind_EVENT_KIND_MOTION, State: hikvisionv1.EventState_EVENT_STATE_ACTIVE, ReceivedAt: time.Now()}
+	return cameraEvent{Kind: hikvisionv1.EventKind_EVENT_KIND_MOTION, State: hikvisionv1.EventState_EVENT_STATE_ACTIVE,
+		EventType: "VMD", ChannelID: 1, ReceivedAt: time.Now()}
 }
 
 // Repeats closer together than the quiet period are one event; a longer gap starts another.
 func TestRepeatsAreOneEventUntilQuiet(t *testing.T) {
-	stream := newAlertStream(nil, func(cameraEvent) {})
-	stream.episodes = newEpisodeTracker(testQuiet, stream.publish)
-	events, unsubscribe := stream.Subscribe()
-	defer unsubscribe()
+	stream := connectedStream()
+	sub := subscribeOnceConnected(t, stream)
 
 	for range 5 {
 		stream.episodes.notify(motionNotification())
 		time.Sleep(testQuiet / 3)
 	}
-	if first := nextEvent(t, events, "first start"); first.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+	if first := nextEvent(t, sub, "first start"); first.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
 		t.Fatalf("first: %+v", first)
 	}
-	if end := nextEvent(t, events, "first end"); end.State != hikvisionv1.EventState_EVENT_STATE_INACTIVE {
+	if end := nextEvent(t, sub, "first end"); end.State != hikvisionv1.EventState_EVENT_STATE_INACTIVE {
 		t.Fatalf("want the end after a quiet period, got %+v", end)
 	}
 	stream.episodes.notify(motionNotification())
-	if second := nextEvent(t, events, "second start"); second.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+	if second := nextEvent(t, sub, "second start"); second.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
 		t.Fatalf("second: %+v", second)
 	}
 }
 
-func TestLateSubscriberGetsEventsUnderWay(t *testing.T) {
-	stream := newAlertStream(nil, func(cameraEvent) {})
+// Two line-crossing rules firing together are two events, each with its own start and end.
+func TestRulesAreSeparateEvents(t *testing.T) {
+	camera := newFakeCamera(t)
+	plugin := newPlugin(camera.client(t, testPassword))
+	stream := plugin.stream
 	stream.episodes = newEpisodeTracker(testQuiet, stream.publish)
-	stream.episodes.notify(motionNotification())
+	stream.status.Connected = true
+	sub := subscribeOnceConnected(t, stream)
 
-	events, unsubscribe := stream.Subscribe()
-	defer unsubscribe()
-	if start := nextEvent(t, events, "start"); start.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
-		t.Fatalf("want the start of the motion under way, got %+v", start)
+	crossing := func(rule uint32) cameraEvent {
+		return cameraEvent{Kind: hikvisionv1.EventKind_EVENT_KIND_LINE_CROSSING, State: hikvisionv1.EventState_EVENT_STATE_ACTIVE,
+			Target: hikvisionv1.DetectionTarget_DETECTION_TARGET_HUMAN, EventType: "linedetection", CameraWords: "human",
+			ChannelID: 1, RuleID: rule, ReceivedAt: time.Now()}
 	}
-	if end := nextEvent(t, events, "end"); end.State != hikvisionv1.EventState_EVENT_STATE_INACTIVE {
-		t.Fatalf("end: %+v", end)
+	stream.episodes.notify(crossing(1))
+	stream.episodes.notify(crossing(2))
+	humanCrossing := prometheus.Labels{"kind": "line_crossing", "target": "human"}
+	if v := gaugeValue(t, plugin.metrics.eventsActive.With(humanCrossing)); v != 2 {
+		t.Fatalf("line crossings under way = %v, want 2", v)
+	}
+	seen := map[string]bool{}
+	for range 4 {
+		event := nextEvent(t, sub, "line crossing")
+		seen[fmt.Sprintf("%v rule %d", event.State, event.RuleID)] = true
+	}
+	for _, want := range []string{"EVENT_STATE_ACTIVE rule 1", "EVENT_STATE_ACTIVE rule 2", "EVENT_STATE_INACTIVE rule 1", "EVENT_STATE_INACTIVE rule 2"} {
+		if !seen[want] {
+			t.Fatalf("missing %s; got %v", want, seen)
+		}
+	}
+	if v := gaugeValue(t, plugin.metrics.eventsActive.With(humanCrossing)); v != 0 {
+		t.Fatalf("line crossings under way after both ended = %v, want 0", v)
 	}
 }
 
-// Whether something is happening now is unknown while the event stream is down.
-func TestEventActiveAbsentWhileDisconnected(t *testing.T) {
-	camera := newFakeCamera(t)
-	plugin := newPlugin(camera.client(t, testPassword))
-	plugin.metrics.observeTransition(motionNotification())
-	families := gather(t, plugin.metrics)
-	if _, ok := families["gohome_hikvision_event_active"]; ok {
-		t.Fatal("event_active reported while the event stream is disconnected")
+func TestLateSubscriberGetsEventsUnderWay(t *testing.T) {
+	stream := connectedStream()
+	stream.episodes.notify(motionNotification())
+
+	sub := subscribeOnceConnected(t, stream)
+	if start := nextEvent(t, sub, "start"); start.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+		t.Fatalf("want the start of the motion under way, got %+v", start)
 	}
-	if v := metricValue(families, "gohome_hikvision_events_total", map[string]string{"kind": "motion"}); v != 1 {
-		t.Fatalf("motion events = %v, want 1", v)
+	if end := nextEvent(t, sub, "end"); end.State != hikvisionv1.EventState_EVENT_STATE_INACTIVE {
+		t.Fatalf("end: %+v", end)
 	}
 }
 
@@ -390,4 +471,13 @@ func metricValue(families map[string]*dto.MetricFamily, name string, labels map[
 		}
 	}
 	return -1
+}
+
+func gaugeValue(t *testing.T, gauge prometheus.Gauge) float64 {
+	t.Helper()
+	var metric dto.Metric
+	if err := gauge.Write(&metric); err != nil {
+		t.Fatal(err)
+	}
+	return metric.GetGauge().GetValue()
 }

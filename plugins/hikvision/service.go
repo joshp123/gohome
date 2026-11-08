@@ -2,6 +2,7 @@ package hikvision
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	hikvisionv1 "github.com/joshp123/gohome/proto/gen/plugins/hikvision/v1"
@@ -117,15 +118,22 @@ func (s *service) WatchEvents(_ *hikvisionv1.WatchEventsRequest, server grpc.Ser
 	if err := s.configured(); err != nil {
 		return err
 	}
-	events, unsubscribe := s.stream.Subscribe()
+	sub, unsubscribe, err := s.stream.Subscribe()
+	if err != nil {
+		return status.Error(codes.Unavailable, err.Error())
+	}
 	defer unsubscribe()
 	for {
 		select {
 		case <-server.Context().Done():
 			return nil
-		case event, open := <-events:
+		case event, open := <-sub.events:
 			if !open {
-				return status.Error(codes.ResourceExhausted, "subscriber fell behind the camera's events; reconnect")
+				code := codes.Unavailable
+				if errors.Is(sub.ended, errSubscriberBehind) {
+					code = codes.ResourceExhausted
+				}
+				return status.Errorf(code, "%v; reconnect", sub.ended)
 			}
 			if err := server.Send(cameraEventProto(event)); err != nil {
 				return err

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	hikvisionv1 "github.com/joshp123/gohome/proto/gen/plugins/hikvision/v1"
 )
 
 const (
@@ -31,21 +33,38 @@ type AlertStreamStatus struct {
 	LastError      string
 }
 
+// Why a subscription ended.
+var (
+	errStreamNotConnected = errors.New("gohome is not connected to the camera's event stream")
+	errStreamLost         = errors.New("gohome lost the camera's event stream; events under way may not have ended")
+	errSubscriberBehind   = errors.New("subscriber fell behind the camera's events")
+)
+
+// subscription carries events' starts and ends to one WatchEvents caller.
+type subscription struct {
+	events chan cameraEvent
+	// ended says why events was closed; set before the close.
+	ended error
+}
+
 // alertStream keeps one connection to the camera's event stream open, and
 // passes each event's start and end to the metrics and to every WatchEvents
 // subscriber.
 type alertStream struct {
-	client       *Client
-	onTransition func(cameraEvent)
-	episodes     *episodeTracker
+	client         *Client
+	onEventStarted func(cameraEvent)
+	// onEventStopped is called when an event ends, and when the stream is lost while it is under way.
+	onEventStopped func(cameraEvent)
+	episodes       *episodeTracker
 
 	mu          sync.Mutex
 	status      AlertStreamStatus
-	subscribers map[chan cameraEvent]struct{}
+	subscribers map[*subscription]struct{}
 }
 
-func newAlertStream(client *Client, onTransition func(cameraEvent)) *alertStream {
-	s := &alertStream{client: client, onTransition: onTransition, subscribers: map[chan cameraEvent]struct{}{}}
+func newAlertStream(client *Client, onEventStarted, onEventStopped func(cameraEvent)) *alertStream {
+	s := &alertStream{client: client, onEventStarted: onEventStarted, onEventStopped: onEventStopped,
+		subscribers: map[*subscription]struct{}{}}
 	s.episodes = newEpisodeTracker(eventEndsAfterQuiet, s.publish)
 	return s
 }
@@ -56,27 +75,58 @@ func (s *alertStream) Status() AlertStreamStatus {
 	return s.status
 }
 
-// Subscribe returns a channel of events' starts and ends, beginning with the
-// starts of events already under way. The stream closes the channel if the
-// subscriber falls more than subscriberBuffer events behind.
-func (s *alertStream) Subscribe() (<-chan cameraEvent, func()) {
-	ch := make(chan cameraEvent, subscriberBuffer)
+// Subscribe returns events' starts and ends, beginning with the starts of
+// events already under way. It fails while the event stream is disconnected,
+// because silence would then look like nothing happening. The stream ends the
+// subscription if it is lost or the subscriber falls more than
+// subscriberBuffer events behind.
+func (s *alertStream) Subscribe() (*subscription, func(), error) {
+	sub := &subscription{events: make(chan cameraEvent, subscriberBuffer)}
+	var err error
 	s.episodes.whileHeld(func(underWay []cameraEvent) {
-		for _, start := range underWay {
-			ch <- start
-		}
-		s.mu.Lock()
-		s.subscribers[ch] = struct{}{}
-		s.mu.Unlock()
-	})
-	return ch, func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		if _, ok := s.subscribers[ch]; ok {
-			delete(s.subscribers, ch)
-			close(ch)
+		if !s.status.Connected {
+			err = errStreamNotConnected
+			return
 		}
+		for _, start := range underWay {
+			sub.events <- start
+		}
+		s.subscribers[sub] = struct{}{}
+	})
+	if err != nil {
+		return nil, nil, err
 	}
+	return sub, func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.endLocked(sub, nil)
+	}, nil
+}
+
+// endLocked closes a subscription that is still open. s.mu must be held.
+func (s *alertStream) endLocked(sub *subscription, why error) {
+	if _, ok := s.subscribers[sub]; ok {
+		delete(s.subscribers, sub)
+		sub.ended = why
+		close(sub.events)
+	}
+}
+
+// lost forgets events under way and ends every subscription: once the stream
+// is down nobody can see those events end.
+func (s *alertStream) lost() {
+	s.episodes.abandon(func(underWay []cameraEvent) {
+		for _, start := range underWay {
+			s.onEventStopped(start)
+		}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		for sub := range s.subscribers {
+			s.endLocked(sub, errStreamLost)
+		}
+	})
 }
 
 // Run reconnects until ctx ends.
@@ -89,6 +139,7 @@ func (s *alertStream) Run(ctx context.Context) {
 		s.status.Connected = false
 		s.status.LastError = err.Error()
 		s.mu.Unlock()
+		s.lost()
 		if ctx.Err() != nil {
 			return
 		}
@@ -225,15 +276,18 @@ func (p *partReader) next() (textproto.MIMEHeader, []byte, error) {
 
 // publish sends an event's start or end to the metrics and every subscriber.
 func (s *alertStream) publish(event cameraEvent) {
-	s.onTransition(event)
+	if event.State == hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+		s.onEventStarted(event)
+	} else {
+		s.onEventStopped(event)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for ch := range s.subscribers {
+	for sub := range s.subscribers {
 		select {
-		case ch <- event:
+		case sub.events <- event:
 		default:
-			delete(s.subscribers, ch)
-			close(ch)
+			s.endLocked(sub, errSubscriberBehind)
 		}
 	}
 }

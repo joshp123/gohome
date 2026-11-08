@@ -143,7 +143,10 @@ service HikvisionService {
   // One JPEG from the main stream.
   rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
   // Each on-camera event's start (ACTIVE) and end (INACTIVE), beginning with
-  // the starts of events already under way. A subscriber that falls behind is
-  // ended with RESOURCE_EXHAUSTED and should reconnect.
+  // the starts of events already under way. Each line-crossing or intrusion
+  // rule is its own event. UNAVAILABLE while gohome is not connected to the
+  // camera's event stream, and when it loses it: events under way then have
+  // no end. A subscriber that falls behind is ended with RESOURCE_EXHAUSTED.
+  // Reconnect after either.
   rpc WatchEvents(WatchEventsRequest) returns (stream CameraEvent);
 }

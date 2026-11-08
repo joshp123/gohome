@@ -26,7 +26,7 @@ type MetricsCollector struct {
 	streamConnected   *prometheus.Desc
 	streamLastMessage *prometheus.Desc
 	events            *prometheus.CounterVec
-	eventActive       *prometheus.GaugeVec
+	eventsActive      *prometheus.GaugeVec
 	lastEvent         *prometheus.GaugeVec
 }
 
@@ -53,9 +53,9 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 			Name: "gohome_hikvision_events_total",
 			Help: "Events that started, however many notifications the camera repeated while each lasted. An event ends after 10 s without a repeat.",
 		}, eventLabels),
-		eventActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gohome_hikvision_event_active",
-			Help: "Whether an event of this kind and target is happening now (1) or has ended (0). Absent while the event stream is disconnected.",
+		eventsActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gohome_hikvision_events_active",
+			Help: "Events of this kind and target happening now. Absent while the event stream is disconnected.",
 		}, eventLabels),
 		lastEvent: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "gohome_hikvision_last_event_timestamp_seconds",
@@ -64,16 +64,19 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 	}
 }
 
-// observeTransition records an event's start (active) or end (inactive).
-func (c *MetricsCollector) observeTransition(event cameraEvent) {
-	labels := prometheus.Labels{"kind": kindLabel(event.Kind), "target": targetLabel(event.Target)}
-	if event.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
-		c.eventActive.With(labels).Set(0)
-		return
-	}
+func (c *MetricsCollector) eventStarted(event cameraEvent) {
+	labels := eventLabelValues(event)
 	c.events.With(labels).Inc()
-	c.eventActive.With(labels).Set(1)
+	c.eventsActive.With(labels).Inc()
 	c.lastEvent.With(labels).Set(float64(event.ReceivedAt.Unix()))
+}
+
+func (c *MetricsCollector) eventStopped(event cameraEvent) {
+	c.eventsActive.With(eventLabelValues(event)).Dec()
+}
+
+func eventLabelValues(event cameraEvent) prometheus.Labels {
+	return prometheus.Labels{"kind": kindLabel(event.Kind), "target": targetLabel(event.Target)}
 }
 
 func kindLabel(kind hikvisionv1.EventKind) string {
@@ -92,7 +95,7 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.streamConnected
 	ch <- c.streamLastMessage
 	c.events.Describe(ch)
-	c.eventActive.Describe(ch)
+	c.eventsActive.Describe(ch)
 	c.lastEvent.Describe(ch)
 }
 
@@ -148,7 +151,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(c.streamLastMessage, prometheus.GaugeValue, float64(status.LastMessage.Unix()))
 	}
 	if status.Connected {
-		c.eventActive.Collect(ch)
+		c.eventsActive.Collect(ch)
 	}
 	c.events.Collect(ch)
 	c.lastEvent.Collect(ch)
