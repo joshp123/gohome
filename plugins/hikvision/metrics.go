@@ -19,14 +19,15 @@ type MetricsCollector struct {
 	client *Client
 	stream *alertStream
 
-	scrapeSuccess      *prometheus.Desc
-	lastSuccess        prometheus.Gauge
-	info               *prometheus.Desc
-	detectionEnabled   *prometheus.Desc
-	streamConnected    *prometheus.Desc
-	streamLastMessage  *prometheus.Desc
-	eventNotifications *prometheus.CounterVec
-	lastEvent          *prometheus.GaugeVec
+	scrapeSuccess     *prometheus.Desc
+	lastSuccess       prometheus.Gauge
+	info              *prometheus.Desc
+	detectionEnabled  *prometheus.Desc
+	streamConnected   *prometheus.Desc
+	streamLastMessage *prometheus.Desc
+	events            *prometheus.CounterVec
+	eventActive       *prometheus.GaugeVec
+	lastEvent         *prometheus.GaugeVec
 }
 
 func NewMetricsCollector(client *Client) *MetricsCollector {
@@ -48,23 +49,30 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 			"Whether gohome holds an open connection to the camera's event stream (1) or not (0)", nil, nil),
 		streamLastMessage: prometheus.NewDesc("gohome_hikvision_alert_stream_last_message_timestamp_seconds",
 			"When the event stream last carried anything, including the ten-second keep-alive (epoch seconds)", nil, nil),
-		eventNotifications: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gohome_hikvision_event_notifications_total",
-			Help: "Active event notifications received. Motion repeats about once a second while it lasts, so this counts notifications, not visits.",
+		events: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "gohome_hikvision_events_total",
+			Help: "Events that started, however many notifications the camera repeated while each lasted. An event ends after 10 s without a repeat.",
+		}, eventLabels),
+		eventActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gohome_hikvision_event_active",
+			Help: "Whether an event of this kind and target is happening now (1) or has ended (0). Absent while the event stream is disconnected.",
 		}, eventLabels),
 		lastEvent: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "gohome_hikvision_last_event_timestamp_seconds",
-			Help: "When gohome last received an active notification of this kind and target (epoch seconds)",
+			Help: "When the latest event of this kind and target started (epoch seconds)",
 		}, eventLabels),
 	}
 }
 
-func (c *MetricsCollector) observeEvent(event cameraEvent) {
+// observeTransition records an event's start (active) or end (inactive).
+func (c *MetricsCollector) observeTransition(event cameraEvent) {
+	labels := prometheus.Labels{"kind": kindLabel(event.Kind), "target": targetLabel(event.Target)}
 	if event.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+		c.eventActive.With(labels).Set(0)
 		return
 	}
-	labels := prometheus.Labels{"kind": kindLabel(event.Kind), "target": targetLabel(event.Target)}
-	c.eventNotifications.With(labels).Inc()
+	c.events.With(labels).Inc()
+	c.eventActive.With(labels).Set(1)
 	c.lastEvent.With(labels).Set(float64(event.ReceivedAt.Unix()))
 }
 
@@ -83,7 +91,8 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.detectionEnabled
 	ch <- c.streamConnected
 	ch <- c.streamLastMessage
-	c.eventNotifications.Describe(ch)
+	c.events.Describe(ch)
+	c.eventActive.Describe(ch)
 	c.lastEvent.Describe(ch)
 }
 
@@ -138,7 +147,10 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	if !status.LastMessage.IsZero() {
 		ch <- prometheus.MustNewConstMetric(c.streamLastMessage, prometheus.GaugeValue, float64(status.LastMessage.Unix()))
 	}
-	c.eventNotifications.Collect(ch)
+	if status.Connected {
+		c.eventActive.Collect(ch)
+	}
+	c.events.Collect(ch)
 	c.lastEvent.Collect(ch)
 }
 

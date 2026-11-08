@@ -34,10 +34,13 @@ enum EventKind {
   EVENT_KIND_OTHER = 9;
 }
 
+// While an event lasts the camera repeats a notification about once a second
+// and does not say when the event ends. gohome sends one ACTIVE when an event
+// starts and one INACTIVE when 10 s pass without a repeat.
 enum EventState {
   EVENT_STATE_UNSPECIFIED = 0;
-  EVENT_STATE_ACTIVE = 1;
-  EVENT_STATE_INACTIVE = 2;
+  EVENT_STATE_ACTIVE = 1;   // the event started
+  EVENT_STATE_INACTIVE = 2; // the event ended
 }
 
 message HikvisionConfig {
@@ -100,13 +103,16 @@ message Camera {
   AlertStreamStatus alert_stream = 6;
 }
 
+// The start or end of one event. An end carries the fields of the event's
+// last notification, so its times say when the event was last seen; it
+// arrives 10 s after that.
 message CameraEvent {
   EventKind kind = 1;
   EventState state = 2;
   DetectionTarget target = 3;
   // The camera's clock. Check it against received_at before correlating.
   google.protobuf.Timestamp camera_time = 4;
-  // When gohome received the event.
+  // When gohome received the notification.
   google.protobuf.Timestamp received_at = 5;
   uint32 channel_id = 6;
   // The smart-event rule that fired (line or region). 0 when not given.
@@ -136,8 +142,8 @@ service HikvisionService {
   rpc GetCamera(GetCameraRequest) returns (GetCameraResponse);
   // One JPEG from the main stream.
   rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
-  // On-camera events as they arrive. Keep-alives are not sent. Motion repeats
-  // about once a second while it lasts. A subscriber that falls behind is
+  // Each on-camera event's start (ACTIVE) and end (INACTIVE), beginning with
+  // the starts of events already under way. A subscriber that falls behind is
   // ended with RESOURCE_EXHAUSTED and should reconnect.
   rpc WatchEvents(WatchEventsRequest) returns (stream CameraEvent);
 }

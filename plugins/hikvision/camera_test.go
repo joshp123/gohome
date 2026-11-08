@@ -184,40 +184,130 @@ func TestRejectedCredentialsAreNotRetried(t *testing.T) {
 	}
 }
 
-func TestAlertStreamCountsRecordedEvents(t *testing.T) {
+// testQuiet stands in for eventEndsAfterQuiet so tests do not wait 10 s.
+const testQuiet = 300 * time.Millisecond
+
+func nextEvent(t *testing.T, events <-chan cameraEvent, what string) cameraEvent {
+	t.Helper()
+	select {
+	case event, open := <-events:
+		if !open {
+			t.Fatalf("%s: subscription closed", what)
+		}
+		return event
+	case <-time.After(5 * time.Second):
+		t.Fatalf("%s: nothing received", what)
+	}
+	return cameraEvent{}
+}
+
+func expectNoEvent(t *testing.T, events <-chan cameraEvent, within time.Duration) {
+	t.Helper()
+	select {
+	case event := <-events:
+		t.Fatalf("unexpected event: %+v", event)
+	case <-time.After(within):
+	}
+}
+
+func TestRecordedMotionIsOneEvent(t *testing.T) {
 	camera := newFakeCamera(t)
 	plugin := newPlugin(camera.client(t, testPassword))
+	plugin.stream.episodes = newEpisodeTracker(testQuiet, plugin.stream.publish)
 	events, unsubscribe := plugin.stream.Subscribe()
 	defer unsubscribe()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go plugin.stream.Run(ctx)
 
-	// The recording has 12 motion notifications and 2 keep-alives, with the
-	// camera's closing delimiter after each motion part.
-	for i := range 12 {
-		select {
-		case event := <-events:
-			if event.Kind != hikvisionv1.EventKind_EVENT_KIND_MOTION || event.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE ||
-				event.Target != hikvisionv1.DetectionTarget_DETECTION_TARGET_UNSPECIFIED || event.CameraTime.IsZero() {
-				t.Fatalf("event %d: %+v", i, event)
-			}
-		case <-time.After(5 * time.Second):
-			t.Fatalf("received %d of 12 motion events", i)
-		}
+	// The recording has 12 motion notifications, one a second by the camera's
+	// clock, and 2 keep-alives, with the camera's closing delimiter after each
+	// motion part. They arrive together, so they are one event.
+	start := nextEvent(t, events, "start")
+	if start.Kind != hikvisionv1.EventKind_EVENT_KIND_MOTION || start.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE ||
+		start.Target != hikvisionv1.DetectionTarget_DETECTION_TARGET_UNSPECIFIED || start.CameraTime.IsZero() {
+		t.Fatalf("start: %+v", start)
 	}
-	select {
-	case event := <-events:
-		t.Fatalf("unexpected event after the recording: %+v", event)
-	case <-time.After(200 * time.Millisecond):
+	<-camera.streamOpened
+	motion := map[string]string{"kind": "motion", "target": "unspecified"}
+	families := gather(t, plugin.metrics)
+	if v := metricValue(families, "gohome_hikvision_events_total", motion); v != 1 {
+		t.Fatalf("motion events = %v, want 1", v)
+	}
+	if v := metricValue(families, "gohome_hikvision_event_active", motion); v != 1 {
+		t.Fatalf("motion active during the event = %v, want 1", v)
 	}
 
-	families := gather(t, plugin.metrics)
-	if v := metricValue(families, "gohome_hikvision_event_notifications_total", map[string]string{"kind": "motion", "target": "unspecified"}); v != 12 {
-		t.Fatalf("motion notifications = %v, want 12", v)
+	end := nextEvent(t, events, "end")
+	if end.Kind != start.Kind || end.State != hikvisionv1.EventState_EVENT_STATE_INACTIVE || !end.CameraTime.After(start.CameraTime) {
+		t.Fatalf("end: %+v; want the last notification of the event that started %v", end, start.CameraTime)
+	}
+	expectNoEvent(t, events, 2*testQuiet)
+	families = gather(t, plugin.metrics)
+	if v := metricValue(families, "gohome_hikvision_event_active", motion); v != 0 {
+		t.Fatalf("motion active after the event = %v, want 0", v)
+	}
+	if v := metricValue(families, "gohome_hikvision_events_total", motion); v != 1 {
+		t.Fatalf("motion events = %v, want 1", v)
 	}
 	if v := metricValue(families, "gohome_hikvision_alert_stream_connected", nil); v != 1 {
 		t.Fatalf("alert stream connected = %v", v)
+	}
+}
+
+func motionNotification() cameraEvent {
+	return cameraEvent{Kind: hikvisionv1.EventKind_EVENT_KIND_MOTION, State: hikvisionv1.EventState_EVENT_STATE_ACTIVE, ReceivedAt: time.Now()}
+}
+
+// Repeats closer together than the quiet period are one event; a longer gap starts another.
+func TestRepeatsAreOneEventUntilQuiet(t *testing.T) {
+	stream := newAlertStream(nil, func(cameraEvent) {})
+	stream.episodes = newEpisodeTracker(testQuiet, stream.publish)
+	events, unsubscribe := stream.Subscribe()
+	defer unsubscribe()
+
+	for range 5 {
+		stream.episodes.notify(motionNotification())
+		time.Sleep(testQuiet / 3)
+	}
+	if first := nextEvent(t, events, "first start"); first.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+		t.Fatalf("first: %+v", first)
+	}
+	if end := nextEvent(t, events, "first end"); end.State != hikvisionv1.EventState_EVENT_STATE_INACTIVE {
+		t.Fatalf("want the end after a quiet period, got %+v", end)
+	}
+	stream.episodes.notify(motionNotification())
+	if second := nextEvent(t, events, "second start"); second.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+		t.Fatalf("second: %+v", second)
+	}
+}
+
+func TestLateSubscriberGetsEventsUnderWay(t *testing.T) {
+	stream := newAlertStream(nil, func(cameraEvent) {})
+	stream.episodes = newEpisodeTracker(testQuiet, stream.publish)
+	stream.episodes.notify(motionNotification())
+
+	events, unsubscribe := stream.Subscribe()
+	defer unsubscribe()
+	if start := nextEvent(t, events, "start"); start.State != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+		t.Fatalf("want the start of the motion under way, got %+v", start)
+	}
+	if end := nextEvent(t, events, "end"); end.State != hikvisionv1.EventState_EVENT_STATE_INACTIVE {
+		t.Fatalf("end: %+v", end)
+	}
+}
+
+// Whether something is happening now is unknown while the event stream is down.
+func TestEventActiveAbsentWhileDisconnected(t *testing.T) {
+	camera := newFakeCamera(t)
+	plugin := newPlugin(camera.client(t, testPassword))
+	plugin.metrics.observeTransition(motionNotification())
+	families := gather(t, plugin.metrics)
+	if _, ok := families["gohome_hikvision_event_active"]; ok {
+		t.Fatal("event_active reported while the event stream is disconnected")
+	}
+	if v := metricValue(families, "gohome_hikvision_events_total", map[string]string{"kind": "motion"}); v != 1 {
+		t.Fatalf("motion events = %v, want 1", v)
 	}
 }
 

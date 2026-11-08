@@ -26,8 +26,11 @@ the camera or update its firmware, and it has no method that could.
 - Motion events never say what moved, even with motion filtered to people and
   vehicles: their target is `DETECTION_TARGET_UNSPECIFIED`. Line-crossing and
   intrusion events say `human` or `vehicle`.
-- Motion repeats about once a second while it lasts. Count visits from the
-  gaps between notifications, not from the number of notifications.
+- Motion detection reacts to leaves, branches and shadows moving in the wind,
+  despite its people-and-vehicles filter. Most motion events are not people.
+- While an event lasts the camera repeats a notification about once a second
+  and never says it has ended. gohome turns the repeats into one event: it
+  starts with the first notification and ends after 10 s without a repeat.
 - Events that happen while the event stream is disconnected are lost; the
   camera does not replay them.
 - The camera's clock (`camera_time`) can drift. Use `received_at` to correlate
@@ -46,11 +49,14 @@ Service `gohome.plugins.hikvision.v1.HikvisionService`:
   `/capabilities`.
 - `GetSnapshot`: one full-resolution JPEG from
   `/ISAPI/Streaming/channels/101/picture`.
-- `WatchEvents`: server stream of `CameraEvent` from the camera's
-  `/ISAPI/Event/notification/alertStream`, which gohome keeps open. The
-  camera's ten-second keep-alive is not forwarded. A subscriber that falls
-  more than 256 events behind is ended with `RESOURCE_EXHAUSTED` and should
-  reconnect.
+- `WatchEvents`: server stream of `CameraEvent`, one `ACTIVE` when an event
+  starts and one `INACTIVE` when it ends, from the camera's
+  `/ISAPI/Event/notification/alertStream`, which gohome keeps open. A new
+  subscriber first gets the starts of events already under way. An end
+  carries the event's last notification, so its times say when the event was
+  last seen. The camera's ten-second keep-alive is not forwarded. A
+  subscriber that falls more than 256 events behind is ended with
+  `RESOURCE_EXHAUSTED` and should reconnect.
 
 CLI: `gohome-cli hikvision camera`, `gohome-cli hikvision snapshot <file.jpg>`,
 `gohome-cli hikvision events` (add `--json` before `hikvision` for JSON).
@@ -65,9 +71,13 @@ Metrics (Prometheus):
 - `gohome_hikvision_alert_stream_connected`
 - `gohome_hikvision_alert_stream_last_message_timestamp_seconds`: includes
   keep-alives, so it is at most ten seconds old while the stream is healthy.
-- `gohome_hikvision_event_notifications_total{kind,target}`: active
-  notifications since gohome started.
-- `gohome_hikvision_last_event_timestamp_seconds{kind,target}`: receipt time.
+- `gohome_hikvision_events_total{kind,target}`: events that started since
+  gohome started, one per event however long it lasted.
+- `gohome_hikvision_event_active{kind,target}`: 1 while an event lasts, 0
+  once it has ended. Absent while the event stream is disconnected. Only
+  kinds and targets seen since gohome started appear.
+- `gohome_hikvision_last_event_timestamp_seconds{kind,target}`: when the
+  latest event started.
 
 `info` and `detection_enabled` are absent when the last read failed, rather
 than repeating old values. `kind` and `target` come from the fixed

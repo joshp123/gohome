@@ -32,18 +32,22 @@ type AlertStreamStatus struct {
 }
 
 // alertStream keeps one connection to the camera's event stream open, and
-// passes each event to the metrics and to every WatchEvents subscriber.
+// passes each event's start and end to the metrics and to every WatchEvents
+// subscriber.
 type alertStream struct {
-	client  *Client
-	onEvent func(cameraEvent)
+	client       *Client
+	onTransition func(cameraEvent)
+	episodes     *episodeTracker
 
 	mu          sync.Mutex
 	status      AlertStreamStatus
 	subscribers map[chan cameraEvent]struct{}
 }
 
-func newAlertStream(client *Client, onEvent func(cameraEvent)) *alertStream {
-	return &alertStream{client: client, onEvent: onEvent, subscribers: map[chan cameraEvent]struct{}{}}
+func newAlertStream(client *Client, onTransition func(cameraEvent)) *alertStream {
+	s := &alertStream{client: client, onTransition: onTransition, subscribers: map[chan cameraEvent]struct{}{}}
+	s.episodes = newEpisodeTracker(eventEndsAfterQuiet, s.publish)
+	return s
 }
 
 func (s *alertStream) Status() AlertStreamStatus {
@@ -52,13 +56,19 @@ func (s *alertStream) Status() AlertStreamStatus {
 	return s.status
 }
 
-// Subscribe returns a channel of events. The stream closes the channel if the
+// Subscribe returns a channel of events' starts and ends, beginning with the
+// starts of events already under way. The stream closes the channel if the
 // subscriber falls more than subscriberBuffer events behind.
 func (s *alertStream) Subscribe() (<-chan cameraEvent, func()) {
 	ch := make(chan cameraEvent, subscriberBuffer)
-	s.mu.Lock()
-	s.subscribers[ch] = struct{}{}
-	s.mu.Unlock()
+	s.episodes.whileHeld(func(underWay []cameraEvent) {
+		for _, start := range underWay {
+			ch <- start
+		}
+		s.mu.Lock()
+		s.subscribers[ch] = struct{}{}
+		s.mu.Unlock()
+	})
 	return ch, func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -152,7 +162,9 @@ func (s *alertStream) readPart(header textproto.MIMEHeader, body []byte) error {
 	if err != nil {
 		return err
 	}
-	s.deliver(event)
+	if !event.isKeepAlive() {
+		s.episodes.notify(event)
+	}
 	return nil
 }
 
@@ -211,11 +223,9 @@ func (p *partReader) next() (textproto.MIMEHeader, []byte, error) {
 	}
 }
 
-func (s *alertStream) deliver(event cameraEvent) {
-	if event.isKeepAlive() {
-		return
-	}
-	s.onEvent(event)
+// publish sends an event's start or end to the metrics and every subscriber.
+func (s *alertStream) publish(event cameraEvent) {
+	s.onTransition(event)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for ch := range s.subscribers {
