@@ -162,5 +162,24 @@ input; HTTP success alone is not verification.
 
 
 After deployment, check `/metrics/daikin` on the hub for the metric contract
-above and confirm VictoriaMetrics honours the explicit interval timestamps.
+above, and that new samples are stored at their buckets' start times.
 No deployment is performed by the audit/export tools.
+
+### Scrape-time copies
+
+Written by AI on 2026.11.08 by model claude opus 5.5.
+
+The hub's scrape job for this source honours sample timestamps (`nix/victoriametrics.nix`), so each completed bucket is stored at its period's start. A scrape
+job that does not honour them stores a copy of the latest bucket of each mode and resolution at every scrape instead. A right sample sits on a whole hour (bucket starts are whole local hours, and most timezone offsets are whole hours); a copy never does.
+`tools/recovery/drop_misdated_samples.py daikin` keeps the right samples and removes the copies stored after `--since`.
+
+Run it from a gohome checkout once the hub runs a build whose scrape job honours timestamps; before that, new copies
+keep arriving and `--apply` refuses to change anything. The first run only exports, backs up and reports; `--apply`
+repeats the export, deletes the series, imports the kept samples, clears VictoriaMetrics' cache of range results and
+checks that every kept sample is stored and none is at a wrong time. The backup directory is private and outside
+git. To restore, import `full-at-delete.jsonl.gz` (gunzipped) to `/api/v1/import`.
+
+```sh
+python3 -I tools/recovery/drop_misdated_samples.py daikin --vm http://<hub>/vm --since <first copy, ISO 8601 with offset> --backup-dir <private dir>
+# Check the kept count matches the samples imported and verified before, and nothing is removed from before --since. Then add --apply.
+```

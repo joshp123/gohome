@@ -400,3 +400,22 @@ historical PNG HTTP route. It is opt-in with `ROBOROCK_TEST_BOOTSTRAP` and
 `ROBOROCK_TEST_HOST`. Optional `ROBOROCK_HISTORY_EXPORT` writes VictoriaMetrics
 JSONL to a private local path; it never imports it. Optional `ROBOROCK_AUDIT_MAP`
 saves the historical PNG. The test sends only reads.
+
+### Scrape-time copies
+
+Written by AI on 2026.11.08 by model claude opus 5.5.
+
+The hub's scrape job for this source honours sample timestamps (`nix/victoriametrics.nix`), so each run record is stored at the run's end. A scrape
+job that does not honour them stores a copy of the latest record in every `cleaning_run_*` family at every scrape instead. A right sample's time equals the run's end, which `cleaning_run_end_timestamp_seconds` also holds as its value; a copy's time does not.
+`tools/recovery/drop_misdated_samples.py roborock` keeps the right samples and removes the copies stored after `--since`.
+
+Run it from a gohome checkout once the hub runs a build whose scrape job honours timestamps; before that, new copies
+keep arriving and `--apply` refuses to change anything. The first run only exports, backs up and reports; `--apply`
+repeats the export, deletes the series, imports the kept samples, clears VictoriaMetrics' cache of range results and
+checks that every kept sample is stored and none is at a wrong time. The backup directory is private and outside
+git. To restore, import `full-at-delete.jsonl.gz` (gunzipped) to `/api/v1/import`.
+
+```sh
+python3 -I tools/recovery/drop_misdated_samples.py roborock --vm http://<hub>/vm --since <first copy, ISO 8601 with offset> --backup-dir <private dir>
+# Check the kept count matches the samples imported and verified before, and nothing is removed from before --since. Then add --apply.
+```

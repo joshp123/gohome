@@ -201,3 +201,15 @@ recorded and skipped; other API errors stop the run. Retention moves daily, so
 request oldest dates first. A separate supervisor should inspect `state.json`
 and the latest `events.jsonl` entries until status is `complete`; a stopped
 process is not a completed backfill.
+
+## Sample timestamps on the hub
+
+Written by AI on 2026.11.08 by model claude opus 5.5.
+
+The collector stamps plant power and energy with the inverter's last report time and inverter telemetry with
+its observation time. The hub's scrape job for this source does not honour those timestamps
+(`nix/victoriametrics.nix`): VictoriaMetrics stores each reading at the scrape time. The inverter reports every
+five minutes and the cloud passes it on minutes later, so a reading is often more than 300 s old when scraped.
+An instant query looks back 300 s, so honoured readings would leave dashboard tiles and the
+history backfill's health check (`tools/backfill.py`) without a value for much of the day. Readings at
+the inverter's own times come from the history backfill instead.
