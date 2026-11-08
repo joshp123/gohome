@@ -29,6 +29,7 @@ message PlantStatus {
   double total_energy_kwh = 6;
   string last_update_time = 7;
   string timezone = 8;
+  InverterTelemetry inverter = 9;
 }
 
 message GetPlantStatusResponse {
@@ -44,4 +45,51 @@ message GrowattConfig {
 service GrowattService {
   rpc ListPlants(ListPlantsRequest) returns (ListPlantsResponse);
   rpc GetPlantStatus(GetPlantStatusRequest) returns (GetPlantStatusResponse);
+}
+
+// Measurements from the same inverter response, at its own source time.
+message InverterTelemetry {
+  string serial = 1;
+  string observed_at = 2;
+  repeated InverterMeasurement measurements = 3;
+}
+
+message InverterMeasurement {
+  InverterQuantity quantity = 1;
+  string channel = 2;
+  double value = 3;
+}
+
+enum InverterQuantity {
+  INVERTER_QUANTITY_UNSPECIFIED = 0;
+  GRID_FREQUENCY_HERTZ = 1;
+  OUTPUT_POWER_WATTS = 2;
+  PV_POWER_WATTS = 3;
+  POWER_FACTOR = 4;
+  TODAY_ENERGY_KWH = 5;
+  TOTAL_ENERGY_KWH = 6;
+  PV_TOTAL_ENERGY_KWH = 7;
+  BUS_VOLTAGE_VOLTS = 8;
+  OPERATING_TIME_RAW = 9;
+  OUTPUT_LIMIT_RAW = 10;
+  OUTPUT_PERCENT = 11;
+  CONNECTION_DELAY_RAW = 12;
+  DERATING_MODE = 13;
+  STATUS = 14;
+  OPERATING_MODE = 15;
+  SYSTEM_WORK_MODE = 16;
+  DRY_CONTACT_STATUS = 17;
+  LEAKAGE_CURRENT_RAW = 18;
+  INSULATION_RESISTANCE_RAW = 19;
+  GRID_VOLTAGE_VOLTS = 20;
+  GRID_CURRENT_AMPERES = 21;
+  PHASE_APPARENT_POWER_VA = 22;
+  STRING_VOLTAGE_VOLTS = 23;
+  STRING_CURRENT_AMPERES = 24;
+  STRING_POWER_WATTS = 25;
+  STRING_TODAY_ENERGY_KWH = 26;
+  STRING_TOTAL_ENERGY_KWH = 27;
+  TEMPERATURE_CELSIUS = 28;
+  FAULT_WORD = 29;
+  DIAGNOSTIC_CODE = 30;
 }

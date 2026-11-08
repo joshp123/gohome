@@ -3,6 +3,7 @@ package daikin
 import (
 	"context"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -12,9 +13,13 @@ import (
 type MetricsCollector struct {
 	client *Client
 
-	cloudUp     *prometheus.GaugeVec
-	success     prometheus.Gauge
-	lastSuccess prometheus.Gauge
+	energyHistory  *prometheus.Desc
+	energy         *prometheus.Desc
+	energyStart    *prometheus.Desc
+	energyObserved *prometheus.Desc
+	cloudUp        *prometheus.GaugeVec
+	success        prometheus.Gauge
+	lastSuccess    prometheus.Gauge
 
 	onOffMode       *prometheus.GaugeVec
 	operationMode   *prometheus.GaugeVec
@@ -39,8 +44,12 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 	embeddedLabels := []string{"unit_id", "unit_name", "embedded_id"}
 	setpointLabels := []string{"unit_id", "unit_name", "embedded_id", "operation_mode", "setpoint"}
 	return &MetricsCollector{
-		client:      client,
-		lastSuccess: prometheus.NewGauge(prometheus.GaugeOpts{Name: "gohome_daikin_last_success_timestamp_seconds", Help: "Last successful source read (epoch seconds)"}),
+		client:         client,
+		energyHistory:  prometheus.NewDesc("gohome_daikin_electricity_consumption_kwh", "Completed raw electricity bucket, timestamped at its interval start; never sum across resolutions", []string{"unit_id", "unit_name", "embedded_id", "operation_mode", "resolution"}, nil),
+		energy:         prometheus.NewDesc("gohome_daikin_electricity_slot_kwh", "Raw electrical consumption bucket; slots are zero-based API array indices", []string{"unit_id", "unit_name", "embedded_id", "operation_mode", "resolution", "slot"}, nil),
+		energyStart:    prometheus.NewDesc("gohome_daikin_electricity_slot_start_timestamp_seconds", "Start of the electrical consumption bucket in gateway local calendar time", []string{"unit_id", "unit_name", "embedded_id", "operation_mode", "resolution", "slot"}, nil),
+		energyObserved: prometheus.NewDesc("gohome_daikin_electricity_observed_timestamp_seconds", "Gateway timestamp anchoring the consumption arrays", []string{"unit_id", "unit_name"}, nil),
+		lastSuccess:    prometheus.NewGauge(prometheus.GaugeOpts{Name: "gohome_daikin_last_success_timestamp_seconds", Help: "Last successful source read (epoch seconds)"}),
 		cloudUp: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "gohome_daikin_cloud_connected",
 			Help: "Whether the unit reports cloud connectivity (1=up, 0=down)",
@@ -113,6 +122,13 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 }
 
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
+	for _, desc := range additionalDescriptors {
+		ch <- desc
+	}
+	ch <- c.energyHistory
+	ch <- c.energy
+	ch <- c.energyStart
+	ch <- c.energyObserved
 	c.cloudUp.Describe(ch)
 	c.success.Describe(ch)
 	c.lastSuccess.Describe(ch)
@@ -159,6 +175,48 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	c.collectDeviceReadings(ch, states)
+
+	c.success.Set(1)
+	c.client.cloudMu.Lock()
+	c.lastSuccess.Set(float64(c.client.lastGatewayAt.Unix()))
+	c.client.cloudMu.Unlock()
+	limits := c.client.RateLimits()
+	c.rateLimitLimit.WithLabelValues("minute").Set(float64(limits.Minute))
+	c.rateLimitLimit.WithLabelValues("day").Set(float64(limits.Day))
+	c.rateLimitRemain.WithLabelValues("minute").Set(float64(limits.RemainingMinute))
+	c.rateLimitRemain.WithLabelValues("day").Set(float64(limits.RemainingDay))
+	c.rateRetryAfter.Set(float64(limits.RetryAfter))
+	c.rateResetAfter.Set(float64(limits.ResetAfter))
+	c.rateLastStatus.Set(float64(limits.LastStatusCode))
+	c.cloudUp.Collect(ch)
+	c.onOffMode.Collect(ch)
+	c.operationMode.Collect(ch)
+	c.roomTemp.Collect(ch)
+	c.outdoorTemp.Collect(ch)
+	c.roomHumidity.Collect(ch)
+	c.setpoint.Collect(ch)
+	c.errorState.Collect(ch)
+	c.warningState.Collect(ch)
+	c.cautionState.Collect(ch)
+	c.holidayMode.Collect(ch)
+	c.rateLimitLimit.Collect(ch)
+	c.rateLimitRemain.Collect(ch)
+	c.rateRetryAfter.Collect(ch)
+	c.rateResetAfter.Collect(ch)
+	c.rateLastStatus.Collect(ch)
+	c.success.Collect(ch)
+	c.lastSuccess.Collect(ch)
+}
+
+func boolToFloat(value bool) float64 {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func (c *MetricsCollector) collectDeviceReadings(ch chan<- prometheus.Metric, states []DeviceState) {
 	c.cloudUp.Reset()
 	c.onOffMode.Reset()
 	c.operationMode.Reset()
@@ -172,7 +230,32 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	c.holidayMode.Reset()
 
 	for _, state := range states {
+		collectAdditional(ch, state)
 		device := state.Device
+		readings, energyErr := state.energyReadings()
+		if energyErr != nil {
+			log.Printf("daikin energy decode failed: %v", energyErr)
+		} else if len(readings) > 0 {
+			ch <- prometheus.MustNewConstMetric(c.energyObserved, prometheus.GaugeValue, float64(state.Timestamp.Unix()), device.ID, device.Name)
+			latest := map[string]EnergyReading{}
+			for _, reading := range readings {
+				if !reading.End.After(state.Timestamp.Add(-2 * time.Hour)) {
+					key := reading.EmbeddedID + "/" + reading.Mode + "/" + reading.Resolution
+					if previous, ok := latest[key]; !ok || reading.Start.After(previous.Start) {
+						latest[key] = reading
+					}
+				}
+			}
+			for _, reading := range latest {
+				metric := prometheus.MustNewConstMetric(c.energyHistory, prometheus.GaugeValue, reading.KWh, device.ID, device.Name, reading.EmbeddedID, reading.Mode, reading.Resolution)
+				ch <- prometheus.NewMetricWithTimestamp(reading.Start, metric)
+			}
+			for _, reading := range readings {
+				labels := []string{device.ID, device.Name, reading.EmbeddedID, reading.Mode, reading.Resolution, strconv.Itoa(reading.Slot)}
+				ch <- prometheus.MustNewConstMetric(c.energy, prometheus.GaugeValue, reading.KWh, labels...)
+				ch <- prometheus.MustNewConstMetric(c.energyStart, prometheus.GaugeValue, float64(reading.Start.Unix()), labels...)
+			}
+		}
 		labels := prometheus.Labels{
 			"unit_id":   device.ID,
 			"unit_name": device.Name,
@@ -184,9 +267,6 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		for _, mp := range state.ManagementPoints {
-			if mp.ManagementPointType != "climateControl" && mp.ManagementPointType != "climateControlMainZone" && mp.ManagementPointType != "domesticHotWaterTank" {
-				continue
-			}
 
 			mpLabels := prometheus.Labels{
 				"unit_id":     device.ID,
@@ -254,41 +334,4 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	c.success.Set(1)
-	c.client.cloudMu.Lock()
-	c.lastSuccess.Set(float64(c.client.lastGatewayAt.Unix()))
-	c.client.cloudMu.Unlock()
-	limits := c.client.RateLimits()
-	c.rateLimitLimit.WithLabelValues("minute").Set(float64(limits.Minute))
-	c.rateLimitLimit.WithLabelValues("day").Set(float64(limits.Day))
-	c.rateLimitRemain.WithLabelValues("minute").Set(float64(limits.RemainingMinute))
-	c.rateLimitRemain.WithLabelValues("day").Set(float64(limits.RemainingDay))
-	c.rateRetryAfter.Set(float64(limits.RetryAfter))
-	c.rateResetAfter.Set(float64(limits.ResetAfter))
-	c.rateLastStatus.Set(float64(limits.LastStatusCode))
-	c.cloudUp.Collect(ch)
-	c.onOffMode.Collect(ch)
-	c.operationMode.Collect(ch)
-	c.roomTemp.Collect(ch)
-	c.outdoorTemp.Collect(ch)
-	c.roomHumidity.Collect(ch)
-	c.setpoint.Collect(ch)
-	c.errorState.Collect(ch)
-	c.warningState.Collect(ch)
-	c.cautionState.Collect(ch)
-	c.holidayMode.Collect(ch)
-	c.rateLimitLimit.Collect(ch)
-	c.rateLimitRemain.Collect(ch)
-	c.rateRetryAfter.Collect(ch)
-	c.rateResetAfter.Collect(ch)
-	c.rateLastStatus.Collect(ch)
-	c.success.Collect(ch)
-	c.lastSuccess.Collect(ch)
-}
-
-func boolToFloat(value bool) float64 {
-	if value {
-		return 1
-	}
-	return 0
 }

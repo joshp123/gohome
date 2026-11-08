@@ -2,6 +2,7 @@ package tado
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -35,12 +36,12 @@ type dayReport struct {
 }
 
 type dataPointTemp struct {
-	Timestamp string `json:"timestamp"`
+	Timestamp string    `json:"timestamp"`
 	Value     tempValue `json:"value"`
 }
 
 type dataPointHumidity struct {
-	Timestamp string `json:"timestamp"`
+	Timestamp string        `json:"timestamp"`
 	Value     humidityValue `json:"value"`
 }
 
@@ -74,17 +75,20 @@ type weatherInterval struct {
 type sunnyInterval struct {
 	From  string `json:"from"`
 	To    string `json:"to"`
-	Value bool `json:"value"`
+	Value *bool  `json:"value"`
 }
 
 type tempValue struct {
-	Celsius float64
+	Celsius *float64
 }
 
 func (v *tempValue) UnmarshalJSON(data []byte) error {
+	v.Celsius = nil
 	var asNumber float64
 	if err := json.Unmarshal(data, &asNumber); err == nil {
-		v.Celsius = asNumber
+		if string(data) != "null" {
+			v.Celsius = &asNumber
+		}
 		return nil
 	}
 	var asObj struct {
@@ -94,19 +98,22 @@ func (v *tempValue) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if asObj.Celsius != nil {
-		v.Celsius = *asObj.Celsius
+		v.Celsius = asObj.Celsius
 	}
 	return nil
 }
 
 type humidityValue struct {
-	Percentage float64
+	Percentage *float64
 }
 
 func (v *humidityValue) UnmarshalJSON(data []byte) error {
+	v.Percentage = nil
 	var asNumber float64
 	if err := json.Unmarshal(data, &asNumber); err == nil {
-		v.Percentage = asNumber
+		if string(data) != "null" {
+			v.Percentage = &asNumber
+		}
 		return nil
 	}
 	var asObj struct {
@@ -116,14 +123,14 @@ func (v *humidityValue) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if asObj.Percentage != nil {
-		v.Percentage = *asObj.Percentage
+		v.Percentage = asObj.Percentage
 	}
 	return nil
 }
 
 func parseDayReportTime(value string) (time.Time, error) {
 	if value == "" {
-		return time.Time{}, nil
+		return time.Time{}, fmt.Errorf("missing source timestamp")
 	}
 	if ts, err := time.Parse(time.RFC3339Nano, value); err == nil {
 		return ts, nil

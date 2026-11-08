@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,14 +14,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	v1 "github.com/joshp123/gohome/proto/gen/plugins/growatt/v1"
 )
 
 const (
-	apiPrefix        = "v1/"
-	apiV4Prefix      = "v4/"
-	timeLayout       = "2006-01-02 15:04:05"
-	rateLimitRetries = 4
-	rateLimitBackoff = 20 * time.Second
+	apiPrefix   = "v1/"
+	apiV4Prefix = "v4/"
+	timeLayout  = "2006-01-02 15:04:05"
 )
 
 // APIError surfaces Growatt error codes.
@@ -169,12 +170,13 @@ func (c *Client) EnergyOverview(ctx context.Context, plantID int64) (PlantEnergy
 	if t, err := parseGrowattTimestamp(parseString(raw["last_update_time"]), energy.Timezone); err == nil {
 		energy.LastUpdate = t
 	}
-	if power, lastUpdate, err := c.plantLivePower(ctx, plantID, energy.Timezone); err != nil {
+	if reading, err := c.plantLiveReading(ctx, plantID, energy.Timezone); err != nil {
 		return PlantEnergy{}, err
 	} else {
-		energy.CurrentPowerW = power
-		if lastUpdate != nil {
-			energy.LastUpdate = lastUpdate
+		energy.CurrentPowerW = reading.Watts
+		energy.Inverter = reading.Telemetry
+		if reading.LastUpdate != nil {
+			energy.LastUpdate = reading.LastUpdate
 		}
 	}
 
@@ -190,19 +192,7 @@ func (c *Client) postJSON(ctx context.Context, path string, params map[string]st
 }
 
 func (c *Client) doJSON(ctx context.Context, method, prefix, path string, params map[string]string, out any) error {
-	for attempt := 0; attempt <= rateLimitRetries; attempt++ {
-		err := c.doJSONOnce(ctx, method, prefix, path, params, out)
-		if err == nil {
-			return nil
-		}
-		if !isRateLimit(err) || attempt == rateLimitRetries {
-			return err
-		}
-		if sleepErr := sleepWithContext(ctx, rateLimitBackoff*time.Duration(attempt+1)); sleepErr != nil {
-			return err
-		}
-	}
-	return nil
+	return c.doJSONOnce(ctx, method, prefix, path, params, out)
 }
 
 func (c *Client) doJSONOnce(ctx context.Context, method, prefix, path string, params map[string]string, out any) error {
@@ -266,11 +256,17 @@ type growattDevice struct {
 }
 
 type livePowerReading struct {
+	Telemetry  *v1.InverterTelemetry
 	Watts      float64
 	LastUpdate *time.Time
 }
 
 func (c *Client) plantLivePower(ctx context.Context, plantID int64, timezone string) (float64, *time.Time, error) {
+	reading, err := c.plantLiveReading(ctx, plantID, timezone)
+	return reading.Watts, reading.LastUpdate, err
+}
+
+func (c *Client) plantLiveReading(ctx context.Context, plantID int64, timezone string) (livePowerReading, error) {
 	var list struct {
 		Count   int `json:"count"`
 		Devices []struct {
@@ -279,18 +275,18 @@ func (c *Client) plantLivePower(ctx context.Context, plantID int64, timezone str
 		} `json:"devices"`
 	}
 	if err := c.getJSON(ctx, "device/list", map[string]string{"plant_id": strconv.FormatInt(plantID, 10), "page": "1", "perpage": "100"}, &list); err != nil {
-		return 0, nil, err
+		return livePowerReading{}, err
 	}
 	if list.Count != 1 || len(list.Devices) != 1 {
-		return 0, nil, fmt.Errorf("plant must contain exactly one inverter; found %d", list.Count)
+		return livePowerReading{}, fmt.Errorf("plant must contain exactly one inverter; found %d", list.Count)
 	}
 	device := list.Devices[0]
 	// Growatt OpenAPI device type 7 is MIN, the v4 queryLastData type.
 	if device.Type != 7 || device.SN == "" {
-		return 0, nil, fmt.Errorf("unsupported Growatt device type %d", device.Type)
+		return livePowerReading{}, fmt.Errorf("unsupported Growatt device type %d", device.Type)
 	}
 	reading, err := c.deviceLivePower(ctx, growattDevice{SN: device.SN, Type: "min"}, timezone)
-	return reading.Watts, reading.LastUpdate, err
+	return reading, err
 }
 
 func (c *Client) deviceLivePower(ctx context.Context, device growattDevice, timezone string) (livePowerReading, error) {
@@ -314,7 +310,11 @@ func (c *Client) deviceLivePower(ctx context.Context, device growattDevice, time
 	if !ok {
 		return livePowerReading{}, fmt.Errorf("growatt live power pac missing")
 	}
-	return livePowerReading{Watts: power, LastUpdate: lastUpdate}, nil
+	telemetry, err := decodeInverterTelemetry(rows[0], device.SN, timezone)
+	if err != nil {
+		return livePowerReading{}, err
+	}
+	return livePowerReading{Watts: power, LastUpdate: lastUpdate, Telemetry: telemetry}, nil
 }
 
 func parseGrowattTimestamp(value, timezone string) (*time.Time, error) {
@@ -364,7 +364,7 @@ func parseFloat(value any) float64 {
 func parseFloatOK(value any) (float64, bool) {
 	switch typed := value.(type) {
 	case float64:
-		return typed, true
+		return typed, !math.IsNaN(typed) && !math.IsInf(typed, 0)
 	case float32:
 		return float64(typed), true
 	case int64:
@@ -376,7 +376,7 @@ func parseFloatOK(value any) (float64, bool) {
 			return 0, false
 		}
 		if parsed, err := strconv.ParseFloat(typed, 64); err == nil {
-			return parsed, true
+			return parsed, !math.IsNaN(parsed) && !math.IsInf(parsed, 0)
 		}
 	}
 	return 0, false

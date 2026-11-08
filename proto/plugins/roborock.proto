@@ -41,6 +41,11 @@ message DeviceStatus {
   bool charging = 16;
   string last_clean_start = 17;
   string last_clean_end = 18;
+  Consumables consumables = 19;
+  StatusReadings readings = 20;
+  CleaningRecord last_record = 21;
+  optional int64 total_dust_collections = 22;
+  OperationalSettings settings = 23;
 }
 
 message GetStatusResponse {
@@ -211,6 +216,9 @@ message CleanProfile {
 }
 
 service RoborockService {
+  rpc GetMapDetails(MapDetailsRequest) returns (MapDetailsResponse);
+  rpc ListSavedMaps(DeviceStatusRequest) returns (SavedMapsResponse);
+  rpc GetCleaningHistory(CleaningHistoryRequest) returns (CleaningHistoryResponse);
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
   rpc GetStatus(DeviceStatusRequest) returns (GetStatusResponse);
   rpc StartClean(StartCleanRequest) returns (StartCleanResponse);
@@ -229,4 +237,122 @@ service RoborockService {
   rpc GoTo(GoToRequest) returns (GoToResponse);
   rpc SetDnd(SetDndRequest) returns (SetDndResponse);
   rpc ResetConsumable(ResetConsumableRequest) returns (ResetConsumableResponse);
+}
+
+// Raw maintenance counters; absent fields are not reported by this device.
+message Consumables {
+  optional int64 main_brush_seconds = 1;
+  optional int64 side_brush_seconds = 2;
+  optional int64 filter_seconds = 3;
+  optional int64 filter_element_seconds = 4;
+  optional int64 sensors_seconds = 5;
+  optional int64 mop_roller_seconds = 6;
+  optional int64 strainer_cycles = 7;
+  optional int64 dust_collection_cycles = 8;
+  optional int64 cleaning_brush_cycles = 9;
+}
+
+message StatusReadings {
+  optional int64 dock_error_code = 1; // Dock fault code
+  optional int64 dock_status_bits = 2; // Raw dock sensor bitfield
+  optional int64 robot_status_bits = 3; // Raw robot status bitfield
+  optional int64 common_status_bits = 4; // Raw common status bitfield
+  optional int64 charge_status_code = 5; // Charging state code
+  optional int64 dry_status_code = 6; // Mop drying state code
+  optional int64 dry_remaining_seconds = 7; // Remaining drying time in seconds
+  optional int64 cleaning_progress_percent = 8; // Device cleaning progress percentage
+  optional int64 obstacles_avoided = 9; // Obstacles avoided during this run
+  optional int64 dust_collection_status_code = 10; // Dust collection state code
+  optional int64 auto_dust_collection_enabled = 11; // Automatic dust collection enabled
+  optional int64 wash_phase_code = 12; // Mop washing phase code
+  optional int64 wash_ready = 13; // Mop washing readiness code
+  optional int64 wash_status_code = 14; // Mop washing state code
+  optional int64 return_type_code = 15; // Reason for returning to dock, device code
+  optional int64 cleaning_mode_code = 16; // Cleaning operation code
+  optional int64 returning = 17; // Returning to dock
+  optional int64 warming_up = 18; // Warming up
+  optional int64 locating = 19; // Locating on the map
+  optional int64 exploring = 20; // Exploring
+  optional int64 dnd_enabled = 21; // Do not disturb enabled
+  optional int64 child_lock_enabled = 22; // Child lock enabled
+  optional int64 map_present = 23; // Map present
+  optional int64 map_status_code = 24; // Raw map state and map ID bitfield
+  optional int64 unsaved_map = 25; // Unsaved map flag
+  optional int64 unsaved_map_reason_code = 26; // Unsaved map reason code
+  optional int64 collision_avoidance_enabled = 27; // Less collision mode enabled
+  optional int64 mop_forbidden_enabled = 28; // Mop forbidden flag
+  optional int64 replenish_mode_code = 29; // Water replenishment mode code
+  optional int64 corner_clean_mode_code = 30; // Corner cleaning mode code
+  optional int64 cleaning_repeats = 31; // Requested cleaning repeat count
+  repeated int64 bumper_status_code = 32; // Raw front sensor status codes, in device order.
+}
+
+message CleaningRecord {
+  optional int64 start_timestamp_seconds = 1; // Start Unix timestamp
+  optional int64 end_timestamp_seconds = 2; // End Unix timestamp
+  optional int64 duration_seconds = 3; // Active cleaning seconds
+  optional double area_square_meters = 4; // Cleaned area in square metres
+  optional double reported_cleaned_area_square_meters = 5; // Device cleaned_area in square metres
+  optional int64 error_code = 6; // Run error code
+  optional int64 finished = 7; // Whether the run finished
+  optional int64 finish_reason_code = 8; // Run finish reason code
+  optional int64 start_type_code = 9; // Run start type code
+  optional int64 clean_type_code = 10; // Run cleaning type code
+  optional int64 dust_collection_status_code = 11; // Run dust collection state
+  optional int64 obstacles_avoided = 12; // Number of obstacles avoided
+  optional int64 mop_washes = 13; // Number of mop washes
+  optional int64 map_id = 14; // Map ID
+  optional int64 cleaning_repeats = 15; // Cleaning repeat count
+  optional int64 dirty_replenish_code = 16; // Device dirty replenishment code
+  optional int64 manual_replenish_code = 17; // Device manual replenishment code
+}
+
+message CleaningHistoryRequest {
+  string device_id = 1;
+}
+message CleaningHistoryResponse {
+  repeated CleaningRecord records = 1;
+}
+
+message OperationalSettings {
+  optional int64 wifi_signal_dbm = 1; // Wi-Fi signal strength in dBm
+  optional int64 dust_collection_mode_code = 2; // Dust collection mode code
+  optional int64 mop_wash_mode_code = 3; // Mop washing mode code
+  optional int64 smart_wash_enabled = 4; // Smart mop washing enabled
+  optional int64 mop_wash_interval_seconds = 5; // Configured seconds between mop washes
+  optional int64 dryer_enabled = 6; // Mop dryer enabled
+  optional int64 dryer_duration_seconds = 7; // Configured mop drying seconds
+  optional int64 carpet_boost_enabled = 8; // Carpet suction boost enabled
+  optional int64 carpet_mode_code = 9; // Carpet cleaning mode code
+}
+
+message MapDetailsRequest {
+  string device_id = 1;
+}
+message RoomMapping {
+  int64 segment_id = 1;
+  string cloud_room_id = 2;
+  string name = 3;
+  optional int64 type_code = 4;
+}
+message MapObstacle {
+  int64 x_millimetres = 1;
+  int64 y_millimetres = 2;
+  optional int64 type_code = 3;
+  string photo_id = 4;
+  bool ignored = 5;
+}
+message MapDetailsResponse {
+  repeated RoomMapping rooms = 1;
+  repeated MapObstacle obstacles = 2;
+  bytes raw_map = 3; // Unmodified decompressed RR map, including all device blocks.
+}
+message SavedMap {
+  int64 map_id = 1;
+  string name = 2;
+  int64 created_timestamp_seconds = 3;
+  repeated SavedMap backups = 4;
+}
+message SavedMapsResponse {
+  repeated SavedMap maps = 1;
 }

@@ -97,3 +97,15 @@ func optionalString(value string) *string {
 	}
 	return &value
 }
+
+func (s *service) GetDiagnostics(ctx context.Context, _ *sonosv1.GetDiagnosticsRequest) (*sonosv1.GetDiagnosticsResponse, error) {
+	zones, err := s.zones(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := &sonosv1.GetDiagnosticsResponse{}
+	for _, zone := range zones {
+		out.Zones = append(out.Zones, s.client.Diagnostics(ctx, zone))
+	}
+	return out, nil
+}

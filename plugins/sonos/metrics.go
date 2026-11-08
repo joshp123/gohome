@@ -3,6 +3,7 @@ package sonos
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -35,6 +36,7 @@ var (
 // MetricsCollector reads the system on every scrape. A failed read emits no values for
 // what it failed to read, so dashboards show a gap rather than a stale reading.
 type MetricsCollector struct {
+	mu          sync.Mutex
 	client      *Client
 	lastSuccess time.Time
 }
@@ -44,12 +46,19 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 }
 
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
+	for _, d := range diagnosticDescs {
+		ch <- d
+	}
+	ch <- playModeDesc
+	ch <- transportStatusDesc
 	for _, d := range []*prometheus.Desc{scrapeSuccessDesc, lastSuccessDesc, zoneReachableDesc, transportStateDesc, volumeDesc, mutedDesc} {
 		ch <- d
 	}
 }
 
 func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -77,6 +86,12 @@ func (c *MetricsCollector) collectZones(ctx context.Context, ch chan<- prometheu
 			ch <- gauge(zoneReachableDesc, 0, zone.Name)
 			success = false
 			continue
+		}
+		diagnostics := c.client.Diagnostics(ctx, zone)
+		emitDiagnostics(ch, diagnostics)
+		if len(diagnostics.ReadErrors) > 0 {
+			log.Printf("sonos diagnostics: %v", diagnostics.ReadErrors)
+			success = false
 		}
 		ch <- gauge(zoneReachableDesc, 1, zone.Name)
 		for upnpState, label := range transportStateLabels {

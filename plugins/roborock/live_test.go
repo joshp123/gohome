@@ -58,9 +58,53 @@ func TestLiveReadOnly(t *testing.T) {
 		if status.State == "" || status.TotalCleaningCount == 0 || status.LastCleanStart.IsZero() || status.LastCleanEnd.IsZero() {
 			t.Fatalf("incomplete status: %+v", status)
 		}
-		t.Logf("state=%s battery=%d error=%s cleaning records=%d latest record complete", status.State, status.BatteryPercent, status.ErrorCode, status.TotalCleaningCount)
+		t.Logf("state=%s battery=%d error=%s cleaning records=%d latest record read", status.State, status.BatteryPercent, status.ErrorCode, status.TotalCleaningCount)
 	}
 	checkStatus()
+	device, err := c.deviceByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := c.readRPC(ctx, device, "get_consumable", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawCounters, ok := normalizeMap(raw)
+	if !ok {
+		t.Fatal("invalid consumables")
+	}
+	registryConsumables := prometheus.NewRegistry()
+	registryConsumables.MustRegister(NewMetricsCollector(c))
+	families, err := registryConsumables.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := map[string]string{"main_brush": "main_brush_work_time", "side_brush": "side_brush_work_time", "filter": "filter_work_time", "filter_element": "filter_element_work_time", "sensors": "sensor_dirty_time", "strainer": "strainer_work_times", "dust_collection": "dust_collection_work_times", "mop_roller": "moproller_work_time", "cleaning_brush": "cleaning_brush_work_times"}
+	seen := map[string]bool{}
+	for _, family := range families {
+		if family.GetName() != "gohome_roborock_consumable_used_seconds" && family.GetName() != "gohome_roborock_consumable_used_cycles" {
+			continue
+		}
+		for _, metric := range family.Metric {
+			for _, label := range metric.Label {
+				if label.GetName() != "consumable" {
+					continue
+				}
+				field := expected[label.GetValue()]
+				rawValue, present := rawCounters[field]
+				if !present || metric.Gauge.GetValue() != float64(intFrom(rawValue)) {
+					t.Fatalf("metric differs from raw %s", field)
+				}
+				seen[field] = true
+				t.Logf("%s{consumable=%q} %g matches device", family.GetName(), label.GetValue(), metric.Gauge.GetValue())
+			}
+		}
+	}
+	for _, field := range expected {
+		if rawCounters[field] != nil && !seen[field] {
+			t.Fatalf("missing metric for %s", field)
+		}
+	}
 	original := c.channels[id]
 	original.Close()
 	checkStatus()

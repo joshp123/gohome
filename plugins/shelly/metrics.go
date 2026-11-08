@@ -16,6 +16,26 @@ func coverDesc(name, help string) *prometheus.Desc {
 }
 
 var (
+	RamSizeDesc    = coverDesc("ram_size_bytes", "Device ram_size in bytes")
+	RamFreeDesc    = coverDesc("ram_free_bytes", "Device ram_free in bytes")
+	RamMinFreeDesc = coverDesc("ram_min_free_bytes", "Device ram_min_free in bytes")
+	FsSizeDesc     = coverDesc("filesystem_size_bytes", "Device fs_size in bytes")
+	FsFreeDesc     = coverDesc("filesystem_free_bytes", "Device fs_free in bytes")
+
+	UptimeSecondsDesc                 = coverDesc("uptime_seconds", "Relay uptime in seconds")
+	FailsafeDesc                      = coverDesc("failsafe", "Relay failsafe mode")
+	OverheatDesc                      = coverDesc("overheat", "Relay overheat protection active")
+	HomekitRunningDesc                = coverDesc("homekit_running", "HomeKit server running")
+	HomekitPairedDesc                 = coverDesc("homekit_paired", "HomeKit paired")
+	HomekitConnectionsDesc            = coverDesc("homekit_connections", "Active HomeKit connections")
+	HomekitPendingConnectionsDesc     = coverDesc("homekit_pending_connections", "Pending HomeKit connections")
+	WifiConnectedDesc                 = coverDesc("wifi_connected", "Wi-Fi connected")
+	WifiConnectingDesc                = coverDesc("wifi_connecting", "Wi-Fi connection in progress")
+	OTAProgressDesc                   = coverDesc("ota_progress_percent", "Firmware update progress; minus one means no update")
+	CalibrationTravelMillisecondsDesc = coverDesc("cover_calibration_travel_seconds", "Calibrated full travel time in seconds")
+	CalibrationPowerWattsDesc         = coverDesc("cover_calibration_power_watts", "Motor power measured during calibration, not live power")
+	stateDesc                         = prometheus.NewDesc("gohome_shelly_cover_state", "Current firmware cover state", []string{"device_id", "name", "state"}, nil)
+
 	scrapeSuccessDesc     = coverDesc("scrape_success", "Last read of this relay succeeded (1) or failed (0)")
 	lastSuccessDesc       = coverDesc("last_success_timestamp_seconds", "When this relay was last read successfully (epoch seconds)")
 	positionDesc          = coverDesc("cover_position_percent", "Shutter position estimated by the relay: 0 closed, 100 open")
@@ -40,8 +60,8 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 }
 
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
-	for _, desc := range []*prometheus.Desc{scrapeSuccessDesc, lastSuccessDesc, positionDesc, targetPositionDesc,
-		movingDesc, calibratedDesc, deviceTemperatureDesc, wifiRssiDesc} {
+	for _, desc := range []*prometheus.Desc{RamSizeDesc, RamFreeDesc, RamMinFreeDesc, FsSizeDesc, FsFreeDesc, scrapeSuccessDesc, lastSuccessDesc, positionDesc, targetPositionDesc,
+		movingDesc, calibratedDesc, deviceTemperatureDesc, wifiRssiDesc, stateDesc, UptimeSecondsDesc, FailsafeDesc, OverheatDesc, HomekitRunningDesc, HomekitPairedDesc, HomekitConnectionsDesc, HomekitPendingConnectionsDesc, WifiConnectedDesc, WifiConnectingDesc, OTAProgressDesc, CalibrationTravelMillisecondsDesc, CalibrationPowerWattsDesc} {
 		ch <- desc
 	}
 }
@@ -61,8 +81,69 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 			log.Printf("shelly %s (%s) read failed: %v", reading.Cover.Name, reading.Cover.DeviceID, reading.Err)
 			emit(scrapeSuccessDesc, 0)
 		} else {
-			c.lastSuccess[reading.Cover.DeviceID] = reading.ReadAt
-			emit(scrapeSuccessDesc, 1)
+			if reading.SystemReadError == "" {
+				c.lastSuccess[reading.Cover.DeviceID] = reading.ReadAt
+				emit(scrapeSuccessDesc, 1)
+			} else {
+				emit(scrapeSuccessDesc, 0)
+				log.Printf("shelly system read: %s", reading.SystemReadError)
+			}
+			if reading.System != nil {
+				if reading.System.RamSize != nil {
+					emit(RamSizeDesc, *reading.System.RamSize)
+				}
+				if reading.System.RamFree != nil {
+					emit(RamFreeDesc, *reading.System.RamFree)
+				}
+				if reading.System.RamMinFree != nil {
+					emit(RamMinFreeDesc, *reading.System.RamMinFree)
+				}
+				if reading.System.FsSize != nil {
+					emit(FsSizeDesc, *reading.System.FsSize)
+				}
+				if reading.System.FsFree != nil {
+					emit(FsFreeDesc, *reading.System.FsFree)
+				}
+			}
+
+			ch <- prometheus.MustNewConstMetric(stateDesc, prometheus.GaugeValue, 1, append(labels, reading.State)...)
+			if reading.UptimeSeconds != nil {
+				emit(UptimeSecondsDesc, *reading.UptimeSeconds)
+			}
+			if reading.Failsafe != nil {
+				emit(FailsafeDesc, boolValue(*reading.Failsafe))
+			}
+			if reading.Overheat != nil {
+				emit(OverheatDesc, boolValue(*reading.Overheat))
+			}
+			if reading.HomekitRunning != nil {
+				emit(HomekitRunningDesc, boolValue(*reading.HomekitRunning))
+			}
+			if reading.HomekitPaired != nil {
+				emit(HomekitPairedDesc, boolValue(*reading.HomekitPaired))
+			}
+			if reading.HomekitConnections != nil {
+				emit(HomekitConnectionsDesc, *reading.HomekitConnections)
+			}
+			if reading.HomekitPendingConnections != nil {
+				emit(HomekitPendingConnectionsDesc, *reading.HomekitPendingConnections)
+			}
+			if reading.WifiConnected != nil {
+				emit(WifiConnectedDesc, boolValue(*reading.WifiConnected))
+			}
+			if reading.WifiConnecting != nil {
+				emit(WifiConnectingDesc, boolValue(*reading.WifiConnecting))
+			}
+			if reading.OTAProgress != nil {
+				emit(OTAProgressDesc, *reading.OTAProgress)
+			}
+			if reading.CalibrationTravelMilliseconds != nil {
+				emit(CalibrationTravelMillisecondsDesc, *reading.CalibrationTravelMilliseconds/1000)
+			}
+			if reading.CalibrationPowerWatts != nil {
+				emit(CalibrationPowerWattsDesc, *reading.CalibrationPowerWatts)
+			}
+
 			if reading.PositionPercent != nil {
 				emit(positionDesc, float64(*reading.PositionPercent))
 			}

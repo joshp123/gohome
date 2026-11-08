@@ -21,7 +21,11 @@ var (
 )
 
 var (
-	scrapeSuccessDesc = prometheus.NewDesc("gohome_casambi_scrape_success",
+	lightDimmerRawDesc     = prometheus.NewDesc("gohome_casambi_light_dimmer_raw", "Driver dimmer setting 0 to 255, including while off; not emitted brightness", lightLabels, nil)
+	lightMixerRawDesc      = prometheus.NewDesc("gohome_casambi_light_white_colour_balance_raw", "Driver RGB/white mixer setting 0 to 63, including while off", lightLabels, nil)
+	lightColourSettingDesc = prometheus.NewDesc("gohome_casambi_light_colour_setting", "Driver RGB channel setting 0 to 255, including when colour LEDs are dark; not emitted colour", []string{"light_id", "name", "channel"}, nil)
+	sceneAvailableDesc     = prometheus.NewDesc("gohome_casambi_scene_available", "Configured scene exists and Bluetooth is connected", []string{"scene_id", "name"}, nil)
+	scrapeSuccessDesc      = prometheus.NewDesc("gohome_casambi_scrape_success",
 		"gohome read the lights and switches (1): the bridge answered and holds a Bluetooth session. Otherwise 0", nil, nil)
 	lastSuccessDesc = prometheus.NewDesc("gohome_casambi_last_success_timestamp_seconds",
 		"When gohome last read the lights and switches successfully (epoch seconds)", nil, nil)
@@ -67,7 +71,7 @@ func NewMetricsCollector(bridge casambiv1.CasambiServiceClient) *MetricsCollecto
 }
 
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
-	for _, desc := range []*prometheus.Desc{scrapeSuccessDesc, lastSuccessDesc, bluetoothConnectedDesc,
+	for _, desc := range []*prometheus.Desc{scrapeSuccessDesc, lastSuccessDesc, bluetoothConnectedDesc, lightDimmerRawDesc, lightMixerRawDesc, lightColourSettingDesc, sceneAvailableDesc,
 		lightOnlineDesc, lightOnDesc, lightBrightnessDesc, lightColourDesc, lightOverheatDesc, lightLastReportDesc,
 		switchOnlineDesc, switchBatteryDesc, switchLastReportDesc, buttonPressesDesc, buttonLastPressDesc} {
 		ch <- desc
@@ -123,6 +127,13 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 			gauge(lightColourDesc, 1, append(labels, hexColour(colour))...)
 		}
 		optionalGauge(lightOverheatDesc, light.OverheatIndicator)
+		optionalGauge(lightDimmerRawDesc, light.DimmerRaw)
+		optionalGauge(lightMixerRawDesc, light.WhiteColourBalanceRaw)
+		if colour := light.ColourSetting; colour != nil {
+			for channel, value := range map[string]uint32{"red": colour.Red, "green": colour.Green, "blue": colour.Blue} {
+				gauge(lightColourSettingDesc, float64(value), light.Id, light.Name, channel)
+			}
+		}
 	}
 
 	switches, err := c.bridge.ListSwitches(ctx, &casambiv1.ListSwitchesRequest{})
@@ -148,6 +159,16 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 				gauge(buttonLastPressDesc, float64(button.GetLastPressTime().GetSeconds()), buttonLabels...)
 			}
 		}
+	}
+	scenes, err := c.bridge.ListScenes(ctx, &casambiv1.ListScenesRequest{})
+	if err != nil {
+		log.Printf("casambi scenes: %v", err)
+		gauge(scrapeSuccessDesc, 0)
+		c.emitLastSuccess(gauge)
+		return
+	}
+	for _, scene := range scenes.GetScenes() {
+		gauge(sceneAvailableDesc, boolValue(scene.Available), strconv.FormatUint(uint64(scene.Id), 10), scene.Name)
 	}
 	c.lastSuccess = time.Now()
 	gauge(scrapeSuccessDesc, 1)

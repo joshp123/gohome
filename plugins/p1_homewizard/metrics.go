@@ -15,6 +15,7 @@ type MetricsCollector struct {
 	client  *Client
 	tariffs Tariffs
 
+	wifiStrengthPercent prometheus.Gauge
 	activePowerW        prometheus.Gauge
 	activePowerL1W      prometheus.Gauge
 	importPowerW        prometheus.Gauge
@@ -52,6 +53,10 @@ func NewMetricsCollector(client *Client, tariffs Tariffs) *MetricsCollector {
 	return &MetricsCollector{
 		client:  client,
 		tariffs: tariffs,
+		wifiStrengthPercent: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "gohome_p1_homewizard_wifi_strength_percent",
+			Help: "Wi-Fi signal strength in percent",
+		}),
 		activePowerW: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "gohome_p1_homewizard_active_power_w",
 			Help: "Active power (net) in watts",
@@ -172,6 +177,7 @@ func NewMetricsCollector(client *Client, tariffs Tariffs) *MetricsCollector {
 }
 
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
+	c.wifiStrengthPercent.Describe(ch)
 	c.activePowerW.Describe(ch)
 	c.activePowerL1W.Describe(ch)
 	c.importPowerW.Describe(ch)
@@ -220,6 +226,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	c.success.Set(1)
 	c.lastSuccess.Set(float64(time.Now().Unix()))
 
+	setGauge(c.wifiStrengthPercent, data.WifiStrengthPercent)
 	setGauge(c.activePowerW, data.ActivePowerW)
 	setGauge(c.activePowerL1W, data.ActivePowerL1W)
 	setGauge(c.activeCurrentA, data.ActiveCurrentA)
@@ -281,6 +288,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
+	core.CollectPresent(c.wifiStrengthPercent, ch)
 	core.CollectPresent(c.activePowerW, ch)
 	core.CollectPresent(c.activePowerL1W, ch)
 	core.CollectPresent(c.importPowerW, ch)

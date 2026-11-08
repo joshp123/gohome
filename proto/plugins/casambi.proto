@@ -34,6 +34,11 @@ message Light {
   // is on and the bridge is configured with the colour temperature of its white.
   Colour colour = 12;
   reserved 7, 8, 9, 11;
+  // Driver settings, including while off. These are not emitted light or brightness.
+  optional uint32 dimmer_raw = 13;
+  Colour colour_setting = 14;
+  // Raw RGB/white mixer: 0 white only, 63 colour only.
+  optional uint32 white_colour_balance_raw = 15;
 }
 
 // The colour of a light's output as an sRGB colour at full value, each channel

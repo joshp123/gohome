@@ -253,7 +253,7 @@ func (c *Client) sendMQTTRPC(ctx context.Context, device HomeDataDevice, method 
 		for _, message := range messages {
 			switch message.Protocol {
 			case ProtocolMapResponse:
-				if method != "get_map_v1" || len(message.Payload) < 24 || int(uint16le(message.Payload, 16)) != req.RequestID {
+				if method != "get_map_v1" && method != "get_clean_record_map" || len(message.Payload) < 24 || int(uint16le(message.Payload, 16)) != req.RequestID {
 					continue
 				}
 				mapResp, err := decodeMapResponse(message.Payload, sec, nonce)
@@ -286,7 +286,7 @@ func (c *Client) sendMQTTRPC(ctx context.Context, device HomeDataDevice, method 
 					}
 					return
 				}
-				if method != "get_map_v1" {
+				if method != "get_map_v1" && method != "get_clean_record_map" {
 					select {
 					case respCh <- resp.Result:
 					default:

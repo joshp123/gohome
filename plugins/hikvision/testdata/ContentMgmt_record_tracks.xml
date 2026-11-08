@@ -1,0 +1,28 @@
+<TrackList version="2.0">
+  <Track version="2.0">
+    <id>101</id>
+    <Enable>true</Enable>
+    <LoopEnable>true</LoopEnable>
+    <CustomExtensionList>
+      <CustomExtension>
+        <CustomExtensionName>www.hikvision.com/RaCM/trackExt/ver10</CustomExtensionName>
+        <enableSchedule>true</enableSchedule>
+        <PreRecordTimeSeconds>5</PreRecordTimeSeconds>
+        <PostRecordTimeSeconds>5</PostRecordTimeSeconds>
+      </CustomExtension>
+    </CustomExtensionList>
+  </Track>
+  <Track version="2.0">
+    <id>103</id>
+    <Enable>true</Enable>
+    <LoopEnable>false</LoopEnable>
+    <CustomExtensionList>
+      <CustomExtension>
+        <CustomExtensionName>www.hikvision.com/RaCM/trackExt/ver10</CustomExtensionName>
+        <enableSchedule>false</enableSchedule>
+        <PreRecordTimeSeconds>5</PreRecordTimeSeconds>
+        <PostRecordTimeSeconds>5</PostRecordTimeSeconds>
+      </CustomExtension>
+    </CustomExtensionList>
+  </Track>
+</TrackList>

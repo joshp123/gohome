@@ -90,6 +90,9 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 }
 
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
+	for _, desc := range observationDescriptors {
+		ch <- desc
+	}
 	c.temp.Describe(ch)
 	c.humidity.Describe(ch)
 	c.setpoint.Describe(ch)
@@ -140,6 +143,10 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	c.outsideTemp.Set(math.NaN())
 	c.solarIntensity.Set(math.NaN())
 	if weather, err := c.client.Weather(ctx); err == nil {
+		emitState(ch, weatherState, weather.WeatherState)
+		emitTimestamp(ch, weatherTimestamp, weather.WeatherTimestamp)
+		emitTimestamp(ch, outsideTimestamp, weather.OutsideTemperatureTimestamp)
+		emitTimestamp(ch, solarTimestamp, weather.SolarIntensityTimestamp)
 		if weather.OutsideTemperatureCelsius != nil {
 			c.outsideTemp.Set(*weather.OutsideTemperatureCelsius)
 		}
@@ -150,6 +157,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	for _, zone := range zones {
 		for _, device := range zone.Devices {
+			collectDeviceObservations(ch, device, zone.Name)
 			if device.BatteryLow != nil {
 				c.batteryLow.WithLabelValues(zone.Name, device.SerialNumber, device.DeviceType).Set(boolToFloat(*device.BatteryLow))
 			}
@@ -158,6 +166,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		if !ok {
 			continue
 		}
+		collectZoneObservations(ch, state, strconv.Itoa(zone.ID), zone.Name)
 		labels := prometheus.Labels{
 			"zone_id":   strconv.Itoa(zone.ID),
 			"zone_name": zone.Name,
@@ -185,8 +194,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 		if state.HeatingPowerPercent != nil {
 			c.heatingActive.With(labels).Set(boolToFloat(*state.HeatingPowerPercent > 0))
-		} else if state.PowerOn != nil {
-			c.heatingActive.With(labels).Set(boolToFloat(*state.PowerOn))
+
 		}
 	}
 

@@ -144,15 +144,18 @@ func (s *service) WatchEvents(_ *hikvisionv1.WatchEventsRequest, server grpc.Ser
 
 func cameraEventProto(event cameraEvent) *hikvisionv1.CameraEvent {
 	return &hikvisionv1.CameraEvent{
-		Kind:            event.Kind,
-		State:           event.State,
-		Target:          event.Target,
-		CameraTime:      optionalTimestamp(event.CameraTime),
-		ReceivedAt:      timestamppb.New(event.ReceivedAt),
-		ChannelId:       event.ChannelID,
-		RuleId:          event.RuleID,
-		CameraEventType: event.EventType,
-		CameraTarget:    event.CameraWords,
+		ActivePostCount:  event.ActivePostCount,
+		EventDescription: event.Description,
+		ChannelName:      event.ChannelName,
+		Kind:             event.Kind,
+		State:            event.State,
+		Target:           event.Target,
+		CameraTime:       optionalTimestamp(event.CameraTime),
+		ReceivedAt:       timestamppb.New(event.ReceivedAt),
+		ChannelId:        event.ChannelID,
+		RuleId:           event.RuleID,
+		CameraEventType:  event.EventType,
+		CameraTarget:     event.CameraWords,
 	}
 }
 

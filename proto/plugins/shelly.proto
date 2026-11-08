@@ -43,6 +43,34 @@ message Cover {
   // The relay's state word: idle, move, rampup, moving, stop, stopping,
   // precal0..postcal1 (calibration) or error.
   string state = 10;
+ optional SystemReading system = 25;
+ string system_read_error = 26;
+  // Relay uptime in seconds.
+  optional double uptime_seconds = 11;
+  // Relay failsafe mode.
+  optional bool failsafe = 12;
+  // Relay overheat protection active.
+  optional bool overheat = 13;
+  // HomeKit server running.
+  optional bool homekit_running = 14;
+  // HomeKit paired.
+  optional bool homekit_paired = 15;
+  // Active HomeKit connections.
+  optional double homekit_connections = 16;
+  // Pending HomeKit connections.
+  optional double homekit_pending_connections = 17;
+  // Wi-Fi connected.
+  optional bool wifi_connected = 18;
+  // Wi-Fi connection in progress.
+  optional bool wifi_connecting = 19;
+  // Firmware update progress; minus one means no update.
+  optional double ota_progress_percent = 20;
+  // Calibrated full travel time in seconds.
+  optional double cover_calibration_travel_seconds = 21;
+  // Motor power measured during calibration, not live power.
+  optional double cover_calibration_power_watts = 22;
+  optional double device_temperature_celsius = 23;
+  optional double wifi_rssi_dbm = 24;
 }
 
 message ListCoversResponse {
@@ -52,4 +80,12 @@ message ListCoversResponse {
 service ShellyService {
   // Reads every configured shutter live from its relay.
   rpc ListCovers(ListCoversRequest) returns (ListCoversResponse);
+}
+
+message SystemReading {
+ optional double ram_size_bytes = 1;
+ optional double ram_free_bytes = 2;
+ optional double ram_min_free_bytes = 3;
+ optional double filesystem_size_bytes = 4;
+ optional double filesystem_free_bytes = 5;
 }

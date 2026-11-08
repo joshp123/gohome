@@ -72,6 +72,7 @@ func (s *service) GetPlantStatus(ctx context.Context, req *v1.GetPlantStatusRequ
 	if energy.LastUpdate != nil {
 		if time.Since(*energy.LastUpdate) <= 15*time.Minute {
 			statusResp.CurrentPowerWatts = proto.Float64(energy.CurrentPowerW)
+			statusResp.Inverter = energy.Inverter
 		}
 		statusResp.LastUpdateTime = energy.LastUpdate.Format(timeLayout)
 	}

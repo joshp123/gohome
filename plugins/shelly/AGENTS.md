@@ -1,7 +1,7 @@
 # Shelly shutters - Agent Context
 
 ## What This Is
-Outside roller shutters, each driven by a Shelly 2PM Gen3 relay running the community shelly-homekit firmware in cover mode. gohome reads them over the home network with one unauthenticated HTTP call per relay, `GET /rpc/Shelly.GetInfoExt`. Apple Home controls the same relays over HomeKit; gohome does not touch that.
+Outside roller shutters, each driven by a Shelly 2PM Gen3 relay running the community shelly-homekit firmware in cover mode. gohome reads them over the home network with unauthenticated HTTP reads of `GET /rpc/Shelly.GetInfoExt` and `GET /rpc/Sys.GetInfo`. Apple Home controls the same relays over HomeKit; gohome does not touch that.
 
 ## Capabilities
 - Read each shutter's position, target position, whether the motor is running, and whether the relay is calibrated.
@@ -55,3 +55,33 @@ Read-only probe of one real relay, an unreachable address and a wrong device ID.
 SHELLY_LIVE_ADDRESS=192.0.2.30 SHELLY_LIVE_DEVICE_ID=Shelly2PMG3-AAAAAAAAAAAA SHELLY_DOWN_ADDRESS=127.0.0.1:9 \
   devenv shell -- go test ./plugins/shelly -run TestLiveSourceFailureRemovesReadings -v -count=1
 ```
+
+## API coverage
+
+Written by AI on 2026.11.08 by model gpt-6-astra.
+
+| What the API gives | Exported before | Exported now | Left out and why |
+| --- | --- | --- | --- |
+| Cover position, target, movement, calibration | Metrics and RPC | Same | — |
+| Firmware state word | RPC | `gohome_shelly_cover_state{device_id,name,state}=1` and RPC | — |
+| Calibration travel time and motor power | Dropped | `cover_calibration_travel_seconds`, `cover_calibration_power_watts` | Stored calibration measurements, never live consumption |
+| Overheat, failsafe, uptime | Dropped | `overheat`, `failsafe`, `uptime_seconds` | — |
+| HomeKit running, paired, active/pending connections | Dropped | `homekit_running`, `homekit_paired`, `homekit_connections`, `homekit_pending_connections` | — |
+| Wi-Fi connecting/connected and RSSI | RSSI only | `wifi_connecting`, `wifi_connected`, `wifi_rssi_dbm` | — |
+| Temperature, OTA progress | Temperature only | `device_temperature_celsius`, `ota_progress_percent` | OTA -1 means idle |
+| Network credentials, addresses, settings and firmware identity | Not exported | Not exported | Credentials are private; settings/identity are not measurements |
+| Historical positions or energy | None | None | GetInfoExt has no timestamped history |
+
+Metric suffixes above have prefix `gohome_shelly_` and labels `{device_id,name}`.
+Booleans are 0/1; counts and uptime retain the firmware's units. Optional fields
+are absent when the response omits them. All these readings are also on `Cover`.
+One GetInfoExt and one Sys.GetInfo per relay per scrape; no control calls.
+Sys.GetInfo also exports `ram_size_bytes`, `ram_free_bytes`, `ram_min_free_bytes`,
+`filesystem_size_bytes` and `filesystem_free_bytes`, with the same prefix and labels.
+A failed system read leaves these absent, sets scrape_success to 0 and leaves
+the independently read cover values intact. RPC reports `system_read_error`.
+RPC.List on the firmware exposes no history method. Calibration values have no
+measurement timestamp, so cannot be backfilled. GetDebugInfo is a diagnostic
+text dump; GetWifiConfig/Config.Get and filesystem reads expose configuration
+and credentials, not additional house readings. Source contract:
+https://github.com/mongoose-os-apps/shelly-homekit (window-covering and RPC code).

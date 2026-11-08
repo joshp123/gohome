@@ -346,6 +346,23 @@ type setpoint struct {
 }
 
 type managementPoint struct {
+	ErrorCode            *stringValue `json:"errorCode"`
+	FirmwareVersion      *stringValue `json:"firmwareVersion"`
+	SoftwareVersion      *stringValue `json:"softwareVersion"`
+	ModelInfo            *stringValue `json:"modelInfo"`
+	PowerfulMode         *stringValue `json:"powerfulMode"`
+	IsPowerfulModeActive *boolValue   `json:"isPowerfulModeActive"`
+	HolidayMode          *struct {
+		Value struct {
+			Enabled *bool `json:"enabled"`
+		} `json:"value"`
+	} `json:"holidayMode"`
+	FanControl      *fanControl      `json:"fanControl"`
+	Schedule        *scheduleState   `json:"schedule"`
+	ConsumptionData *consumptionData `json:"consumptionData"`
+	TimeZone        *struct {
+		Value string `json:"value"`
+	} `json:"timeZone"`
 	EmbeddedID          string `json:"embeddedId"`
 	ManagementPointType string `json:"managementPointType"`
 	Name                *struct {
@@ -384,11 +401,13 @@ type managementPoint struct {
 // DeviceState represents a Daikin unit with full management point data.
 type DeviceState struct {
 	Device           Device
+	Timestamp        time.Time
 	ManagementPoints []managementPoint
 }
 
 // deviceStateEntry is a partial representation of /v1/gateway-devices response.
 type deviceStateEntry struct {
+	Timestamp           time.Time         `json:"timestamp"`
 	ID                  string            `json:"id"`
 	DeviceModel         string            `json:"deviceModel"`
 	ManagementPoints    []managementPoint `json:"managementPoints"`
@@ -418,6 +437,7 @@ func (d deviceStateEntry) toDeviceState() DeviceState {
 	}
 
 	return DeviceState{
+		Timestamp: d.Timestamp,
 		Device: Device{
 			ID:               d.ID,
 			Name:             name,

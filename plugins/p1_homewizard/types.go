@@ -23,6 +23,7 @@ type Info struct {
 }
 
 type Data struct {
+	WifiStrengthPercent *float64 `json:"wifi_strength"`
 	ActiveTariff        *int     `json:"active_tariff"`
 	TotalImportKWh      *float64 `json:"total_power_import_kwh"`
 	TotalImportT1KWh    *float64 `json:"total_power_import_t1_kwh"`

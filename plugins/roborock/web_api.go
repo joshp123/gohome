@@ -60,6 +60,7 @@ type UserData struct {
 }
 
 type HomeData struct {
+	Rooms           []HomeDataRoom    `json:"rooms"`
 	ID              int64             `json:"id"`
 	Name            string            `json:"name"`
 	Products        []HomeDataProduct `json:"products"`
@@ -449,4 +450,9 @@ func hmacSha256(key, data []byte) []byte {
 	h := hmac.New(sha256.New, key)
 	_, _ = h.Write(data)
 	return h.Sum(nil)
+}
+
+type HomeDataRoom struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
 }

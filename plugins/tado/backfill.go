@@ -123,35 +123,28 @@ func dayReportSamples(report dayReport, zone Zone) []sample {
 		"zone_id":   strconv.Itoa(zone.ID),
 		"zone_name": zone.Name,
 	}
-	weatherLabels := map[string]string{
-		"job":      "gohome",
-		"instance": "gohome",
-	}
 
 	for _, pt := range report.MeasuredData.InsideTemperature.DataPoints {
 		ts, err := parseDayReportTime(pt.Timestamp)
-		if err != nil {
+		if err != nil || pt.Value.Celsius == nil {
 			continue
 		}
 		samples = append(samples, sample{
-			Name:      "gohome_tado_inside_temperature_celsius",
+			Name:      "gohome_tado_history_inside_temperature_celsius",
 			Labels:    labels,
-			Value:     pt.Value.Celsius,
+			Value:     *pt.Value.Celsius,
 			Timestamp: ts,
 		})
 	}
 
 	for _, pt := range report.MeasuredData.Humidity.DataPoints {
 		ts, err := parseDayReportTime(pt.Timestamp)
-		if err != nil {
+		if err != nil || pt.Value.Percentage == nil {
 			continue
 		}
-		value := pt.Value.Percentage
-		if value <= 1 {
-			value *= 100
-		}
+		value := *pt.Value.Percentage
 		samples = append(samples, sample{
-			Name:      "gohome_tado_humidity_percent",
+			Name:      "gohome_tado_history_humidity_percent",
 			Labels:    labels,
 			Value:     value,
 			Timestamp: ts,
@@ -159,27 +152,13 @@ func dayReportSamples(report dayReport, zone Zone) []sample {
 	}
 
 	for _, iv := range report.CallForHeat.DataIntervals {
-		ts, err := parseDayReportTime(iv.From)
-		if err != nil {
+		start, err := parseDayReportTime(iv.From)
+		end, endErr := parseDayReportTime(iv.To)
+		if err != nil || endErr != nil || !end.After(start) || iv.Value == "" {
 			continue
 		}
-		power := callForHeatToPercent(iv.Value)
-		samples = append(samples, sample{
-			Name:      "gohome_tado_heating_power_percent",
-			Labels:    labels,
-			Value:     power,
-			Timestamp: ts,
-		})
-		active := 0.0
-		if power > 0 {
-			active = 1
-		}
-		samples = append(samples, sample{
-			Name:      "gohome_tado_heating_active_bool",
-			Labels:    labels,
-			Value:     active,
-			Timestamp: ts,
-		})
+		categoryLabels := map[string]string{"job": "gohome", "instance": "gohome", "zone_id": strconv.Itoa(zone.ID), "zone_name": zone.Name, "level": iv.Value}
+		samples = append(samples, sample{Name: "gohome_tado_history_call_for_heat_interval_seconds", Labels: categoryLabels, Value: end.Sub(start).Seconds(), Timestamp: start})
 	}
 
 	for _, iv := range report.Settings.DataIntervals {
@@ -187,13 +166,13 @@ func dayReportSamples(report dayReport, zone Zone) []sample {
 		if err != nil {
 			continue
 		}
-		if iv.Value.Power != "" {
+		if iv.Value.Power == "ON" || iv.Value.Power == "OFF" {
 			value := 0.0
 			if strings.EqualFold(iv.Value.Power, "ON") {
 				value = 1
 			}
 			samples = append(samples, sample{
-				Name:      "gohome_tado_power_on_bool",
+				Name:      "gohome_tado_history_power_on_bool",
 				Labels:    labels,
 				Value:     value,
 				Timestamp: ts,
@@ -201,7 +180,7 @@ func dayReportSamples(report dayReport, zone Zone) []sample {
 		}
 		if iv.Value.Temperature.Celsius != nil {
 			samples = append(samples, sample{
-				Name:      "gohome_tado_setpoint_celsius",
+				Name:      "gohome_tado_history_setpoint_celsius",
 				Labels:    labels,
 				Value:     *iv.Value.Temperature.Celsius,
 				Timestamp: ts,
@@ -216,8 +195,8 @@ func dayReportSamples(report dayReport, zone Zone) []sample {
 		}
 		if iv.Value.Temperature.Celsius != nil {
 			samples = append(samples, sample{
-				Name:      "gohome_tado_outside_temperature_celsius",
-				Labels:    weatherLabels,
+				Name:      "gohome_tado_history_outside_temperature_celsius",
+				Labels:    labels,
 				Value:     *iv.Value.Temperature.Celsius,
 				Timestamp: ts,
 			})
@@ -230,29 +209,21 @@ func dayReportSamples(report dayReport, zone Zone) []sample {
 			continue
 		}
 		value := 0.0
-		if iv.Value {
-			value = 100
+		if iv.Value == nil {
+			continue
+		}
+		if *iv.Value {
+			value = 1
 		}
 		samples = append(samples, sample{
-			Name:      "gohome_tado_solar_intensity_percent",
-			Labels:    weatherLabels,
+			Name:      "gohome_tado_history_sunny",
+			Labels:    labels,
 			Value:     value,
 			Timestamp: ts,
 		})
 	}
 
 	return samples
-}
-
-func callForHeatToPercent(value string) float64 {
-	switch strings.ToUpper(strings.TrimSpace(value)) {
-	case "HIGH":
-		return 100
-	case "LOW":
-		return 50
-	default:
-		return 0
-	}
 }
 
 func importSamples(ctx context.Context, importURL string, samples []sample) error {
@@ -281,7 +252,7 @@ func importSamples(ctx context.Context, importURL string, samples []sample) erro
 		buf.WriteString(" ")
 		buf.WriteString(strconv.FormatFloat(s.Value, 'f', -1, 64))
 		buf.WriteString(" ")
-		buf.WriteString(strconv.FormatInt(s.Timestamp.Unix()*1000, 10))
+		buf.WriteString(strconv.FormatInt(s.Timestamp.UnixMilli(), 10))
 		buf.WriteString("\n")
 	}
 

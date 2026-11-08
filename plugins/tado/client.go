@@ -113,6 +113,7 @@ func (c *Client) Zones(ctx context.Context) ([]Zone, error) {
 		ID      int    `json:"id"`
 		Name    string `json:"name"`
 		Devices []struct {
+			DeviceObservations
 			DeviceType   string  `json:"deviceType"`
 			SerialNo     string  `json:"serialNo"`
 			BatteryState *string `json:"batteryState"`
@@ -128,9 +129,10 @@ func (c *Client) Zones(ctx context.Context) ([]Zone, error) {
 		devices := make([]Device, 0, len(zone.Devices))
 		for _, device := range zone.Devices {
 			devices = append(devices, Device{
-				SerialNumber: device.SerialNo,
-				DeviceType:   device.DeviceType,
-				BatteryLow:   batteryLow(device.SerialNo, device.BatteryState),
+				SerialNumber:       device.SerialNo,
+				DeviceType:         device.DeviceType,
+				DeviceObservations: device.DeviceObservations,
+				BatteryLow:         batteryLow(device.SerialNo, device.BatteryState),
 			})
 		}
 		zones = append(zones, Zone{ID: zone.ID, Name: zone.Name, Devices: devices})
@@ -164,6 +166,7 @@ func (c *Client) ZoneStates(ctx context.Context) (map[int]ZoneState, error) {
 
 	var resp struct {
 		ZoneStates map[string]struct {
+			ZoneObservations
 			SensorDataPoints struct {
 				InsideTemperature struct {
 					Celsius   *float64 `json:"celsius"`
@@ -176,6 +179,7 @@ func (c *Client) ZoneStates(ctx context.Context) (map[int]ZoneState, error) {
 			} `json:"sensorDataPoints"`
 			ActivityDataPoints struct {
 				HeatingPower struct {
+					Timestamp  string   `json:"timestamp"`
 					Percentage *float64 `json:"percentage"`
 				} `json:"heatingPower"`
 			} `json:"activityDataPoints"`
@@ -185,7 +189,6 @@ func (c *Client) ZoneStates(ctx context.Context) (map[int]ZoneState, error) {
 					Celsius *float64 `json:"celsius"`
 				} `json:"temperature"`
 			} `json:"setting"`
-			OverlayType *string `json:"overlayType"`
 		} `json:"zoneStates"`
 	}
 
@@ -200,6 +203,8 @@ func (c *Client) ZoneStates(ctx context.Context) (map[int]ZoneState, error) {
 			continue
 		}
 		zoneState := ZoneState{
+			ZoneObservations:           state.ZoneObservations,
+			HeatingPowerTimestamp:      parseTimestamp(state.ActivityDataPoints.HeatingPower.Timestamp),
 			InsideTemperatureCelsius:   state.SensorDataPoints.InsideTemperature.Celsius,
 			InsideTemperatureTimestamp: parseTimestamp(state.SensorDataPoints.InsideTemperature.Timestamp),
 			HumidityPercent:            state.SensorDataPoints.Humidity.Percentage,
@@ -211,10 +216,11 @@ func (c *Client) ZoneStates(ctx context.Context) (map[int]ZoneState, error) {
 			powerOn := strings.EqualFold(state.Setting.Power, "ON")
 			zoneState.PowerOn = &powerOn
 		}
-		if state.OverlayType != nil {
-			active := strings.TrimSpace(*state.OverlayType) != ""
+		if len(state.OverlayType) > 0 {
+			active := string(state.OverlayType) != "null" && string(state.OverlayType) != `""`
 			zoneState.OverrideActive = &active
 		}
+
 		states[id] = zoneState
 	}
 	return states, nil
@@ -227,6 +233,10 @@ func (c *Client) Weather(ctx context.Context) (Weather, error) {
 	}
 
 	var resp struct {
+		WeatherState struct {
+			Value     string `json:"value"`
+			Timestamp string `json:"timestamp"`
+		} `json:"weatherState"`
 		SolarIntensity struct {
 			Percentage *float64 `json:"percentage"`
 			Timestamp  string   `json:"timestamp"`
@@ -242,6 +252,8 @@ func (c *Client) Weather(ctx context.Context) (Weather, error) {
 	}
 
 	return Weather{
+		WeatherState:                resp.WeatherState.Value,
+		WeatherTimestamp:            parseTimestamp(resp.WeatherState.Timestamp),
 		OutsideTemperatureCelsius:   resp.OutsideTemperature.Celsius,
 		OutsideTemperatureTimestamp: parseTimestamp(resp.OutsideTemperature.Timestamp),
 		SolarIntensityPercent:       resp.SolarIntensity.Percentage,

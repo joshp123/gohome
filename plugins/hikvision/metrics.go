@@ -88,6 +88,9 @@ func targetLabel(target hikvisionv1.DetectionTarget) string {
 }
 
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
+	for _, desc := range statusMetrics {
+		ch <- desc
+	}
 	ch <- c.scrapeSuccess
 	c.lastSuccess.Describe(ch)
 	ch <- c.info
@@ -144,6 +147,7 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 	c.lastSuccess.Collect(ch)
+	collectStatusMetrics(ctx, c.client, ch)
 
 	status := c.stream.Status()
 	ch <- prometheus.MustNewConstMetric(c.streamConnected, prometheus.GaugeValue, boolValue(status.Connected))

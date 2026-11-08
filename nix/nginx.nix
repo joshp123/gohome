@@ -20,6 +20,16 @@ in
         locations."/grafana/".proxyPass = "http://127.0.0.1:3000";
         locations."/vm/".proxyPass = "http://127.0.0.1:8428";
         locations."/gohome/".proxyPass = "http://127.0.0.1:${toString cfg.httpPort}/";
+        locations."= /gohome/hikvision/snapshot.jpg" = {
+          proxyPass = "http://${cfg.remotePlugins.hikvision or "127.0.0.1:${toString cfg.httpPort}"}/hikvision/snapshot.jpg";
+          extraConfig = ''
+            proxy_buffering off;
+            proxy_cache off;
+            allow 100.64.0.0/10;
+            allow fd7a:115c:a1e0::/48;
+            deny all;
+          '';
+        };
       };
     };
 

@@ -79,3 +79,30 @@ The recovered hourly history (`history_log_t_room_*`, `history_log_t_room_target
 averaged the -1 into real readings, so those hours showed false lows.
 Hours whose minimum was -1 are removed from all six series.
 Air temperatures pass through -1 for real and are kept.
+
+## API coverage audit
+
+Written by AI on 2026.11.08 by model gpt-6-astra.
+
+Source: [Weheat's own third-party API documentation and debugger](https://api.weheat.nl/third_party/api/debugger).
+Only GET requests under `/third_party` are supported here. Its user profile and
+notification preferences are account data, not house telemetry.
+
+| What the API gives | Exported before | Exported now | Left out and why |
+|---|---|---|---|
+| Latest temperatures, power, flow, operation, DHW and cooling codes | Nullable `log_*` metrics | Same | Missing readings and thermostat -1 sentinel |
+| Last cooling time | RPC only | `gohome_weheat_log_last_cooling_time_timestamp_seconds` | Absent when source timestamp is missing |
+| Outdoor-unit lifetime energy, 11 fields | `energy_total_*_kwh` | Same | None |
+| Indoor-unit lifetime energy, six fields | Dropped by dependency | `energy_total_ein_iu_*_kwh` | None when returned |
+| Latest hourly energy and mean power, including indoor unit | `energy_log_*` | Same | Missing buckets |
+| Lifecycle state and status | RPC only | `gohome_weheat_device_state`, `gohome_weheat_device_status` | None |
+| Aggregated log history, including DHW/cooling diagnostics | Dependency omitted newer fields | `GetLogViews` preserves the complete vendor JSON | Historical import awaits deployment of the complete reader |
+| Device model, serial, name | Metric labels and RPC | Same | Board/part identifiers and commissioning metadata are not measurements |
+| User profile and notification preferences | Not collected | Not collected | Personal account/UI data |
+| Raw history | Provider rejects third-party access | Unavailable | Do not bypass the provider restriction |
+
+New metrics use labels `heat_pump_id`, `serial_number`, `name`, `model`.
+Indoor-unit lifetime energy uses kWh and suffixes `standby`, `heating`, `dhw`,
+`heating_defrost`, `dhw_defrost`, `cooling`. State and status are vendor integer
+codes, distinct from the operating mode in `log_state`.
+

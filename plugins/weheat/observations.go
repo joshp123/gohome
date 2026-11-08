@@ -127,3 +127,24 @@ type energyLog struct {
 	AveragePowerEOutDHWDefrost      *float64   `json:"averagePowerEOutDhwDefrost"`
 	AveragePowerEOutCooling         *float64   `json:"averagePowerEOutCooling"`
 }
+
+type energyTotals struct {
+	HeatPumpID               string   `json:"heatPumpId"`
+	TotalEInIUStandby        *float64 `json:"totalEInIUStandby,omitempty"`
+	TotalEInIUHeating        *float64 `json:"totalEInIUHeating,omitempty"`
+	TotalEInIUDhw            *float64 `json:"totalEInIUDhw,omitempty"`
+	TotalEInIUHeatingDefrost *float64 `json:"totalEInIUHeatingDefrost,omitempty"`
+	TotalEInIUDhwDefrost     *float64 `json:"totalEInIUDhwDefrost,omitempty"`
+	TotalEInIUCooling        *float64 `json:"totalEInIUCooling,omitempty"`
+	TotalEInHeating          *float64 `json:"totalEInHeating,omitempty"`
+	TotalEInStandby          *float64 `json:"totalEInStandby,omitempty"`
+	TotalEInDHW              *float64 `json:"totalEInDhw,omitempty"`
+	TotalEInHeatingDefrost   *float64 `json:"totalEInHeatingDefrost,omitempty"`
+	TotalEInDHWDefrost       *float64 `json:"totalEInDhwDefrost,omitempty"`
+	TotalEInCooling          *float64 `json:"totalEInCooling,omitempty"`
+	TotalEOutHeating         *float64 `json:"totalEOutHeating,omitempty"`
+	TotalEOutDHW             *float64 `json:"totalEOutDhw,omitempty"`
+	TotalEOutHeatingDefrost  *float64 `json:"totalEOutHeatingDefrost,omitempty"`
+	TotalEOutDHWDefrost      *float64 `json:"totalEOutDhwDefrost,omitempty"`
+	TotalEOutCooling         *float64 `json:"totalEOutCooling,omitempty"`
+}

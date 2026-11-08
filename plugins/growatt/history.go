@@ -15,7 +15,7 @@ const (
 	DefaultImportURL             = "http://127.0.0.1:8428/vm/api/v1/import/prometheus"
 	defaultGrowattHistoryWeeks   = 52
 	defaultGrowattEmptyStopWeeks = 6
-	defaultGrowattChunkDelay     = 25 * time.Second
+	defaultGrowattChunkDelay     = 5 * time.Minute
 	defaultGrowattRateBackoff    = 2 * time.Minute
 )
 
@@ -215,20 +215,11 @@ func (c *Client) dailyHistoryChunks(ctx context.Context, plantID int64, end time
 		chunkEnd := end.AddDate(0, 0, -(i * 7))
 		chunkStart := chunkEnd.AddDate(0, 0, -6)
 
-		var chunk []EnergyPoint
-		for {
-			var err error
-			chunk, err = c.EnergyHistory(ctx, plantID, chunkStart, chunkEnd, "day")
-			if err == nil {
-				break
-			}
-			if !isRateLimit(err) {
-				return nil, err
-			}
-			if err := sleepWithContext(ctx, opts.RateLimitBackoff); err != nil {
-				return points, err
-			}
+		chunk, err := c.EnergyHistory(ctx, plantID, chunkStart, chunkEnd, "day")
+		if err != nil {
+			return nil, err
 		}
+
 		if len(chunk) == 0 {
 			emptyWeeks++
 			if opts.StopAfterEmptyWeeks > 0 && emptyWeeks >= opts.StopAfterEmptyWeeks {

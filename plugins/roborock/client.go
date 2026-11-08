@@ -197,7 +197,45 @@ func (c *Client) Status(ctx context.Context, deviceID string) (Status, error) {
 		}
 		summaryMap["last_clean_record"] = recordMap
 	}
-	return parseStatus(statusData, nil, summaryMap), nil
+	consumable, err := c.readRPC(ctx, device, "get_consumable", nil)
+	if err != nil {
+		return Status{}, err
+	}
+	consumableMap, ok := normalizeMap(consumable)
+	if !ok {
+		return Status{}, errors.New("invalid consumable response")
+	}
+	encoded, err := json.Marshal(consumableMap)
+	if err != nil {
+		return Status{}, fmt.Errorf("encode consumables: %w", err)
+	}
+	var counters Consumables
+	if err := json.Unmarshal(encoded, &counters); err != nil {
+		return Status{}, fmt.Errorf("decode consumables: %w", err)
+	}
+	status := parseStatus(statusData, summaryMap)
+	status.Consumables = counters
+	status.Settings, err = c.operationalSettings(ctx, device)
+	if err != nil {
+		return Status{}, err
+	}
+	if err := decodeDeviceObject(statusMap, &status.Readings); err != nil {
+		return Status{}, err
+	}
+	var totals struct {
+		DustCollections *int64 `json:"dust_collection_count"`
+	}
+	if err := decodeDeviceObject(summaryMap, &totals); err != nil {
+		return Status{}, err
+	}
+	status.TotalDustCollections = totals.DustCollections
+	if raw, ok := summaryMap["last_clean_record"]; ok {
+		status.LastRecord = &CleaningRecord{}
+		if err := decodeDeviceObject(raw, status.LastRecord); err != nil {
+			return Status{}, err
+		}
+	}
+	return status, nil
 }
 
 // Only reads are retried: a lost response must not repeat a control command.
@@ -645,7 +683,7 @@ func (c *Client) deviceIP(ctx context.Context, deviceID string) (string, error) 
 	return "", fmt.Errorf("device %s not found on broadcast", deviceID)
 }
 
-func parseStatus(statusData, consumable, cleanSummary any) Status {
+func parseStatus(statusData, cleanSummary any) Status {
 	status := Status{}
 	if statusDataMap, ok := normalizeMap(statusData); ok {
 		stateValue := statusDataMap["state"]
@@ -684,7 +722,6 @@ func parseStatus(statusData, consumable, cleanSummary any) Status {
 			status.LastCleanFinished = intFrom(last["complete"]) == 1
 		}
 	}
-	_ = consumable
 	return status
 }
 

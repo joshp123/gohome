@@ -6,6 +6,7 @@ option go_package = "github.com/joshp123/gohome/proto/gen/plugins/sonos/v1;sonos
 
 // Read-only. GoHome never sends Sonos a command that makes sound.
 service SonosService {
+  rpc GetDiagnostics(GetDiagnosticsRequest) returns (GetDiagnosticsResponse);
   // Rooms and the speakers in each, from the system's own topology.
   rpc GetZones(GetZonesRequest) returns (GetZonesResponse);
   // What each zone is playing, and at what volume.
@@ -75,4 +76,63 @@ message Track {
 message SonosConfig {
   // Any player's UPnP address; the system's topology names the rest.
   string base_url = 1;
+}
+
+message GetDiagnosticsRequest {}
+message GetDiagnosticsResponse { repeated ZoneDiagnostics zones = 1; }
+message ZoneDiagnostics {
+  string zone = 1;
+  repeated string read_errors = 2;
+  // Raw bass setting (-10 to 10).
+  optional double bass = 3;
+  // Raw treble setting (-10 to 10).
+  optional double treble = 4;
+  // Loudness compensation enabled (0 or 1).
+  optional double loudness = 5;
+  // Fixed output enabled (0 or 1).
+  optional double output_fixed = 6;
+  // Room calibration enabled (0 or 1).
+  optional double room_calibration_enabled = 7;
+  // Room calibration available (0 or 1).
+  optional double room_calibration_available = 8;
+  // Crossfade enabled (0 or 1).
+  optional double crossfade = 9;
+  // Current track number.
+  optional double track_number = 10;
+  // Track duration in seconds, absent for streams.
+  optional double track_duration_seconds = 11;
+  // Playback position in seconds.
+  optional double track_position_seconds = 12;
+  // Number of tracks reported by the loaded medium.
+  optional double queue_tracks = 13;
+  // Remaining sleep timer in seconds; absent when inactive.
+  optional double sleep_timer_remaining_seconds = 14;
+  // Raw Sonos HTAudioIn format code.
+  optional double audio_input_format = 15;
+  // Surround speakers enabled.
+  optional double surround_enabled = 16;
+  // Subwoofer enabled.
+  optional double sub_enabled = 17;
+  // Raw subwoofer gain.
+  optional double sub_gain = 18;
+  // Raw audio delay setting.
+  optional double audio_delay = 19;
+  // Night mode enabled.
+  optional double night_mode = 20;
+  // Raw dialogue enhancement setting.
+  optional double dialog_level = 21;
+  // Raw surround mode.
+  optional double surround_mode = 22;
+  // Raw TV surround level.
+  optional double surround_level = 23;
+  // Raw music surround level.
+  optional double music_surround_level = 24;
+  // Speech enhancement enabled.
+  optional double speech_enhance_enabled = 25;
+  // Raw height channel level.
+  optional double height_channel_level = 26;
+  optional string play_mode = 27;
+  optional string transport_status = 28;
+  optional double transport_speed = 29;
+  optional double media_duration_seconds = 30;
 }

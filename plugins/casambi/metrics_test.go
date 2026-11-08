@@ -28,6 +28,10 @@ type recordedBridge struct {
 	presses  *casambiv1.ListSwitchPressesResponse
 }
 
+func (b *recordedBridge) ListScenes(context.Context, *casambiv1.ListScenesRequest) (*casambiv1.ListScenesResponse, error) {
+	return &casambiv1.ListScenesResponse{}, nil
+}
+
 func (b *recordedBridge) ListSwitchPresses(context.Context, *casambiv1.ListSwitchPressesRequest) (*casambiv1.ListSwitchPressesResponse, error) {
 	return b.presses, nil
 }
@@ -55,7 +59,7 @@ func TestLightValuesOnlyWhileTheBridgeHasCurrentState(t *testing.T) {
 			Colour: &casambiv1.Colour{Red: 194, Green: 255, Blue: 169}, LastReportTime: reported},
 		// No white colour temperature configured: the bridge sends no colour.
 		{Id: "rear-strip", Name: "Rear LED Strip", Online: true, On: proto.Bool(true), BrightnessPercent: proto.Uint32(100), LastReportTime: reported},
-		{Id: "table", Name: "Table Lamp", Online: true, On: proto.Bool(false), OverheatIndicator: proto.Uint32(0), LastReportTime: reported},
+		{Id: "table", Name: "Table Lamp", Online: true, On: proto.Bool(false), DimmerRaw: proto.Uint32(255), OverheatIndicator: proto.Uint32(0), LastReportTime: reported},
 		{Id: "sofa", Name: "Floor Lamp", Online: false, On: proto.Bool(true), BrightnessPercent: proto.Uint32(64), OverheatIndicator: proto.Uint32(1), LastReportTime: reported},
 		{Id: "unreported", Name: "Unreported"},
 	}}
@@ -99,6 +103,7 @@ func TestLightValuesOnlyWhileTheBridgeHasCurrentState(t *testing.T) {
 	metrics := core.MetricsRegistry(plugins)
 
 	connectedLights := map[string]float64{
+		"gohome_casambi_light_dimmer_raw{table}":                         255,
 		"gohome_casambi_bluetooth_connected":                             1,
 		"gohome_casambi_light_online{kitchen}":                           1,
 		"gohome_casambi_light_on{kitchen}":                               1,

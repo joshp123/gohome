@@ -40,6 +40,27 @@ func (s *service) ListCovers(ctx context.Context, _ *shellyv1.ListCoversRequest)
 			cover.Moving = reading.MotorRunning
 			cover.Calibrated = reading.Calibrated
 			cover.State = reading.State
+			cover.SystemReadError = reading.SystemReadError
+			if reading.System != nil {
+				cover.System = &shellyv1.SystemReading{RamSizeBytes: reading.System.RamSize, RamFreeBytes: reading.System.RamFree, RamMinFreeBytes: reading.System.RamMinFree, FilesystemSizeBytes: reading.System.FsSize, FilesystemFreeBytes: reading.System.FsFree}
+			}
+			cover.UptimeSeconds = reading.UptimeSeconds
+			cover.Failsafe = reading.Failsafe
+			cover.Overheat = reading.Overheat
+			cover.HomekitRunning = reading.HomekitRunning
+			cover.HomekitPaired = reading.HomekitPaired
+			cover.HomekitConnections = reading.HomekitConnections
+			cover.HomekitPendingConnections = reading.HomekitPendingConnections
+			cover.WifiConnected = reading.WifiConnected
+			cover.WifiConnecting = reading.WifiConnecting
+			cover.OtaProgressPercent = reading.OTAProgress
+			cover.CoverCalibrationPowerWatts = reading.CalibrationPowerWatts
+			if reading.CalibrationTravelMilliseconds != nil {
+				seconds := *reading.CalibrationTravelMilliseconds / 1000
+				cover.CoverCalibrationTravelSeconds = &seconds
+			}
+			cover.DeviceTemperatureCelsius = reading.DeviceTemperatureCelsius
+			cover.WifiRssiDbm = reading.WifiRssiDbm
 		}
 		response.Covers = append(response.Covers, cover)
 	}

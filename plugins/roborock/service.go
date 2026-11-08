@@ -521,6 +521,10 @@ func parseRoomSegmentID(room string) (uint32, bool) {
 func mapStatus(statusData Status) *roborockv1.DeviceStatus {
 	return &roborockv1.DeviceStatus{
 		State:                         statusData.State,
+		Readings:                      mapReadings(statusData.Readings),
+		Settings:                      mapOperationalSettings(statusData.Settings),
+		LastRecord:                    mapCleaningRecord(statusData.LastRecord),
+		TotalDustCollections:          statusData.TotalDustCollections,
 		BatteryPercent:                uint32(statusData.BatteryPercent),
 		ErrorCode:                     statusData.ErrorCode,
 		ErrorMessage:                  statusData.ErrorMessage,
@@ -538,6 +542,17 @@ func mapStatus(statusData Status) *roborockv1.DeviceStatus {
 		Charging:                      statusData.Charging,
 		LastCleanStart:                formatTimestamp(statusData.LastCleanStart),
 		LastCleanEnd:                  formatTimestamp(statusData.LastCleanEnd),
+		Consumables: &roborockv1.Consumables{
+			MainBrushSeconds:     statusData.Consumables.MainBrush,
+			SideBrushSeconds:     statusData.Consumables.SideBrush,
+			FilterSeconds:        statusData.Consumables.Filter,
+			FilterElementSeconds: statusData.Consumables.FilterElement,
+			SensorsSeconds:       statusData.Consumables.Sensors,
+			MopRollerSeconds:     statusData.Consumables.MopRoller,
+			StrainerCycles:       statusData.Consumables.Strainer,
+			DustCollectionCycles: statusData.Consumables.DustCollection,
+			CleaningBrushCycles:  statusData.Consumables.CleaningBrush,
+		},
 	}
 }
 
@@ -564,4 +579,103 @@ func formatTimestamp(value time.Time) string {
 		return ""
 	}
 	return value.UTC().Format(time.RFC3339)
+}
+
+func mapReadings(value StatusReadings) *roborockv1.StatusReadings {
+	return &roborockv1.StatusReadings{
+		BumperStatusCode:          value.BumperStatus,
+		DockErrorCode:             value.DockErrorCode,
+		DockStatusBits:            value.DockStatusBits,
+		RobotStatusBits:           value.RobotStatusBits,
+		CommonStatusBits:          value.CommonStatusBits,
+		ChargeStatusCode:          value.ChargeStatusCode,
+		DryStatusCode:             value.DryStatusCode,
+		DryRemainingSeconds:       value.DryRemainingSeconds,
+		CleaningProgressPercent:   value.CleanPercent,
+		ObstaclesAvoided:          value.AvoidCount,
+		DustCollectionStatusCode:  value.DustCollectionStatusCode,
+		AutoDustCollectionEnabled: value.AutoDustCollection,
+		WashPhaseCode:             value.WashPhaseCode,
+		WashReady:                 value.WashReady,
+		WashStatusCode:            value.WashStatusCode,
+		ReturnTypeCode:            value.ReturnTypeCode,
+		CleaningModeCode:          value.InCleaningCode,
+		Returning:                 value.InReturning,
+		WarmingUp:                 value.InWarmup,
+		Locating:                  value.Locating,
+		Exploring:                 value.Exploring,
+		DndEnabled:                value.DndEnabled,
+		ChildLockEnabled:          value.LockStatus,
+		MapPresent:                value.MapPresent,
+		MapStatusCode:             value.MapStatusCode,
+		UnsavedMap:                value.UnsaveMapFlag,
+		UnsavedMapReasonCode:      value.UnsaveMapReason,
+		CollisionAvoidanceEnabled: value.CollisionAvoidStatus,
+		MopForbiddenEnabled:       value.MopForbiddenEnable,
+		ReplenishModeCode:         value.ReplenishMode,
+		CornerCleanModeCode:       value.CornerCleanMode,
+		CleaningRepeats:           value.Repeat,
+	}
+}
+
+func mapCleaningRecord(value *CleaningRecord) *roborockv1.CleaningRecord {
+	if value == nil {
+		return nil
+	}
+	return &roborockv1.CleaningRecord{
+		StartTimestampSeconds:           value.Begin,
+		EndTimestampSeconds:             value.End,
+		DurationSeconds:                 value.Duration,
+		AreaSquareMeters:                squareMetres(value.Area),
+		ReportedCleanedAreaSquareMeters: squareMetres(value.CleanedArea),
+		ErrorCode:                       value.Error,
+		Finished:                        value.Complete,
+		FinishReasonCode:                value.FinishReason,
+		StartTypeCode:                   value.StartType,
+		CleanTypeCode:                   value.CleanType,
+		DustCollectionStatusCode:        value.DustCollectionStatus,
+		ObstaclesAvoided:                value.AvoidCount,
+		MopWashes:                       value.WashCount,
+		MapId:                           value.MapFlag,
+		CleaningRepeats:                 value.CleanTimes,
+		DirtyReplenishCode:              value.DirtyReplenish,
+		ManualReplenishCode:             value.ManualReplenish,
+	}
+}
+
+func squareMetres(value *int64) *float64 {
+	if value == nil {
+		return nil
+	}
+	result := float64(*value) / 1e6
+	return &result
+}
+func (s *service) GetCleaningHistory(ctx context.Context, req *roborockv1.CleaningHistoryRequest) (*roborockv1.CleaningHistoryResponse, error) {
+	id, err := s.requireDevice(ctx, req.GetDeviceId())
+	if err != nil {
+		return nil, err
+	}
+	records, err := s.client.CleaningHistory(ctx, id)
+	if err != nil {
+		return nil, mapClientError("read cleaning history", err)
+	}
+	response := &roborockv1.CleaningHistoryResponse{}
+	for i := range records {
+		response.Records = append(response.Records, mapCleaningRecord(&records[i]))
+	}
+	return response, nil
+}
+
+func mapOperationalSettings(s OperationalSettings) *roborockv1.OperationalSettings {
+	return &roborockv1.OperationalSettings{
+		WifiSignalDbm:          s.WifiSignalDbm,
+		DustCollectionModeCode: s.DustCollectionModeCode,
+		MopWashModeCode:        s.MopWashModeCode,
+		SmartWashEnabled:       s.SmartWashEnabled,
+		MopWashIntervalSeconds: s.MopWashIntervalSeconds,
+		DryerEnabled:           s.DryerEnabled,
+		DryerDurationSeconds:   s.DryerDurationSeconds,
+		CarpetBoostEnabled:     s.CarpetBoostEnabled,
+		CarpetModeCode:         s.CarpetModeCode,
+	}
 }

@@ -121,6 +121,49 @@ message CameraEvent {
   uint32 rule_id = 7;
   string camera_event_type = 8;
   string camera_target = 9;
+  // Camera notification sequence within an alarm, not a distinct-event count.
+  optional uint32 active_post_count = 10;
+  string event_description = 11;
+  string channel_name = 12;
+}
+
+// Raw ISAPI status. Optional numbers are absent when the camera omits them.
+message DeviceStatus {
+  google.protobuf.Timestamp device_time = 1;
+  optional double uptime_seconds = 2;
+  optional double reboot_count = 3;
+  repeated CPUStatus cpus = 4;
+  repeated MemoryStatus memory = 5;
+}
+message CPUStatus {
+  optional double usage_percent = 1;
+}
+message MemoryStatus {
+  // Units vary by firmware and disagree with the generic ISAPI documentation.
+  optional double usage_raw = 1;
+  optional double available_raw = 2;
+}
+message StorageDevice {
+  string storage = 1; // hdd or nas
+  string id = 2;
+  string status = 3; // ISAPI state, e.g. ok, error, unformatted, offline
+  optional double capacity_megabytes = 4;
+  optional double free_megabytes = 5;
+  string property = 6; // RW, RO, Redund
+}
+message RecordingTrack {
+  string id = 1;
+  // Configuration flags, not evidence of recording in progress.
+  optional bool enabled = 2;
+  optional bool loop_enabled = 3;
+  optional bool schedule_enabled = 4;
+}
+message GetDeviceStatusRequest {}
+message GetDeviceStatusResponse {
+  DeviceStatus device = 1;
+  repeated StorageDevice storage = 2;
+  optional double streaming_sessions = 3;
+  repeated RecordingTrack recording_tracks = 4;
 }
 
 message GetCameraRequest {}
@@ -140,6 +183,8 @@ message WatchEventsRequest {}
 
 // Read-only. No method changes the camera.
 service HikvisionService {
+  // Current device load, storage health and space, video sessions and recording flags.
+  rpc GetDeviceStatus(GetDeviceStatusRequest) returns (GetDeviceStatusResponse);
   // Identity, firmware, detection settings and alert-stream status.
   rpc GetCamera(GetCameraRequest) returns (GetCameraResponse);
   // One JPEG from the main stream.

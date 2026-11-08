@@ -91,12 +91,23 @@ func (c *Client) RawLogs(ctx context.Context, id string, query weheatapi.LogQuer
 	return c.api.GetRawLogs(ctx, id, query)
 }
 
-func (c *Client) LogViews(ctx context.Context, id string, query weheatapi.LogQuery) ([]weheatapi.HeatPumpLogView, error) {
-	return c.api.GetLogs(ctx, id, query)
+func (c *Client) LogViews(ctx context.Context, id string, query weheatapi.LogQuery) ([]json.RawMessage, error) {
+	values := url.Values{"interval": {string(query.Interval)}}
+	if query.StartTime != nil {
+		values.Set("startTime", query.StartTime.UTC().Format(time.RFC3339))
+	}
+	if query.EndTime != nil {
+		values.Set("endTime", query.EndTime.UTC().Format(time.RFC3339))
+	}
+	var out []json.RawMessage
+	err := c.readJSON(ctx, "/api/v1/heat-pumps/"+url.PathEscape(id)+"/logs", values, &out)
+	return out, err
 }
 
-func (c *Client) EnergyTotals(ctx context.Context, id string) (*weheatapi.TotalEnergyAggregate, error) {
-	return c.api.GetEnergyTotals(ctx, id, weheatapi.RequestOptions{})
+func (c *Client) EnergyTotals(ctx context.Context, id string) (*energyTotals, error) {
+	var out energyTotals
+	err := c.readJSON(ctx, "/api/v1/energy-logs/"+url.PathEscape(id)+"/total", nil, &out)
+	return &out, err
 }
 
 func (c *Client) EnergyLogs(ctx context.Context, id string, query weheatapi.EnergyLogQuery) ([]energyLog, error) {
@@ -126,8 +137,8 @@ func (t apiPathTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return http.DefaultTransport.RoundTrip(request)
 }
 
-// These two responses need nullable numbers: the upstream value fields turn
-// absent energy readings and log intervals into fabricated zeroes.
+// Decode source responses without the dependency dropping newer fields or
+// turning absent observations into fabricated zeroes.
 func (c *Client) readJSON(ctx context.Context, path string, query url.Values, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(c.baseURL, "/")+path, nil)
 	if err != nil {

@@ -27,7 +27,30 @@ message TadoConfig {
   optional int32 home_id = 2;
 }
 
+// Read through the hub's OAuth manager; never create a second token refresher.
+message GetSourceDataRequest {
+  enum Resource {
+    RESOURCE_UNSPECIFIED = 0;
+    ZONES = 1;
+    ZONE_STATES = 2;
+    WEATHER = 3;
+    HOME_STATE = 4;
+    DEVICES = 5;
+    DAY_REPORT = 6;
+  }
+  Resource resource = 1;
+  int32 zone_id = 2; // Required for DAY_REPORT.
+  string date = 3; // YYYY-MM-DD, required for DAY_REPORT.
+}
+
+message GetSourceDataResponse {
+  bytes json = 1; // Unmodified vendor response for field and history audits.
+  string rate_limit = 2;
+  string rate_limit_policy = 3;
+}
+
 service TadoService {
+  rpc GetSourceData(GetSourceDataRequest) returns (GetSourceDataResponse);
   rpc ListZones(ListZonesRequest) returns (ListZonesResponse);
   rpc SetTemperature(SetTemperatureRequest) returns (SetTemperatureResponse);
 }

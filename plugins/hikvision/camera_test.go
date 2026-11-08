@@ -25,6 +25,10 @@ import (
 const testUsername, testPassword = "agent", "correct horse"
 
 var recordedPaths = map[string]string{
+	pathDeviceStatus:       "System_status.xml",
+	pathStorage:            "ContentMgmt_Storage.xml",
+	pathStreamingStatus:    "Streaming_status.xml",
+	pathRecordingTracks:    "ContentMgmt_record_tracks.xml",
 	pathDeviceInfo:         "System_deviceInfo.xml",
 	pathSystemCapabilities: "System_capabilities.xml",
 	pathEventCapabilities:  "Event_capabilities.xml",

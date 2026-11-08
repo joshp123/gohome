@@ -16,17 +16,29 @@ import (
 // readResponses maps every SOAP action the plugin may send to a response recorded from
 // the house's Arc (device IDs replaced). Any other action fails the test.
 var readResponses = map[string]string{
-	"ZoneGroupTopology#GetZoneGroupState": "get_zone_group_state.xml",
-	"AVTransport#GetTransportInfo":        "get_transport_info.xml",
-	"AVTransport#GetPositionInfo":         "get_position_info.xml",
-	"RenderingControl#GetVolume":          "get_volume.xml",
-	"RenderingControl#GetMute":            "get_mute.xml",
+	"DeviceProperties#GetZoneInfo":               "DeviceProperties_GetZoneInfo.xml",
+	"AVTransport#GetTransportSettings":           "AVTransport_GetTransportSettings.xml",
+	"AVTransport#GetRemainingSleepTimerDuration": "AVTransport_GetRemainingSleepTimerDuration.xml",
+	"AVTransport#GetMediaInfo":                   "AVTransport_GetMediaInfo.xml",
+	"AVTransport#GetCrossfadeMode":               "AVTransport_GetCrossfadeMode.xml",
+	"RenderingControl#GetEQ":                     "RenderingControl_GetEQ.xml",
+	"RenderingControl#GetRoomCalibrationStatus":  "RenderingControl_GetRoomCalibrationStatus.xml",
+	"RenderingControl#GetOutputFixed":            "RenderingControl_GetOutputFixed.xml",
+	"RenderingControl#GetLoudness":               "RenderingControl_GetLoudness.xml",
+	"RenderingControl#GetTreble":                 "RenderingControl_GetTreble.xml",
+	"RenderingControl#GetBass":                   "RenderingControl_GetBass.xml",
+	"ZoneGroupTopology#GetZoneGroupState":        "get_zone_group_state.xml",
+	"AVTransport#GetTransportInfo":               "get_transport_info.xml",
+	"AVTransport#GetPositionInfo":                "get_position_info.xml",
+	"RenderingControl#GetVolume":                 "get_volume.xml",
+	"RenderingControl#GetMute":                   "get_mute.xml",
 }
 
 type fakeArc struct {
 	*httptest.Server
-	responses map[string]string
-	down      bool
+	responses    map[string]string
+	down         bool
+	failedAction string
 }
 
 func newFakeArc(t *testing.T) *fakeArc {
@@ -43,7 +55,7 @@ func newFakeArc(t *testing.T) *fakeArc {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		if arc.down {
+		if arc.down || action == arc.failedAction {
 			http.Error(w, "", http.StatusServiceUnavailable)
 			return
 		}
@@ -129,7 +141,7 @@ func TestMetricsAbsentWhenArcUnreachable(t *testing.T) {
 	registry.MustRegister(NewMetricsCollector(client))
 
 	metrics := gather(t, registry)
-	if metrics["gohome_sonos_scrape_success"] != 1 || metrics["gohome_sonos_volume{zone=Living Room}"] != 26 ||
+	if metrics["gohome_sonos_bass{zone=Living Room}"] != 2 || metrics["gohome_sonos_music_surround_level{zone=Living Room}"] != -6 || metrics["gohome_sonos_scrape_success"] != 1 || metrics["gohome_sonos_volume{zone=Living Room}"] != 26 ||
 		metrics["gohome_sonos_transport_state{state=stopped,zone=Living Room}"] != 1 ||
 		metrics["gohome_sonos_muted{zone=Living Room}"] != 0 || metrics["gohome_sonos_zone_reachable{zone=Living Room}"] != 1 {
 		t.Fatalf("live metrics: %v", metrics)
@@ -167,4 +179,22 @@ func seriesName(name string, m *dto.Metric) string {
 		labels = append(labels, l.GetName()+"="+l.GetValue())
 	}
 	return name + "{" + strings.Join(labels, ",") + "}"
+}
+
+func TestDiagnosticsRetainOnlySuccessfulReads(t *testing.T) {
+	arc := newFakeArc(t)
+	service := newTestService(t, arc)
+	first, err := service.GetDiagnostics(context.Background(), &sonosv1.GetDiagnosticsRequest{})
+	if err != nil || first.Zones[0].GetBass() != 2 {
+		t.Fatalf("first read: %v, %v", first, err)
+	}
+	arc.failedAction = "RenderingControl#GetBass"
+	next, err := service.GetDiagnostics(context.Background(), &sonosv1.GetDiagnosticsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := next.Zones[0]
+	if got.Bass != nil || got.Treble == nil || *got.Treble != 2 || len(got.ReadErrors) != 1 {
+		t.Fatalf("partial read: %v", got)
+	}
 }

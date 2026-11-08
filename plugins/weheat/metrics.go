@@ -48,6 +48,8 @@ type MetricsCollector struct {
 	lastUpdate           *prometheus.GaugeVec
 	lastEnergyLogBucket  *prometheus.GaugeVec
 
+	pumpState        *prometheus.GaugeVec
+	pumpStatus       *prometheus.GaugeVec
 	logMetrics       map[string]*prometheus.GaugeVec
 	energyMetrics    map[string]*prometheus.GaugeVec
 	energyLogMetrics map[string]*prometheus.GaugeVec
@@ -63,7 +65,7 @@ type MetricsCollector struct {
 	energyFetchedAt    map[string]time.Time
 	energyLogFetchedAt map[string]time.Time
 	logCache           map[string]*latestLog
-	energyCache        map[string]*weheatapi.TotalEnergyAggregate
+	energyCache        map[string]*energyTotals
 	energyLogCache     map[string]*energyLog
 }
 
@@ -133,8 +135,15 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 		}, labels),
 	}
 
+	for _, mode := range []string{"standby", "heating", "dhw", "heating_defrost", "dhw_defrost", "cooling"} {
+		key := "total_ein_iu_" + mode
+		energyMetrics[key] = prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "gohome_weheat_energy_" + key + "_kwh", Help: "Indoor unit lifetime electrical energy (kWh) for " + mode}, labels)
+	}
+
 	return &MetricsCollector{
-		client: client,
+		pumpState:  prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "gohome_weheat_device_state", Help: "Vendor device lifecycle state code"}, labels),
+		pumpStatus: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "gohome_weheat_device_status", Help: "Vendor device status code"}, labels),
+		client:     client,
 		scrapeSuccess: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "gohome_weheat_scrape_success",
 			Help: "Last scrape success (1=ok, 0=error)",
@@ -176,12 +185,14 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 		energyFetchedAt:    make(map[string]time.Time),
 		energyLogFetchedAt: make(map[string]time.Time),
 		logCache:           make(map[string]*latestLog),
-		energyCache:        make(map[string]*weheatapi.TotalEnergyAggregate),
+		energyCache:        make(map[string]*energyTotals),
 		energyLogCache:     make(map[string]*energyLog),
 	}
 }
 
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
+	c.pumpState.Describe(ch)
+	c.pumpStatus.Describe(ch)
 	c.scrapeSuccess.Describe(ch)
 	c.energySuccess.Describe(ch)
 	c.energyLogSuccess.Describe(ch)
@@ -213,6 +224,9 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 	c.readError = "no successful heat pump read"
+	c.pumpState.Reset()
+	c.pumpStatus.Reset()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
@@ -247,6 +261,10 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 			"model":         modelName(pump.Model),
 		}
 
+		c.pumpState.With(labels).Set(float64(pump.State))
+		if pump.Status != nil {
+			c.pumpStatus.With(labels).Set(float64(*pump.Status))
+		}
 		logEntry, err := c.fetchLatestLog(ctx, pump.ID)
 		if err != nil || logEntry == nil {
 			logOK = false
@@ -314,6 +332,8 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
+	c.pumpState.Collect(ch)
+	c.pumpStatus.Collect(ch)
 	c.scrapeSuccess.Collect(ch)
 	c.energySuccess.Collect(ch)
 	c.energyLogSuccess.Collect(ch)
@@ -368,7 +388,7 @@ func (c *MetricsCollector) fetchLatestLog(ctx context.Context, id string) (*late
 	return log, err
 }
 
-func (c *MetricsCollector) fetchEnergyTotals(ctx context.Context, id string) (*weheatapi.TotalEnergyAggregate, error) {
+func (c *MetricsCollector) fetchEnergyTotals(ctx context.Context, id string) (*energyTotals, error) {
 	if last, ok := c.energyFetchedAt[id]; ok && time.Since(last) < energyFetchInterval {
 		energy := c.energyCache[id]
 		return energy, nil
@@ -454,7 +474,7 @@ const thermostatNoReading = -1
 
 var thermostatFields = map[string]bool{"tRoom": true, "tRoomTarget": true}
 
-func (c *MetricsCollector) applyEnergy(labels prometheus.Labels, energy *weheatapi.TotalEnergyAggregate) {
+func (c *MetricsCollector) applyEnergy(labels prometheus.Labels, energy *energyTotals) {
 	if energy == nil {
 		return
 	}
@@ -477,6 +497,12 @@ func (c *MetricsCollector) applyEnergy(labels prometheus.Labels, energy *weheata
 	setEnergy("total_eout_heating_defrost", energy.TotalEOutHeatingDefrost)
 	setEnergy("total_eout_dhw_defrost", energy.TotalEOutDHWDefrost)
 	setEnergy("total_eout_cooling", energy.TotalEOutCooling)
+	setEnergy("total_ein_iu_standby", energy.TotalEInIUStandby)
+	setEnergy("total_ein_iu_heating", energy.TotalEInIUHeating)
+	setEnergy("total_ein_iu_dhw", energy.TotalEInIUDhw)
+	setEnergy("total_ein_iu_heating_defrost", energy.TotalEInIUHeatingDefrost)
+	setEnergy("total_ein_iu_dhw_defrost", energy.TotalEInIUDhwDefrost)
+	setEnergy("total_ein_iu_cooling", energy.TotalEInIUCooling)
 }
 
 func (c *MetricsCollector) applyEnergyLog(labels prometheus.Labels, energyLog *energyLog) {
@@ -513,6 +539,9 @@ func buildLogFields() []logField {
 			continue
 		}
 		metricName := "gohome_weheat_log_" + toSnake(jsonTag)
+		if jsonTag == "lastCoolingTime" {
+			metricName += "_timestamp_seconds"
+		}
 		fields = append(fields, logField{
 			jsonName:   jsonTag,
 			metricName: metricName,
@@ -563,6 +592,12 @@ func fieldValue(value reflect.Value, field logField) (float64, bool) {
 		fieldValue = fieldValue.Elem()
 	}
 
+	if timestamp, ok := fieldValue.Interface().(time.Time); ok {
+		if timestamp.IsZero() {
+			return 0, false
+		}
+		return float64(timestamp.Unix()), true
+	}
 	switch fieldValue.Kind() {
 	case reflect.Int, reflect.Int64, reflect.Int32:
 		return float64(fieldValue.Int()), true

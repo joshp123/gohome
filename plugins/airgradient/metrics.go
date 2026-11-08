@@ -332,8 +332,8 @@ func (c *MetricsCollector) applyOpenMetrics(ctx context.Context) {
 
 	metrics := parseOpenMetrics(payload)
 	c.openMetricsSuccess.Set(1)
-	c.configOK.Set(metrics["airgradient_config_ok"])
-	c.postOK.Set(metrics["airgradient_post_ok"])
+	setOpenMetric(c.configOK, metrics, "airgradient_config_ok")
+	setOpenMetric(c.postOK, metrics, "airgradient_post_ok")
 }
 
 func parseOpenMetrics(payload []byte) map[string]float64 {
@@ -408,4 +408,13 @@ func setGaugeVec(g *prometheus.GaugeVec, labels prometheus.Labels, value *float6
 		return
 	}
 	g.With(labels).Set(*value)
+}
+
+func setOpenMetric(gauge prometheus.Gauge, values map[string]float64, name string) {
+	value, present := values[name]
+	if !present {
+		gauge.Set(math.NaN())
+		return
+	}
+	gauge.Set(value)
 }

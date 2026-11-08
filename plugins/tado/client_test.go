@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/joshp123/gohome/internal/oauth"
+	v1 "github.com/joshp123/gohome/proto/gen/plugins/tado/v1"
 )
 
 type memoryBlobStore struct {
@@ -58,6 +59,8 @@ func TestClientFlow(t *testing.T) {
 			_, _ = io.WriteString(w, `{"homes":[{"id":1}]}`)
 			return
 		case "/homes/1/zones":
+			w.Header().Set("ratelimit", `"perday";r=19000`)
+			w.Header().Set("ratelimit-policy", `"perday";q=20000;w=86400`)
 			assertAuth(t, r)
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `[{"id":2,"name":"Living","devices":[{"deviceType":"VA02","serialNo":"VA0000000001","batteryState":"LOW"},{"deviceType":"VA02","serialNo":"VA0000000002","batteryState":"NORMAL"},{"deviceType":"BR02","serialNo":"BR0000000003"}]}]`)
@@ -122,6 +125,22 @@ func TestClientFlow(t *testing.T) {
 	}
 	if homeID != 1 {
 		t.Fatalf("expected homeID 1, got %d", homeID)
+	}
+
+	source := &service{client: client}
+	snapshot, err := source.GetSourceData(ctx, &v1.GetSourceDataRequest{Resource: v1.GetSourceDataRequest_ZONES})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(snapshot.Json), `"batteryState":"LOW"`) || snapshot.RateLimit != `"perday";r=19000` || snapshot.RateLimitPolicy == "" {
+		t.Fatalf("lost source fields or quota: %v", snapshot)
+	}
+	beforeInvalid := tokenRequests
+	if _, err := source.GetSourceData(ctx, &v1.GetSourceDataRequest{Resource: v1.GetSourceDataRequest_DAY_REPORT, ZoneId: 2, Date: "not-a-date"}); err == nil {
+		t.Fatal("invalid history date accepted")
+	}
+	if tokenRequests != beforeInvalid {
+		t.Fatal("source RPC started an OAuth refresh")
 	}
 
 	zones, err := client.Zones(ctx)

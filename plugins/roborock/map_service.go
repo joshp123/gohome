@@ -10,6 +10,7 @@ import (
 const mapRefreshInterval = 5 * time.Second
 
 type mapSnapshot struct {
+	raw       []byte
 	vacuumMap vacuumMap
 	fetchedAt time.Time
 }
@@ -64,7 +65,7 @@ func (c *Client) currentMap(ctx context.Context, deviceID string) (vacuumMap, er
 		log.Printf("roborock map has no rooms (device=%s data_bytes=%d)", device.Name, len(raw))
 	}
 	c.mu.Lock()
-	c.mapCache[deviceID] = mapSnapshot{vacuumMap: vacuumMapData, fetchedAt: time.Now()}
+	c.mapCache[deviceID] = mapSnapshot{raw: raw, vacuumMap: vacuumMapData, fetchedAt: time.Now()}
 	c.mu.Unlock()
 	return vacuumMapData, nil
 }
@@ -77,4 +78,24 @@ func (c *Client) cachedMap(deviceID string) (mapSnapshot, bool) {
 		return mapSnapshot{}, false
 	}
 	return snapshot, true
+}
+
+// RecordMap reads a retained run without loading or changing the vacuum's active map.
+func (c *Client) RecordMap(ctx context.Context, deviceID string, startTime int64) ([]byte, error) {
+	if err := c.ensureHomeData(ctx); err != nil {
+		return nil, err
+	}
+	device, err := c.deviceByID(deviceID)
+	if err != nil {
+		return nil, err
+	}
+	result, err := c.sendMQTTRPC(ctx, device, "get_clean_record_map", map[string]any{"start_time": startTime})
+	if err != nil {
+		return nil, err
+	}
+	raw, ok := result.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("invalid historical map response")
+	}
+	return raw, nil
 }

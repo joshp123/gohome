@@ -60,11 +60,14 @@ func (s smartDetectionXML) rules() []smartRuleXML {
 }
 
 type eventNotificationXML struct {
-	ChannelID       uint32 `xml:"channelID"`
-	DateTime        string `xml:"dateTime"`
-	EventType       string `xml:"eventType"`
-	EventState      string `xml:"eventState"`
-	DetectionTarget string `xml:"detectionTarget"`
+	ActivePostCount *uint32 `xml:"activePostCount"`
+	Description     string  `xml:"eventDescription"`
+	ChannelName     string  `xml:"channelName"`
+	ChannelID       uint32  `xml:"channelID"`
+	DateTime        string  `xml:"dateTime"`
+	EventType       string  `xml:"eventType"`
+	EventState      string  `xml:"eventState"`
+	DetectionTarget string  `xml:"detectionTarget"`
 	Regions         []struct {
 		RegionID        uint32 `xml:"regionID"`
 		DetectionTarget string `xml:"detectionTarget"`
@@ -195,15 +198,18 @@ func parseEventState(raw string) hikvisionv1.EventState {
 
 // cameraEvent is one decoded alert-stream notification.
 type cameraEvent struct {
-	Kind        hikvisionv1.EventKind
-	State       hikvisionv1.EventState
-	Target      hikvisionv1.DetectionTarget
-	CameraTime  time.Time // zero when the camera's timestamp does not parse
-	ReceivedAt  time.Time
-	ChannelID   uint32
-	RuleID      uint32
-	EventType   string
-	CameraWords string // the camera's detection-target word(s)
+	ActivePostCount *uint32
+	Description     string
+	ChannelName     string
+	Kind            hikvisionv1.EventKind
+	State           hikvisionv1.EventState
+	Target          hikvisionv1.DetectionTarget
+	CameraTime      time.Time // zero when the camera's timestamp does not parse
+	ReceivedAt      time.Time
+	ChannelID       uint32
+	RuleID          uint32
+	EventType       string
+	CameraWords     string // the camera's detection-target word(s)
 }
 
 // isKeepAlive: with nothing to report, the camera posts "videoloss inactive"
@@ -221,12 +227,15 @@ func parseEventNotification(body []byte, receivedAt time.Time) (cameraEvent, err
 		return cameraEvent{}, fmt.Errorf("EventNotificationAlert has no eventType")
 	}
 	event := cameraEvent{
-		Kind:        parseEventKind(raw.EventType),
-		State:       parseEventState(raw.EventState),
-		ReceivedAt:  receivedAt,
-		ChannelID:   raw.ChannelID,
-		EventType:   raw.EventType,
-		CameraWords: raw.DetectionTarget,
+		ActivePostCount: raw.ActivePostCount,
+		Description:     raw.Description,
+		ChannelName:     raw.ChannelName,
+		Kind:            parseEventKind(raw.EventType),
+		State:           parseEventState(raw.EventState),
+		ReceivedAt:      receivedAt,
+		ChannelID:       raw.ChannelID,
+		EventType:       raw.EventType,
+		CameraWords:     raw.DetectionTarget,
 	}
 	if len(raw.Regions) > 0 {
 		event.RuleID = raw.Regions[0].RegionID

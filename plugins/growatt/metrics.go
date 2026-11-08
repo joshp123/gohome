@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	v1 "github.com/joshp123/gohome/proto/gen/plugins/growatt/v1"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -23,7 +24,8 @@ type cachedSnapshot struct {
 
 // MetricsCollector collects Growatt plant metrics.
 type MetricsCollector struct {
-	client *Client
+	client              *Client
+	inverterDescriptors map[v1.InverterQuantity]*prometheus.Desc
 
 	currentPower *prometheus.GaugeVec
 	todayEnergy  *prometheus.GaugeVec
@@ -41,7 +43,8 @@ type MetricsCollector struct {
 func NewMetricsCollector(client *Client) *MetricsCollector {
 	labels := []string{"plant_id", "plant_name"}
 	return &MetricsCollector{
-		client: client,
+		client:              client,
+		inverterDescriptors: inverterDescriptors(),
 		currentPower: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "gohome_growatt_current_power_watts",
 			Help: "Current power output per plant (watts)",
@@ -78,6 +81,9 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 }
 
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
+	for _, desc := range c.inverterDescriptors {
+		ch <- desc
+	}
 	c.currentPower.Describe(ch)
 	c.todayEnergy.Describe(ch)
 	c.monthEnergy.Describe(ch)
@@ -187,6 +193,9 @@ func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
 	c.mu.Lock()
 	if c.cached != nil {
 		readAt = c.cached.energy.LastUpdate
+		if c.cached.success {
+			collectInverter(c.cached.energy.Inverter, strconv.FormatInt(c.cached.plant.ID, 10), c.cached.plant.Name, c.inverterDescriptors, ch)
+		}
 	}
 	c.mu.Unlock()
 	for _, reading := range []prometheus.Collector{c.currentPower, c.todayEnergy, c.monthEnergy, c.yearEnergy, c.totalEnergy} {

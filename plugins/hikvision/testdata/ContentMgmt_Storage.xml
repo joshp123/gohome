@@ -1,0 +1,16 @@
+<storage version="2.0">
+  <hddList version="1.0" size="8">
+    <hdd>
+      <id>1</id>
+      <status>ok</status>
+      <capacity>119008</capacity>
+      <freeSpace>27648</freeSpace>
+      <property>RW</property>
+    </hdd>
+  </hddList>
+  <nasList version="2.0">
+    <supportMountType opt="NFS,SMB/CIFS" />
+    <authentication opt="SMB/CIFS" />
+  </nasList>
+  <workMode>quota</workMode>
+</storage>

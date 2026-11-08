@@ -3,6 +3,7 @@ package roborock
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,13 +27,19 @@ func (p Plugin) RegisterHTTP(mux *http.ServeMux) {
 
 		if deviceID == "" && deviceName != "" {
 			devices, err := p.client.Devices(ctx)
-			if err == nil {
-				for _, dev := range devices {
-					if dev.Name == deviceName {
-						deviceID = dev.ID
-						break
-					}
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadGateway)
+				return
+			}
+			for _, dev := range devices {
+				if dev.Name == deviceName {
+					deviceID = dev.ID
+					break
 				}
+			}
+			if deviceID == "" {
+				http.Error(w, "device not found", http.StatusNotFound)
+				return
 			}
 		}
 
@@ -41,7 +48,34 @@ func (p Plugin) RegisterHTTP(mux *http.ServeMux) {
 		if r.URL.Query().Get("trace") != "" {
 			withTrace = boolFromQueryDefault(r.URL.Query().Get("trace"), withTrace)
 		}
-		png, err := p.client.MapPNG(ctx, deviceID, labelMode, withTrace)
+		var png []byte
+		var err error
+		if recordID := r.URL.Query().Get("record_id"); recordID != "" {
+			startTime, parseErr := strconv.ParseInt(recordID, 10, 64)
+			if parseErr != nil || startTime <= 0 {
+				http.Error(w, "invalid record_id", http.StatusBadRequest)
+				return
+			}
+			if deviceID == "" {
+				devices, discoveryErr := p.client.Devices(ctx)
+				if discoveryErr != nil || len(devices) != 1 {
+					http.Error(w, "select a device", http.StatusBadRequest)
+					return
+				}
+				deviceID = devices[0].ID
+			}
+			var raw []byte
+			raw, err = p.client.RecordMap(ctx, deviceID, startTime)
+			if err == nil {
+				var parsed vacuumMap
+				parsed, err = parseVacuumMap(raw, p.client.cfg.SegmentNames)
+				if err == nil {
+					png, err = renderVacuumMap(parsed, labelMode, withTrace)
+				}
+			}
+		} else {
+			png, err = p.client.MapPNG(ctx, deviceID, labelMode, withTrace)
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return

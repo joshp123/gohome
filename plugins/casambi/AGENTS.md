@@ -113,3 +113,36 @@ casambi {
 
 Nix: `services.gohome.plugins.casambi.bridgeAddress`. The bridge serves the API
 only when its own configuration enables it.
+
+## API coverage
+
+Written by AI on 2026.11.08 by model gpt-6-astra.
+
+| What the API gives | Exported before | Exported now | Left out and why |
+| --- | --- | --- | --- |
+| Light on/off, online, brightness, output colour, overheat, report time | Metrics and RPC | Same | — |
+| Driver dimmer setting, RGB setting, RGB/white mixer | Bridge discarded raw settings after computing output colour | Optional RPC fields and raw-setting metrics | Raw settings are not the emitted colour or brightness |
+| Switch battery, online, report time, button counters/action/last press | Metrics and RPC | Same | — |
+| Switch/button configuration and target membership | RPC | Same | Configuration stays in RPC, not duplicated as measurements |
+| Scene availability | RPC | Metric and RPC | Scene availability does not mean a scene is active |
+| Last 100 observed presses and light changes | ListSwitchPresses | Same | Event records stay in RPC, not unbounded time-series labels |
+| Timestamped historical readings | No device archive; bridge's bounded press buffer only | Same | Empty buffer at audit; nothing to backfill |
+| Fixture identities, revision, network keys, cached configuration | Internal metadata | Same | Static configuration/protocol data, not measurements; keys must remain private |
+
+New metrics:
+- `gohome_casambi_scene_available{scene_id,name}`: 0/1 availability, never activation.
+- `gohome_casambi_light_dimmer_raw{light_id,name}`: driver setting, 0–255.
+- `gohome_casambi_light_white_colour_balance_raw{light_id,name}`: mixer, 0–63.
+- `gohome_casambi_light_colour_setting{light_id,name,channel}`: RGB channel setting,
+  each 0–255, `channel` red/green/blue. These LEDs can be dark even when the stored
+  setting is coloured. Use `light_colour_info` for the light's visible colour.
+
+Raw driver settings are present for online lights even while off, because they
+are retained settings, not emitted light. They require the bridge to serve the
+optional fields; an older bridge omits them rather than fabricating zero.
+Three read-only bridge RPCs per scrape; no extra Bluetooth or cloud calls.
+
+Fixture controls are defined by Casambi at `https://api.casambi.com/fixture/<type>`.
+The RGB/White fixture has only dimmer, RGB and mixer; the dimmer fixtures have
+dimmer and, where present, overheat. No energy or temperature history is exposed
+by these fixture controls. Switch revision is protocol metadata, not battery health.

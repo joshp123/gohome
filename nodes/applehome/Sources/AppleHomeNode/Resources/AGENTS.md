@@ -86,3 +86,29 @@ None in `config.pbtxt`. The node app takes launch arguments: `-listenHost`
 (default `127.0.0.1`; the Mac's private network address in production), `-grpcPort`
 (default 9000) and `-httpPort` (default 8080). Build, signing and running are in
 `nodes/applehome/README.md`.
+
+## API coverage
+
+Written by AI on 2026.11.08 by model gpt-6-astra.
+
+| What HomeKit gives | Exported before | Exported now | Left out and why |
+| --- | --- | --- | --- |
+| Every readable numeric/boolean characteristic | Generic metric and typed RPC value | Same, no missing value type found | — |
+| Strings and binary characteristic values | Typed RPC string/data values | Same | Not metric labels: identity, protocol/configuration payloads and unbounded text |
+| Services, units, names, rooms, identity, reachability | ListAccessories | Same | Identity is metadata, not a measurement |
+| Read timestamps and errors | RPC plus last-read metrics | Same | — |
+| Temperature, humidity, thermostat modes/target | Dedicated metrics and GetClimate | Same | — |
+| ADK/OpenThread versions | String values in ListAccessories | Same | Software identity, not sensor history |
+| Wi-Fi configuration control, Thread control, ping and transition control | Binary values in ListAccessories | Same | Protocol/control payloads, not timestamped sensor history; no writes to request anything |
+| Historical sensor readings | No history API in this reader | Same | No historical readings found in the observed characteristics; no synthetic backfill |
+
+Audit uses `ListAccessories` and `/metrics/applehome` from the running signed node,
+without starting another HomeKit reader. The generic exporter already covers
+numeric battery, faults, light, shutter and air-quality characteristics; adding
+another metric per characteristic would duplicate that data. Empty binary values
+remain empty; they do not mean zero measurements. The Wi-Fi configuration control
+payload is available through the RPC and must not be logged as public evidence.
+
+Type references: [Apple HomeKit ADK characteristic definitions](https://github.com/apple/HomeKitADK/blob/master/HAP/HAPCharacteristicTypes.c)
+and [aiohomekit characteristic definitions](https://github.com/Jc2k/aiohomekit/blob/main/aiohomekit/model/characteristics/characteristic_types.py).
+HomeKit's API does not give this node the Home app's activity-history database.

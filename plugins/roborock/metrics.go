@@ -3,6 +3,7 @@ package roborock
 import (
 	"context"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -34,6 +35,8 @@ type MetricsCollector struct {
 	lastCleanStart     *prometheus.GaugeVec
 	lastCleanEnd       *prometheus.GaugeVec
 	lastCleanFinished  *prometheus.GaugeVec
+	consumableSeconds  *prometheus.GaugeVec
+	consumableCycles   *prometheus.GaugeVec
 }
 
 func NewMetricsCollector(client *Client) *MetricsCollector {
@@ -44,7 +47,9 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 	mopIntensityLabels := []string{"device_id", "device_name", "model", "mop_intensity"}
 	errorLabels := []string{"device_id", "device_name", "model", "error_code"}
 	return &MetricsCollector{
-		client: client,
+		client:            client,
+		consumableSeconds: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "gohome_roborock_consumable_used_seconds", Help: "Operating seconds since the consumable counter was reset"}, []string{"device_id", "device_name", "model", "consumable"}),
+		consumableCycles:  prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "gohome_roborock_consumable_used_cycles", Help: "Maintenance cycles since the consumable counter was reset"}, []string{"device_id", "device_name", "model", "consumable"}),
 		success: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "gohome_roborock_scrape_success",
 			Help: "Last scrape success (1=ok, 0=error)",
@@ -125,6 +130,10 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 }
 
 func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- bumperStatusDescription
+	for _, reading := range append(statusMetrics(Status{}), cleaningRecordMetrics(&CleaningRecord{})...) {
+		ch <- prometheus.NewDesc(reading.name, reading.help, []string{"device_id", "device_name", "model"}, nil)
+	}
 	c.success.Describe(ch)
 	c.batteryPercent.Describe(ch)
 	c.state.Describe(ch)
@@ -144,6 +153,8 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	c.lastCleanStart.Describe(ch)
 	c.lastCleanEnd.Describe(ch)
 	c.lastCleanFinished.Describe(ch)
+	c.consumableSeconds.Describe(ch)
+	c.consumableCycles.Describe(ch)
 }
 
 func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
@@ -179,12 +190,22 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	c.lastCleanStart.Reset()
 	c.lastCleanEnd.Reset()
 	c.lastCleanFinished.Reset()
+	c.consumableSeconds.Reset()
+	c.consumableCycles.Reset()
 
 	for _, state := range states {
 		labels := prometheus.Labels{
 			"device_id":   state.Device.ID,
 			"device_name": state.Device.Name,
 			"model":       state.Device.Model,
+		}
+		c.collectConsumables(state)
+		emitReadings(ch, state.Device, statusMetrics(state.Status), time.Time{})
+		for index, value := range state.Status.Readings.BumperStatus {
+			ch <- prometheus.MustNewConstMetric(bumperStatusDescription, prometheus.GaugeValue, float64(value), state.Device.ID, state.Device.Name, state.Device.Model, strconv.Itoa(index))
+		}
+		if record := state.Status.LastRecord; record != nil && record.End != nil && *record.End > 0 {
+			emitReadings(ch, state.Device, cleaningRecordMetrics(record), time.Unix(*record.End, 0))
 		}
 		c.batteryPercent.With(labels).Set(float64(state.Status.BatteryPercent))
 		c.cleaningArea.With(labels).Set(state.Status.CleaningAreaSquareMeters)
@@ -290,4 +311,38 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	c.lastCleanStart.Collect(ch)
 	c.lastCleanEnd.Collect(ch)
 	c.lastCleanFinished.Collect(ch)
+	c.consumableSeconds.Collect(ch)
+	c.consumableCycles.Collect(ch)
 }
+
+func (c *MetricsCollector) collectConsumables(state DeviceState) {
+	if value := state.Status.Consumables.MainBrush; value != nil {
+		c.consumableSeconds.WithLabelValues(state.Device.ID, state.Device.Name, state.Device.Model, "main_brush").Set(float64(*value))
+	}
+	if value := state.Status.Consumables.SideBrush; value != nil {
+		c.consumableSeconds.WithLabelValues(state.Device.ID, state.Device.Name, state.Device.Model, "side_brush").Set(float64(*value))
+	}
+	if value := state.Status.Consumables.Filter; value != nil {
+		c.consumableSeconds.WithLabelValues(state.Device.ID, state.Device.Name, state.Device.Model, "filter").Set(float64(*value))
+	}
+	if value := state.Status.Consumables.FilterElement; value != nil {
+		c.consumableSeconds.WithLabelValues(state.Device.ID, state.Device.Name, state.Device.Model, "filter_element").Set(float64(*value))
+	}
+	if value := state.Status.Consumables.Sensors; value != nil {
+		c.consumableSeconds.WithLabelValues(state.Device.ID, state.Device.Name, state.Device.Model, "sensors").Set(float64(*value))
+	}
+	if value := state.Status.Consumables.MopRoller; value != nil {
+		c.consumableSeconds.WithLabelValues(state.Device.ID, state.Device.Name, state.Device.Model, "mop_roller").Set(float64(*value))
+	}
+	if value := state.Status.Consumables.Strainer; value != nil {
+		c.consumableCycles.WithLabelValues(state.Device.ID, state.Device.Name, state.Device.Model, "strainer").Set(float64(*value))
+	}
+	if value := state.Status.Consumables.DustCollection; value != nil {
+		c.consumableCycles.WithLabelValues(state.Device.ID, state.Device.Name, state.Device.Model, "dust_collection").Set(float64(*value))
+	}
+	if value := state.Status.Consumables.CleaningBrush; value != nil {
+		c.consumableCycles.WithLabelValues(state.Device.ID, state.Device.Name, state.Device.Model, "cleaning_brush").Set(float64(*value))
+	}
+}
+
+var bumperStatusDescription = prometheus.NewDesc("gohome_roborock_bumper_status_code", "Raw front sensor status code in device array order", []string{"device_id", "device_name", "model", "sensor_index"}, nil)
