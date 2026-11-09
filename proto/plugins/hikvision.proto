@@ -51,8 +51,10 @@ message HikvisionConfig {
   string base_url = 1;
   // File holding one line, "username:password". Read-only secret (agenix).
   string credentials_file = 2;
-  // Seconds between reads of the camera's alarm log: how late at most a new
-  // alarm is noticed. 0 means 5; at least 1.
+  // Seconds between reads of the camera's alarm log, start to start. A new
+  // alarm reaches watchers up to this long after the camera makes it
+  // readable, plus the read itself; the camera's own delay in logging an
+  // alarm comes on top. 0 means 5; at least 1.
   uint32 alarm_poll_seconds = 3;
 }
 
@@ -203,8 +205,9 @@ message Alarm {
   google.protobuf.Duration duration = 6;
   // The camera's log type for the start, e.g. "motionStart".
   string camera_alarm_type = 7;
-  // When gohome first read this state from the camera's log. Later than the
-  // camera time by the poll interval, or by any outage of the camera.
+  // When the read that first showed gohome this state was answered. Its gap
+  // from the camera time is the camera's logging delay plus up to one poll
+  // interval and the read, or longer after an outage.
   google.protobuf.Timestamp seen_at = 8;
 }
 

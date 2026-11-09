@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,6 +17,8 @@ import (
 	"time"
 
 	hikvisionv1 "github.com/joshp123/gohome/proto/gen/plugins/hikvision/v1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // fakeSearches answers the two searches like the camera: newest first, in
@@ -520,5 +523,83 @@ func TestAlarmPollIntervalFromConfig(t *testing.T) {
 		if err != nil || cfg.AlarmPollInterval != want {
 			t.Fatalf("alarm_poll_seconds %d: %v %v, want %v", seconds, cfg.AlarmPollInterval, err, want)
 		}
+	}
+}
+
+// TestWatchAlarmsRPC follows one fresh alarm through the gRPC method a
+// consumer uses and through the exported metrics.
+func TestWatchAlarmsRPC(t *testing.T) {
+	test := newTestAlarmLog(t)
+	collector := NewMetricsCollector(test.camera.client(t, testPassword))
+	collector.stream = connectedStream()
+	collector.alarms = test.log
+	test.log.onStarted = collector.alarmStarted
+	test.camera.searches.alarm(test.now.Add(-time.Hour), true) // history
+	test.poll(0)
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := grpc.NewServer()
+	RegisterHikvisionService(server, test.camera.client(t, testPassword), connectedStream(), test.log, nil)
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(server.Stop)
+	conn, err := grpc.NewClient(listener.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { conn.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	stream, err := hikvisionv1.NewHikvisionServiceClient(conn).WatchAlarms(ctx, &hikvisionv1.WatchAlarmsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The subscription is registered when the server handler runs; wait for it.
+	for deadline := time.Now().Add(2 * time.Second); ; {
+		test.log.mu.Lock()
+		subscribed := len(test.log.subscribers) == 1
+		test.log.mu.Unlock()
+		if subscribed {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("WatchAlarms did not subscribe")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	start := test.now.Add(time.Second)
+	test.camera.searches.alarm(start, true)
+	test.poll(5 * time.Second)
+	test.poll(5 * time.Second) // a repeat read must not repeat the alarm
+	received := make([]*hikvisionv1.Alarm, 0, 2)
+	for range 2 {
+		alarm, err := stream.Recv()
+		if err != nil {
+			t.Fatal(err)
+		}
+		received = append(received, alarm)
+	}
+	first, second := received[0], received[1]
+	if first.GetState() != hikvisionv1.EventState_EVENT_STATE_ACTIVE || !first.GetStartedAt().AsTime().Equal(start) ||
+		first.GetKind() != hikvisionv1.EventKind_EVENT_KIND_MOTION || first.GetCameraAlarmType() != "motionStart" || first.GetEndedAt() != nil {
+		t.Fatalf("start over RPC: %v", first)
+	}
+	if second.GetState() != hikvisionv1.EventState_EVENT_STATE_INACTIVE || second.GetDuration().AsDuration() != 5*time.Second ||
+		!second.GetEndedAt().AsTime().Equal(start.Add(5*time.Second)) {
+		t.Fatalf("end over RPC: %v", second)
+	}
+	cancel()
+	if _, err := stream.Recv(); err == nil {
+		t.Fatal("a third alarm message arrived")
+	}
+	families := gather(t, collector)
+	if v := metricValue(families, "gohome_hikvision_alarms_total", map[string]string{"kind": "motion"}); v != 1 {
+		t.Fatalf("alarms_total %v, want 1", v)
+	}
+	if v := metricValue(families, "gohome_hikvision_last_alarm_start_timestamp_seconds", map[string]string{"kind": "motion"}); v != float64(start.Unix()) {
+		t.Fatalf("last alarm start %v, want %d", v, start.Unix())
 	}
 }

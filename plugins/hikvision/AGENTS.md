@@ -48,8 +48,10 @@ The camera reports motion in two places, and they are not the same thing:
   log line is `motionStart`, and raw motion events have target
   `DETECTION_TARGET_UNSPECIFIED`. Raw line-crossing and intrusion events say
   `human` or `vehicle`.
-- Alarms arrive up to one poll interval after the camera logs them (gohome
-  reads the log every `alarm_poll_seconds`, default 5). During a camera outage they arrive when the log
+- An alarm reaches watchers up to one poll interval (`alarm_poll_seconds`,
+  default 5, start to start) plus one read (typically under 0.2 s) after the
+  camera makes it readable in its log; the camera's own delay in logging it
+  comes on top. `seen_at` minus `started_at` is the whole delay. During a camera outage they arrive when the log
   is readable again, with their true start times; `seen_at` shows the delay.
   Alarms logged before gohome started are history: `ListAlarms` returns them,
   `WatchAlarms` never sends them as new.
@@ -189,7 +191,7 @@ Fields:
   when that is not 80
 - `hikvision.credentials_file` (required): one line, `username:password`
 - `hikvision.alarm_poll_seconds` (optional, default 5, at least 1): seconds
-  between reads of the alarm log, so the most a new alarm can be late. Nix:
+  between reads of the alarm log, start to start. Nix:
   `services.gohome.plugins.hikvision.alarmPollSeconds`.
 
 Example:

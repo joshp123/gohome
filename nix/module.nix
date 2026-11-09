@@ -510,7 +510,7 @@ in
           alarmPollSeconds = mkOption {
             type = types.ints.positive;
             default = 5;
-            description = "Seconds between reads of the camera's alarm log: how late at most a new alarm is noticed. Each read is one log search on the camera.";
+            description = "Seconds between reads of the camera's alarm log, start to start. A new alarm reaches gohome's watchers up to this long after the camera makes it readable in its log, plus the read itself (typically under 0.2 s); how long the camera takes to log an alarm is its own and comes on top. Each read is one log search on the camera.";
           };
         };
       });

@@ -247,14 +247,17 @@ func newAlarmLog(client *Client, onStarted func(alarm)) *alarmLog {
 		subscribers: map[*alarmSubscription]struct{}{}}
 }
 
-// Run polls until ctx ends.
+// Run polls until ctx ends. Reads start every poll interval, however long
+// each takes; a read that overruns delays the next instead of overlapping it.
 func (l *alarmLog) Run(ctx context.Context) {
+	ticker := time.NewTicker(l.pollInterval)
+	defer ticker.Stop()
 	for {
 		l.poll(ctx)
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(l.pollInterval):
+		case <-ticker.C:
 		}
 	}
 }
@@ -277,7 +280,7 @@ func (l *alarmLog) poll(ctx context.Context) {
 		l.failed(now, err)
 		return
 	}
-	l.observe(now, since, entries)
+	l.observe(now, l.now(), since, entries)
 }
 
 // failed records a failed read. Subscribers stay connected: the log keeps
@@ -294,14 +297,15 @@ func (l *alarmLog) failed(now time.Time, err error) {
 	}
 }
 
-// observe takes one successful read of the log from since onwards.
-func (l *alarmLog) observe(now, since time.Time, entries []alarmLogEntry) {
+// observe takes one successful read of the log from since onwards, started
+// at searchedAt and answered at now.
+func (l *alarmLog) observe(searchedAt, now, since time.Time, entries []alarmLogEntry) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.lastError != "" {
 		log.Printf("hikvision alarm log readable again")
 	}
-	l.lastRead, l.lastSearched, l.failingSince, l.lastError = now, now, time.Time{}, ""
+	l.lastRead, l.lastSearched, l.failingSince, l.lastError = now, searchedAt, time.Time{}, ""
 	l.baselined = true
 	for _, read := range pairAlarms(entries) {
 		current, ok := l.known[read.key()]
