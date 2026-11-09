@@ -3,6 +3,7 @@
 ## What This Is
 Tado controls cloud‑connected thermostats and heating zones.
 
+
 ## Capabilities
 - List zones
 - Set target temperature per zone

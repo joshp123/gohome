@@ -23,6 +23,7 @@ Nix‑native home automation. Replace Home Assistant with a deterministic Go sys
 ## In-flight (living log)
 
 
+
 ## Security Rules
 
 - NEVER commit secrets, tokens, keys, or personal data
