@@ -190,10 +190,9 @@ type alarmKey struct {
 func (a *alarm) key() alarmKey { return alarmKey{a.AlarmType, a.Channel, a.Start} }
 
 // pairAlarms turns log lines, oldest first, into alarms, oldest first. A stop
-// ends the latest open alarm of its type and channel; a stop whose start is
-// not among the lines is left out.
-func pairAlarms(entries []alarmLogEntry) []*alarm {
-	var alarms []*alarm
+// ends the latest open alarm of its type and channel. A stop whose start is
+// not among the lines is returned in unmatched.
+func pairAlarms(entries []alarmLogEntry) (alarms []*alarm, unmatched []alarmLogEntry) {
 	open := map[string]*alarm{}
 	for _, entry := range entries {
 		slot := entry.alarmType + "/" + strconv.FormatUint(uint64(entry.channel), 10)
@@ -207,9 +206,11 @@ func pairAlarms(entries []alarmLogEntry) []*alarm {
 		if a := open[slot]; a != nil && !entry.at.Before(a.Start) {
 			a.End = entry.at
 			delete(open, slot)
+			continue
 		}
+		unmatched = append(unmatched, entry)
 	}
-	return alarms
+	return alarms, unmatched
 }
 
 // alarmSubscription carries alarms' starts and ends to one WatchAlarms caller.
@@ -307,7 +308,25 @@ func (l *alarmLog) observe(searchedAt, now, since time.Time, entries []alarmLogE
 	}
 	l.lastRead, l.lastSearched, l.failingSince, l.lastError = now, searchedAt, time.Time{}, ""
 	l.baselined = true
-	for _, read := range pairAlarms(entries) {
+	alarms, unmatched := pairAlarms(entries)
+	// A stop whose start has left the search window (an alarm longer than the
+	// overlap) ends the open alarm gohome already knows.
+	for _, stop := range unmatched {
+		var open *alarm
+		for _, known := range l.known {
+			if known.End.IsZero() && known.AlarmType == stop.alarmType && known.Channel == stop.channel &&
+				!stop.at.Before(known.Start) && (open == nil || known.Start.After(open.Start)) {
+				open = known
+			}
+		}
+		if open != nil {
+			open.End, open.SeenEnd = stop.at, now
+			if open.announced {
+				l.publishLocked(*open)
+			}
+		}
+	}
+	for _, read := range alarms {
 		current, ok := l.known[read.key()]
 		if !ok {
 			announce := !read.Start.Before(l.startedAt)
@@ -422,13 +441,14 @@ func (l *alarmLog) LatestAlarmStart() (time.Time, bool) {
 
 // ListAlarms reads the alarms that started between since and until, oldest first.
 func (c *Client) ListAlarms(ctx context.Context, since, until time.Time) ([]alarm, error) {
-	// Read a little past until, so an alarm that starts before until has its end.
-	entries, err := c.readAlarmLog(ctx, since, until.Add(alarmLogOverlap))
+	// Read on to now, so an alarm that starts before until has its end however long it lasted.
+	entries, err := c.readAlarmLog(ctx, since, time.Now().Add(alarmLogClockAhead))
 	if err != nil {
 		return nil, err
 	}
+	paired, _ := pairAlarms(entries)
 	var alarms []alarm
-	for _, a := range pairAlarms(entries) {
+	for _, a := range paired {
 		if a.Start.Before(until) {
 			alarms = append(alarms, *a)
 		}

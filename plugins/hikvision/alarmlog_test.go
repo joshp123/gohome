@@ -132,13 +132,16 @@ func TestPairAlarms(t *testing.T) {
 		entry, _ := parseAlarmLogEntry("log.hikvision.com/Alarm/"+word+"/1", base.Add(offset).Format(isapiTimeLayout))
 		return entry
 	}
-	alarms := pairAlarms([]alarmLogEntry{
+	alarms, unmatched := pairAlarms([]alarmLogEntry{
 		line("motionStop", 0), // its start is before the search: left out
 		line("motionStart", 10*time.Second), line("motionStop", 15*time.Second),
 		line("motionStart", 20*time.Second), // under way
 	})
 	if len(alarms) != 2 {
 		t.Fatalf("want 2 alarms, got %d", len(alarms))
+	}
+	if len(unmatched) != 1 || !unmatched[0].at.Equal(base) {
+		t.Fatalf("unmatched stops: %+v", unmatched)
 	}
 	if alarms[0].Start != base.Add(10*time.Second) || alarms[0].End != base.Add(15*time.Second) || alarms[0].Kind != hikvisionv1.EventKind_EVENT_KIND_MOTION {
 		t.Fatalf("first: %+v", alarms[0])
@@ -305,6 +308,38 @@ func TestAlarmLogStartingDuringOutageKeepsNewAlarms(t *testing.T) {
 	noAlarm(t, sub)
 	if latest, _ := test.log.LatestAlarmStart(); !latest.Equal(raised) {
 		t.Fatalf("latest alarm %v", latest)
+	}
+}
+
+func TestLongAlarmEndsAfterItsStartLeavesTheWindow(t *testing.T) {
+	test := newTestAlarmLog(t)
+	test.poll(0)
+	sub := test.log.Subscribe()
+	defer test.log.Unsubscribe(sub)
+	start := test.now.Add(time.Second)
+	test.camera.searches.alarm(start, false)
+	test.poll(5 * time.Second)
+	if a := nextAlarm(t, sub); a.state() != hikvisionv1.EventState_EVENT_STATE_ACTIVE {
+		t.Fatalf("start: %+v", a)
+	}
+	for range 36 { // three minutes of reads; the start leaves the two-minute overlap
+		test.poll(5 * time.Second)
+	}
+	noAlarm(t, sub)
+	stop := start.Add(3*time.Minute + 2*time.Second)
+	test.camera.searches.log("log.hikvision.com/Alarm/motionStop/1", stop)
+	test.poll(5 * time.Second)
+	end := nextAlarm(t, sub)
+	if end.state() != hikvisionv1.EventState_EVENT_STATE_INACTIVE || !end.End.Equal(stop) || end.End.Sub(end.Start) != stop.Sub(start) {
+		t.Fatalf("end: %+v", end)
+	}
+	test.poll(5 * time.Second)
+	noAlarm(t, sub)
+	late := test.log.Subscribe()
+	defer test.log.Unsubscribe(late)
+	noAlarm(t, late) // the finished alarm is not offered as under way
+	if len(test.started) != 1 {
+		t.Fatalf("counted %d alarms", len(test.started))
 	}
 }
 
