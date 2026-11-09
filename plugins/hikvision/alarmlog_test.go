@@ -18,7 +18,10 @@ import (
 
 	hikvisionv1 "github.com/joshp123/gohome/proto/gen/plugins/hikvision/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // fakeSearches answers the two searches like the camera: newest first, in
@@ -553,7 +556,7 @@ func TestAlarmPollIntervalFromConfig(t *testing.T) {
 	if err := os.WriteFile(credentials, []byte("agent:secret\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for seconds, want := range map[uint32]time.Duration{0: 5 * time.Second, 1: time.Second, 3: 3 * time.Second} {
+	for seconds, want := range map[uint32]time.Duration{0: 0, 1: time.Second, 3: 3 * time.Second} {
 		cfg, err := ConfigFromProto(&hikvisionv1.HikvisionConfig{BaseUrl: "http://192.0.2.20", CredentialsFile: credentials, AlarmPollSeconds: seconds})
 		if err != nil || cfg.AlarmPollInterval != want {
 			t.Fatalf("alarm_poll_seconds %d: %v %v, want %v", seconds, cfg.AlarmPollInterval, err, want)
@@ -636,5 +639,40 @@ func TestWatchAlarmsRPC(t *testing.T) {
 	}
 	if v := metricValue(families, "gohome_hikvision_last_alarm_start_timestamp_seconds", map[string]string{"kind": "motion"}); v != float64(start.Unix()) {
 		t.Fatalf("last alarm start %v, want %d", v, start.Unix())
+	}
+}
+
+// With alarm log polling off, the log is read only on request: ListAlarms
+// works, WatchAlarms and the latest-alarm picture say polling is off, and the
+// alarm metrics are absent.
+func TestAlarmLogPollingOff(t *testing.T) {
+	test := newTestAlarmLog(t)
+	client := test.camera.client(t, testPassword)
+	plugin := newPlugin(client)
+	plugin.metrics.stream = connectedStream()
+	start := time.Now().Add(-time.Hour).Truncate(time.Second)
+	test.camera.searches.alarm(start, true)
+
+	svc := &service{client: plugin.client, stream: plugin.stream, alarms: plugin.alarms, frames: plugin.frames}
+	listed, err := svc.ListAlarms(context.Background(), &hikvisionv1.ListAlarmsRequest{Since: timestamppb.New(start.Add(-time.Minute))})
+	if err != nil || len(listed.GetAlarms()) != 1 || !listed.GetAlarms()[0].GetStartedAt().AsTime().Equal(start) {
+		t.Fatalf("ListAlarms: %v %v", listed, err)
+	}
+	if err := svc.WatchAlarms(&hikvisionv1.WatchAlarmsRequest{}, nil); status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("WatchAlarms: %v, want FAILED_PRECONDITION", err)
+	}
+	mux := http.NewServeMux()
+	plugin.RegisterHTTP(mux)
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, httptest.NewRequest("GET", alarmFrameEndpoint, nil))
+	if response.Code != 404 {
+		t.Fatalf("alarm picture: %d", response.Code)
+	}
+	families := gather(t, plugin.metrics)
+	for _, name := range []string{"gohome_hikvision_alarm_log_readable", "gohome_hikvision_alarm_log_last_read_timestamp_seconds",
+		"gohome_hikvision_last_alarm_start_timestamp_seconds", "gohome_hikvision_alarms_total"} {
+		if _, ok := families[name]; ok {
+			t.Fatalf("%s present with polling off", name)
+		}
 	}
 }

@@ -147,7 +147,8 @@ ${lib.concatMapStringsSep "\n" (cover: ''
     hikvision {
       base_url: ${textprotoString cfg.plugins.hikvision.baseUrl}
       credentials_file: ${textprotoString cfg.plugins.hikvision.credentialsFile}
-      alarm_poll_seconds: ${toString cfg.plugins.hikvision.alarmPollSeconds}
+      ${optionalString cfg.plugins.hikvision.alarmLogPolling.enable
+        "alarm_poll_seconds: ${toString cfg.plugins.hikvision.alarmLogPolling.intervalSeconds}"}
     }
   '' + optionalString (cfg.plugins.casambi != null) ''
     casambi {
@@ -507,10 +508,14 @@ in
             description = "Path to a file holding one line, username:password, for the camera (read-only secret)";
           };
 
-          alarmPollSeconds = mkOption {
-            type = types.ints.positive;
-            default = 5;
-            description = "Seconds between reads of the camera's alarm log, start to start. A new alarm reaches gohome's watchers up to this long after the camera makes it readable in its log, plus the read itself (typically under 0.2 s); how long the camera takes to log an alarm is its own and comes on top. Each read is one log search on the camera.";
+          alarmLogPolling = {
+            enable = mkEnableOption "reading the camera's alarm log every intervalSeconds, for WatchAlarms and the alarm metrics. Off, gohome reads the log only on request (ListAlarms) and WatchAlarms answers FAILED_PRECONDITION";
+
+            intervalSeconds = mkOption {
+              type = types.ints.positive;
+              default = 5;
+              description = "Seconds between reads of the camera's alarm log, start to start, when alarmLogPolling.enable is set. A new alarm reaches gohome's watchers up to this long after the camera makes it readable in its log, plus the read itself (typically under 0.2 s); how long the camera takes to log an alarm is its own and comes on top. Each read is one log search on the camera.";
+            };
           };
         };
       });

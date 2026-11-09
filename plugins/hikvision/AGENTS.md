@@ -20,7 +20,8 @@ camera or update its firmware, and it has no method that could.
 - Take one JPEG snapshot from the main stream.
 - **Alarms**: the alarms the camera raises, as it logs them: the ones its
   detection filter accepts (for motion filtered to people and vehicles, a
-  person or vehicle). List them, and watch them as they are logged.
+  person or vehicle). List them; watch them as they are logged only with
+  alarm log polling on (off by default).
 - Read one picture from the camera's own recording at a past moment, such as
   an alarm's start.
 - Watch the raw alert stream (motion, line crossing, intrusion, tamper and
@@ -28,8 +29,8 @@ camera or update its firmware, and it has no method that could.
 
 ## Alarms and raw events
 The camera reports motion in two places, and they are not the same thing:
-- **Alarms** (`ListAlarms`, `WatchAlarms`, `gohome_hikvision_alarms_*`) come
-  from the camera's alarm log. An alarm is logged only when the camera's
+- **Alarms** (`ListAlarms`; with alarm log polling on, also `WatchAlarms` and
+  `gohome_hikvision_alarm*` metrics) come from the camera's alarm log. An alarm is logged only when the camera's
   detection filter accepts it (for motion: a person or vehicle), and each
   logged alarm is a start and a stop line, usually five seconds apart. Use
   these for "someone or something is there".
@@ -48,11 +49,11 @@ The camera reports motion in two places, and they are not the same thing:
   log line is `motionStart`, and raw motion events have target
   `DETECTION_TARGET_UNSPECIFIED`. Raw line-crossing and intrusion events say
   `human` or `vehicle`.
-- An alarm reaches watchers up to one poll interval (`alarm_poll_seconds`,
-  default 5, start to start) plus one read (typically under 0.2 s) after the
+- With alarm log polling on, an alarm reaches watchers up to one poll
+  interval (`alarm_poll_seconds`, start to start) plus one read (typically under 0.2 s) after the
   camera makes it readable in its log; the camera's own delay in logging it
-  comes on top. `seen_at` minus `started_at` is the whole delay. During a camera outage they arrive when the log
-  is readable again, with their true start times; `seen_at` shows the delay.
+  comes on top. `seen_at` minus `started_at` is the whole delay. During a
+  camera outage they arrive when the log is readable again, with their true start times; `seen_at` shows the delay.
   Alarms logged before gohome started are history: `ListAlarms` returns them,
   `WatchAlarms` never sends them as new.
 - The camera's log is a ring buffer; it keeps the last few weeks of alarms.
@@ -85,9 +86,11 @@ Service `gohome.plugins.hikvision.v1.HikvisionService`:
   `/ISAPI/Streaming/channels/101/picture`.
 - `ListAlarms(since, until)`: the alarms the camera logged, oldest first,
   paired from start and stop lines. Reads `/ISAPI/ContentMgmt/logSearch`.
-- `WatchAlarms`: server stream of `Alarm`, one `ACTIVE` when a new alarm's
-  start is logged and one `INACTIVE` with `ended_at` and `duration` when its
-  stop is logged (both in one read when the whole alarm was logged between
+- `WatchAlarms`: only with alarm log polling on; otherwise
+  `FAILED_PRECONDITION`, because gohome then reads the log only on request
+  and is not a live alarm source. Server stream of `Alarm`, one `ACTIVE`
+  when a new alarm's start is logged and one `INACTIVE` with `ended_at` and
+  `duration` when its stop is logged (both in one read when the whole alarm was logged between
   two reads), beginning with announced alarms under way. Each alarm is sent
   once. While the camera is unreachable the stream stays open, and alarms
   logged meanwhile arrive when it is readable again, with their true times
@@ -121,7 +124,8 @@ CLI: `gohome-cli hikvision camera`, `gohome-cli hikvision snapshot <file.jpg>`,
 `GET /hikvision/frame.jpg?at=<RFC 3339>` serves the recorded picture at that
 second, as `GetFrame`, with `X-Frame-At`. `GET /hikvision/alarm.jpg` serves
 the recorded picture at the start of the latest logged alarm, with
-`X-Frame-At` and `X-Alarm-Started-At`. These two answer 404 when nothing was
+`X-Frame-At` and `X-Alarm-Started-At`; it needs alarm log polling and
+answers 404 while polling is off. These two answer 404 when nothing was
 recorded at that second (or no alarm is known), 400 for a bad `at`, 503 when
 ffmpeg is missing, 502 when the camera fails. Recorded pictures are kept in
 memory for five minutes (the last eight), so dashboard refreshes do not replay
@@ -152,6 +156,7 @@ Metrics (Prometheus):
 - `gohome_hikvision_alert_stream_connected`
 - `gohome_hikvision_alert_stream_last_message_timestamp_seconds`: includes
   keep-alives, so it is at most ten seconds old while the stream is healthy.
+- The four alarm metrics below exist only with alarm log polling on.
 - `gohome_hikvision_alarms_total{kind}`: alarms the camera logged since
   gohome started (counter; history before the start is not counted).
 - `gohome_hikvision_last_alarm_start_timestamp_seconds{kind}`: when the latest
@@ -180,8 +185,8 @@ camera text or image is ever a label.
 - `UNAVAILABLE` with a network error: the camera is unreachable.
 - Event stream "no message from the camera for 1m0s": the connection went
   silent; gohome reconnects with backoff up to one minute.
-- Alarm log read errors are logged once until the log is readable again;
-  gohome keeps trying every poll interval.
+- With alarm log polling on, read errors are logged once until the log is
+  readable again; gohome keeps trying every poll interval.
 
 ## Required Config
 Canonical config file: `/etc/gohome/config.pbtxt` (textproto).
@@ -190,9 +195,11 @@ Fields:
 - `hikvision.base_url` (required): the camera's origin, with its HTTP port
   when that is not 80
 - `hikvision.credentials_file` (required): one line, `username:password`
-- `hikvision.alarm_poll_seconds` (optional, default 5, at least 1): seconds
-  between reads of the alarm log, start to start. Nix:
-  `services.gohome.plugins.hikvision.alarmPollSeconds`.
+- `hikvision.alarm_poll_seconds` (optional): seconds between reads of the
+  alarm log, start to start, for `WatchAlarms` and the alarm metrics. Absent
+  or 0, gohome does not poll the log. Nix:
+  `services.gohome.plugins.hikvision.alarmLogPolling.enable` (default false)
+  and `.intervalSeconds` (default 5, used only when enabled).
 
 Example:
 ```
@@ -244,8 +251,9 @@ scrape. Each uses a Digest challenge plus an authenticated request: 16 HTTP
 requests per 15-second scrape, plus the existing persistent alert stream.
 Live collection of the four status resources completed in under a second.
 No cloud API or login is involved. Snapshots remain demand-driven and cached
-for five seconds. The alarm log is read every `alarm_poll_seconds` by its own
-poller (one search, two HTTP requests), not by the scrape. Capability scans and
+for five seconds. The alarm log is read on request (`ListAlarms`), and with
+alarm log polling on also every `alarm_poll_seconds` by its own poller (one
+search, two HTTP requests), never by the scrape. Capability scans and
 diagnostic dumps are audit operations, never scrape operations.
 
 ### API assessment
@@ -281,7 +289,8 @@ Sanitised live response shapes are in `testdata/System_status.xml`,
 addresses, track GUIDs or device serial numbers. Tests cover resource
 failure/recovery, omitted readings, wrong response types and event metadata
 retention; for alarms, pairing, paging, history not replayed, each alarm sent
-once, catch-up after an outage, and absence while the log is unreadable.
+once, catch-up after an outage, absence while the log is unreadable, and
+polling off.
 
 Opt-in live probes read the real camera through the production code and never
 change a setting. Set `HIKVISION_BASE_URL` and a protected

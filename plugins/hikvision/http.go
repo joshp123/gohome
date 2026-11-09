@@ -38,8 +38,12 @@ func (p Plugin) RegisterHTTP(mux *http.ServeMux) {
 		if !readRequest(w, r) {
 			return
 		}
-		if p.alarms == nil {
+		if p.client == nil {
 			http.Error(w, "hikvision unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if p.alarms == nil {
+			http.Error(w, "alarm log polling is off, so gohome knows no latest alarm; use frame.jpg?at=<alarm start>", http.StatusNotFound)
 			return
 		}
 		start, ok := p.alarms.LatestAlarmStart()

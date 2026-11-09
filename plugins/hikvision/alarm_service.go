@@ -43,6 +43,9 @@ func (s *service) WatchAlarms(_ *hikvisionv1.WatchAlarmsRequest, server grpc.Ser
 	if err := s.configured(); err != nil {
 		return err
 	}
+	if s.alarms == nil {
+		return status.Error(codes.FailedPrecondition, "alarm log polling is off (Nix: alarmLogPolling.enable), so gohome does not watch alarms; ListAlarms reads the log on request")
+	}
 	sub := s.alarms.Subscribe()
 	defer s.alarms.Unsubscribe(sub)
 	for {

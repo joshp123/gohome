@@ -29,7 +29,8 @@ type Plugin struct {
 	healthMessage string
 }
 
-// NewPlugin builds the plugin and starts reading the camera's event stream and alarm log.
+// NewPlugin builds the plugin and starts reading the camera's event stream,
+// and its alarm log too when alarm log polling is enabled.
 func NewPlugin(cfg *hikvisionv1.HikvisionConfig, _ *configv1.OAuthConfig) (Plugin, bool) {
 	if cfg == nil {
 		return Plugin{}, false
@@ -43,18 +44,22 @@ func NewPlugin(cfg *hikvisionv1.HikvisionConfig, _ *configv1.OAuthConfig) (Plugi
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
 	}
 	plugin := newPlugin(client)
-	plugin.alarms.pollInterval = runtimeCfg.AlarmPollInterval
 	go plugin.stream.Run(context.Background())
-	go plugin.alarms.Run(context.Background())
+	if runtimeCfg.AlarmPollInterval > 0 {
+		plugin.alarms = newAlarmLog(client, plugin.metrics.alarmStarted)
+		plugin.alarms.pollInterval = runtimeCfg.AlarmPollInterval
+		plugin.metrics.alarms = plugin.alarms
+		go plugin.alarms.Run(context.Background())
+	}
 	return plugin, true
 }
 
+// newPlugin builds the plugin without the alarm log poller.
 func newPlugin(client *Client) Plugin {
 	metrics := NewMetricsCollector(client)
 	stream := newAlertStream(client, metrics.eventStarted, metrics.eventStopped)
-	alarms := newAlarmLog(client, metrics.alarmStarted)
-	metrics.stream, metrics.alarms = stream, alarms
-	return Plugin{client: client, stream: stream, alarms: alarms, frames: newRecordedFrames(client), metrics: metrics, health: core.HealthHealthy}
+	metrics.stream = stream
+	return Plugin{client: client, stream: stream, frames: newRecordedFrames(client), metrics: metrics, health: core.HealthHealthy}
 }
 
 func (p Plugin) ID() string {

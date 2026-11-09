@@ -57,7 +57,7 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 			"When the event stream last carried anything, including the ten-second keep-alive (epoch seconds)", nil, nil),
 		events: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "gohome_hikvision_events_total",
-			Help: "Raw alert-stream events that started, before the camera's people-and-vehicle filter, so mostly wind and light. One per event however many notifications it repeated; an event ends after 10 s without a repeat. The filtered alarms are gohome_hikvision_alarms_total.",
+			Help: "Raw alert-stream events that started, before the camera's people-and-vehicle filter, so mostly wind and light. One per event however many notifications it repeated; an event ends after 10 s without a repeat. The filtered alarms are in the camera's alarm log (ListAlarms).",
 		}, eventLabels),
 		eventsActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "gohome_hikvision_events_active",
@@ -69,15 +69,15 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 		}, eventLabels),
 		alarmsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "gohome_hikvision_alarms_total",
-			Help: "Alarms the camera raised and logged since gohome started: the ones its detection filter accepted (a person or vehicle, for motion filtered to them).",
+			Help: "Alarms the camera raised and logged since gohome started: the ones its detection filter accepted (a person or vehicle, for motion filtered to them). Only while alarm log polling is enabled.",
 		}, []string{"kind"}),
 		lastAlarmStart: prometheus.NewDesc("gohome_hikvision_last_alarm_start_timestamp_seconds",
-			"When the latest logged alarm of this kind started, camera clock (epoch seconds). Absent while the alarm log is unreadable.",
+			"When the latest logged alarm of this kind started, camera clock (epoch seconds). Absent while the alarm log is unreadable, and when alarm log polling is off.",
 			[]string{"kind"}, nil),
 		alarmLogReadable: prometheus.NewDesc("gohome_hikvision_alarm_log_readable",
-			"Whether gohome read the camera's alarm log in the last minute (1) or not (0)", nil, nil),
+			"Whether gohome read the camera's alarm log in the last minute (1) or not (0). Only while alarm log polling is enabled.", nil, nil),
 		alarmLogLastRead: prometheus.NewDesc("gohome_hikvision_alarm_log_last_read_timestamp_seconds",
-			"When gohome last read the camera's alarm log (epoch seconds)", nil, nil),
+			"When gohome last read the camera's alarm log (epoch seconds). Only while alarm log polling is enabled.", nil, nil),
 	}
 }
 
