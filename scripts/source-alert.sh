@@ -85,6 +85,50 @@ check_registry "$GOHOME_GRPC_ADDR" registry "the gohome on this host"
 for addr in ${GOHOME_REMOTE_REGISTRIES:-}; do
   check_registry "$addr" "registry-$addr" "the gohome at $addr"
 done
+# Single devices, from the hub's VictoriaMetrics: a device health series (gohome_*_success, _reachable,
+# _online or _connected) that has read 0 for six hours, and already existed six hours ago. Series with
+# no label beyond source are plugin-wide and left to the plugin check above. A device recovers only
+# on a good read (1) in the last ten minutes; a missing series keeps its outage open, and a device
+# excluded after it alerted stays silent. If a query fails, the script stops before the heartbeat,
+# and the heartbeat watchdog reports it.
+health='{__name__=~"gohome_.+_(success|reachable|online|connected)"}'
+device_series() {
+  curl --silent --show-error --fail --max-time 30 "$GOHOME_VM_URL/api/v1/query" --data-urlencode "query=$1" |
+    jq -r '.data.result[].metric | select(del(.__name__, .instance, .job, .source) | length > 0)
+      | "\(.__name__){\(del(.__name__, .instance, .job) | to_entries | map("\(.key)=\"\(.value)\"") | join(", "))}"'
+}
+device_id() { printf 'device-%s' "$(printf '%s' "$1" | sha256sum | cut -c1-16)"; }
+failing=$(device_series "(max_over_time(${health}[6h]) keep_metric_names == 0 and ${health} offset 6h)${GOHOME_ALERT_IGNORED_DEVICES:-}")
+reading=$(device_series "(max_over_time(${health}[10m]) keep_metric_names == 1)${GOHOME_ALERT_IGNORED_DEVICES:-}")
+declare -A reading_ids=()
+while IFS= read -r series; do
+  [ -z "$series" ] || reading_ids[$(device_id "$series")]=1
+done <<< "$reading"
+new=()
+while IFS= read -r series; do
+  [ -n "$series" ] || continue
+  [ "$mode" != --dry-run ] || echo "device failing: $series"
+  [ -f "$state/$(device_id "$series")" ] || new+=("$series")
+done <<< "$failing"
+recovered=()
+for file in "$state"/device-*; do
+  [ -f "$file" ] || continue
+  [ -z "${reading_ids[$(basename "$file")]:-}" ] || recovered+=("$(cat "$file")")
+done
+if [ ${#new[@]} -gt 0 ]; then
+  message="No good read for at least six hours from:$(printf '\n- %s' "${new[@]}")"
+  if [ "$mode" = --dry-run ]; then echo "would send: $message"; else
+    send "$message"
+    for series in "${new[@]}"; do printf '%s\n' "$series" > "$state/$(device_id "$series")"; done
+  fi
+fi
+if [ ${#recovered[@]} -gt 0 ]; then
+  message="RECOVERED: reading successfully again:$(printf '\n- %s' "${recovered[@]}")"
+  if [ "$mode" = --dry-run ]; then echo "would send: $message"; else
+    send "$message"
+    for series in "${recovered[@]}"; do rm -f "$state/$(device_id "$series")"; done
+  fi
+fi
 # Publish only after the check and any required notifications have succeeded.
 if [ "$mode" != --dry-run ]; then
   printf '%s\n' "$now" > "$GOHOME_ALERT_HEARTBEAT.tmp"
