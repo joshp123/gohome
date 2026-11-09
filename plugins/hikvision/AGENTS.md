@@ -156,7 +156,9 @@ Metrics (Prometheus):
   gohome started (counter; history before the start is not counted).
 - `gohome_hikvision_last_alarm_start_timestamp_seconds{kind}`: when the latest
   logged alarm started, camera clock, including alarms from before gohome
-  started. Absent while the alarm log is unreadable.
+  started. Absent while the alarm log is unreadable. Its distinct values are
+  the alarm start times. Before its first live sample it may hold imported
+  history, one sample per alarm at the alarm's start (RECOVERY.md).
 - `gohome_hikvision_alarm_log_readable`: 1 if gohome read the alarm log in the
   last minute.
 - `gohome_hikvision_alarm_log_last_read_timestamp_seconds`
