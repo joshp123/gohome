@@ -48,6 +48,9 @@ in
       };
       extraOptions = [
         "-http.pathPrefix=/vm"
+        # Minute-by-minute subqueries (compressor starts counted from the compressor's speed) over the time picker's
+        # longest range, "Last 5 years": 2.6 million points. The default of 100 000 covers only 69 days.
+        "-search.maxPointsSubqueryPerTimeseries=3000000"
       ];
     };
   };
