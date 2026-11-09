@@ -225,8 +225,12 @@ type alarmLog struct {
 	pollInterval time.Duration
 	now          func() time.Time
 
-	mu           sync.Mutex
-	baselined    bool
+	mu sync.Mutex
+	// startedAt divides history from new alarms: an alarm that starts before
+	// it is never sent as new. It is set when the first read is attempted,
+	// whether or not the camera answers.
+	startedAt    time.Time
+	baselined    bool      // a read has succeeded
 	lastRead     time.Time // last successful read, gohome clock
 	lastSearched time.Time // the until of the search that started the last read
 	failingSince time.Time
@@ -259,6 +263,9 @@ func (l *alarmLog) poll(ctx context.Context) {
 	defer cancel()
 	now := l.now()
 	l.mu.Lock()
+	if l.startedAt.IsZero() {
+		l.startedAt = now
+	}
 	since := now.Add(-alarmLogBaseline)
 	if l.baselined {
 		since = l.lastSearched.Add(-alarmLogOverlap)
@@ -294,11 +301,11 @@ func (l *alarmLog) observe(now, since time.Time, entries []alarmLogEntry) {
 		log.Printf("hikvision alarm log readable again")
 	}
 	l.lastRead, l.lastSearched, l.failingSince, l.lastError = now, now, time.Time{}, ""
-	announce := l.baselined
 	l.baselined = true
 	for _, read := range pairAlarms(entries) {
 		current, ok := l.known[read.key()]
 		if !ok {
+			announce := !read.Start.Before(l.startedAt)
 			// The end, if this read already has it, is applied below.
 			started := *read
 			started.End, started.SeenStart, started.announced = time.Time{}, now, announce

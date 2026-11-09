@@ -276,6 +276,34 @@ func TestAlarmLogCatchesUpAfterOutage(t *testing.T) {
 	}
 }
 
+func TestAlarmLogStartingDuringOutageKeepsNewAlarms(t *testing.T) {
+	test := newTestAlarmLog(t)
+	history := test.now.Add(-time.Hour)
+	test.camera.searches.alarm(history, true)
+	test.camera.unavailable.Store(true)
+	test.poll(0) // gohome starts; the camera does not answer
+	sub := test.log.Subscribe()
+	defer test.log.Unsubscribe(sub)
+	raised := test.now.Add(10 * time.Second)
+	test.camera.searches.alarm(raised, true)
+	test.poll(75 * time.Second)
+	test.camera.unavailable.Store(false)
+	test.poll(5 * time.Second)
+	if len(test.started) != 1 || !test.started[0].Start.Equal(raised) {
+		t.Fatalf("counted %+v, want only the alarm raised after start", test.started)
+	}
+	if start := nextAlarm(t, sub); !start.Start.Equal(raised) {
+		t.Fatalf("watcher got %+v", start)
+	}
+	if end := nextAlarm(t, sub); end.state() != hikvisionv1.EventState_EVENT_STATE_INACTIVE {
+		t.Fatalf("watcher end %+v", end)
+	}
+	noAlarm(t, sub)
+	if latest, _ := test.log.LatestAlarmStart(); !latest.Equal(raised) {
+		t.Fatalf("latest alarm %v", latest)
+	}
+}
+
 func TestAlarmLogReadsEveryPage(t *testing.T) {
 	test := newTestAlarmLog(t)
 	first := test.now.Add(-6 * 24 * time.Hour)
@@ -447,4 +475,36 @@ func TestLiveRecordedFrame(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Printf("alarm %s: %d-byte JPEG for %s in %s\n", at.Format(time.RFC3339), len(jpeg), second.Format(time.RFC3339), time.Since(started).Round(100*time.Millisecond))
+}
+
+// Opt-in read-only probe: runs the production alarm-log poller and watcher
+// against the real camera and prints every alarm it sends, until the first
+// alarm ends or HIKVISION_WATCH_FOR (e.g. 6h) passes.
+func TestLiveWatchAlarms(t *testing.T) {
+	client := liveClient(t)
+	watchFor, err := time.ParseDuration(os.Getenv("HIKVISION_WATCH_FOR"))
+	if err != nil {
+		t.Skip("set HIKVISION_WATCH_FOR")
+	}
+	collector := NewMetricsCollector(client)
+	alarms := newAlarmLog(client, collector.alarmStarted)
+	ctx, cancel := context.WithTimeout(context.Background(), watchFor)
+	defer cancel()
+	sub := alarms.Subscribe()
+	defer alarms.Unsubscribe(sub)
+	go alarms.Run(ctx)
+	fmt.Printf("%s watching\n", time.Now().UTC().Format(time.RFC3339))
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println("no alarm before the deadline")
+			return
+		case a := <-sub.alarms:
+			fmt.Printf("%s sent %s started %s ended %s seen %s/%s\n", time.Now().UTC().Format(time.RFC3339), a.state(),
+				a.Start.UTC().Format(time.RFC3339), a.End.UTC().Format(time.RFC3339), a.SeenStart.UTC().Format(time.RFC3339), a.SeenEnd.UTC().Format(time.RFC3339))
+			if !a.End.IsZero() {
+				return
+			}
+		}
+	}
 }
