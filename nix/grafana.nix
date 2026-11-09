@@ -9,16 +9,19 @@ let
     set -euo pipefail
 
     suffix="$(${pkgs.tailscale}/bin/tailscale status --json | ${pkgs.jq}/bin/jq -r '.MagicDNSSuffix // empty')"
+    # Tailscale serves HTTPS only under the MagicDNS name (nginx.nix).
     if [ -n "$suffix" ]; then
       host="${config.networking.hostName}.$suffix"
+      protocol=https
     else
       host="${config.networking.hostName}"
+      protocol=http
     fi
 
     ${pkgs.coreutils}/bin/mkdir -p /run/gohome
     cat > ${grafanaEnvPath} <<EOF
 GF_SERVER_DOMAIN=$host
-GF_SERVER_ROOT_URL=http://$host/grafana/
+GF_SERVER_ROOT_URL=$protocol://$host/grafana/
 EOF
   '';
 
