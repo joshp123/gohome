@@ -16,7 +16,8 @@ type dayReport struct {
 			DataPoints []dataPointTemp `json:"dataPoints"`
 		} `json:"insideTemperature"`
 		Humidity struct {
-			DataPoints []dataPointHumidity `json:"dataPoints"`
+			PercentageUnit string              `json:"percentageUnit"`
+			DataPoints     []dataPointHumidity `json:"dataPoints"`
 		} `json:"humidity"`
 	} `json:"measuredData"`
 	CallForHeat struct {

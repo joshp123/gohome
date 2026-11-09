@@ -146,3 +146,20 @@ func TestDayReportsKeepCategoriesAndNullsHonest(t *testing.T) {
 		}
 	}
 }
+
+func TestDayReportHumidityUsesDeclaredUnit(t *testing.T) {
+	var report dayReport
+	err := json.Unmarshal([]byte(`{"measuredData":{"humidity":{"percentageUnit":"UNIT_INTERVAL","dataPoints":[{"timestamp":"2026-11-07T00:00:00Z","value":0.465},{"timestamp":"2026-11-07T00:15:00Z","value":0.005},{"timestamp":"2026-11-07T00:30:00Z","value":null},{"timestamp":"","value":0.5}]}}}`), &report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	samples := dayReportSamples(report, Zone{ID: 2, Name: "Room"})
+	if len(samples) != 2 {
+		t.Fatalf("got %d samples: %+v", len(samples), samples)
+	}
+	for i, want := range []float64{46.5, 0.5} {
+		if samples[i].Name != "gohome_tado_history_humidity_percent" || samples[i].Value != want {
+			t.Fatalf("sample %d: got %+v, want humidity %g%%", i, samples[i], want)
+		}
+	}
+}

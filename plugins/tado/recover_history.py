@@ -137,10 +137,13 @@ def report_samples(report, labels):
         yield metric, timestamp(stamp), float(value)
     measured = report.get("measuredData", {})
     for key, metric, unit in [("insideTemperature", "inside_temperature_celsius", "celsius"), ("humidity", "humidity_percent", "percentage")]:
-        for observation in measured.get(key, {}).get("dataPoints", []):
+        series = measured.get(key, {})
+        for observation in series.get("dataPoints", []):
             value = observation.get("value")
             if isinstance(value, dict):
                 value = value.get(unit)
+            if value is not None and key == "humidity" and series.get("percentageUnit") == "UNIT_INTERVAL":
+                value *= 100
             yield from point(metric, observation.get("timestamp"), value)
     for observation in measured.get("measuringDeviceConnected", {}).get("dataIntervals", []):
         yield from point("measuring_device_connected", observation.get("from"), observation.get("value"))

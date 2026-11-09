@@ -143,6 +143,9 @@ func dayReportSamples(report dayReport, zone Zone) []sample {
 			continue
 		}
 		value := *pt.Value.Percentage
+		if report.MeasuredData.Humidity.PercentageUnit == "UNIT_INTERVAL" {
+			value *= 100
+		}
 		samples = append(samples, sample{
 			Name:      "gohome_tado_history_humidity_percent",
 			Labels:    labels,
