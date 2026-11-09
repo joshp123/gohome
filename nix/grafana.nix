@@ -10,16 +10,18 @@ let
 
     # Grafana is reached only over the tailnet, at its MagicDNS name, where Tailscale serves HTTPS (nginx.nix).
     # After boot tailscaled takes a moment to sign in; wait for it rather than give Grafana a wrong address.
-    for _ in $(${pkgs.coreutils}/bin/seq 300); do
+    # Grafana is unreachable without Tailscale anyway, so it waits too, however long, and starts once Tailscale is up.
+    waited=0
+    while true; do
       suffix="$(${config.services.tailscale.package}/bin/tailscale status --json 2>/dev/null \
         | ${pkgs.jq}/bin/jq -r 'select(.BackendState == "Running") | .MagicDNSSuffix // empty' || true)"
       [ -n "$suffix" ] && break
+      if [ $((waited % 60)) -eq 59 ]; then
+        echo "Waiting for Tailscale to run before starting Grafana ($((waited + 1)) s so far)" >&2
+      fi
       sleep 1
+      waited=$((waited + 1))
     done
-    if [ -z "$suffix" ]; then
-      echo "Tailscale is not running after 5 minutes; Grafana's address is unknown" >&2
-      exit 1
-    fi
 
     ${pkgs.coreutils}/bin/mkdir -p /run/gohome
     cat > ${grafanaEnvPath} <<EOF
