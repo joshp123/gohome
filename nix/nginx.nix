@@ -17,9 +17,11 @@ in
           listen = [ { addr = "0.0.0.0"; port = 80; } ];
           default = true;
           # Tailscale's HTTPS proxy connects from 127.0.0.1 and passes the client's tailnet address on.
+          # nginx sees that connection as plain HTTP, so its redirects keep only the path: the browser stays on HTTPS.
           extraConfig = ''
             set_real_ip_from 127.0.0.1;
             real_ip_header X-Forwarded-For;
+            absolute_redirect off;
           '';
           # The house is read in Grafana; its home dashboard is the House overview.
           locations."= /".return = "302 /grafana/";
@@ -61,6 +63,8 @@ in
           Restart = "on-failure";
           RestartSec = 10;
           ExecStart = "${config.services.tailscale.package}/bin/tailscale serve --bg --https=443 http://127.0.0.1:80";
+          # Tailscale keeps the setting across restarts, so stopping this unit (a rollback, or removing it) must turn it off.
+          ExecStop = "${config.services.tailscale.package}/bin/tailscale serve --https=443 off";
         };
       };
     })

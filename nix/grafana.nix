@@ -8,20 +8,23 @@ let
   grafanaEnvScript = pkgs.writeShellScript "gohome-grafana-env" ''
     set -euo pipefail
 
-    suffix="$(${pkgs.tailscale}/bin/tailscale status --json | ${pkgs.jq}/bin/jq -r '.MagicDNSSuffix // empty')"
-    # Tailscale serves HTTPS only under the MagicDNS name (nginx.nix).
-    if [ -n "$suffix" ]; then
-      host="${config.networking.hostName}.$suffix"
-      protocol=https
-    else
-      host="${config.networking.hostName}"
-      protocol=http
+    # Grafana is reached only over the tailnet, at its MagicDNS name, where Tailscale serves HTTPS (nginx.nix).
+    # After boot tailscaled takes a moment to sign in; wait for it rather than give Grafana a wrong address.
+    for _ in $(${pkgs.coreutils}/bin/seq 300); do
+      suffix="$(${config.services.tailscale.package}/bin/tailscale status --json 2>/dev/null \
+        | ${pkgs.jq}/bin/jq -r 'select(.BackendState == "Running") | .MagicDNSSuffix // empty' || true)"
+      [ -n "$suffix" ] && break
+      sleep 1
+    done
+    if [ -z "$suffix" ]; then
+      echo "Tailscale is not running after 5 minutes; Grafana's address is unknown" >&2
+      exit 1
     fi
 
     ${pkgs.coreutils}/bin/mkdir -p /run/gohome
     cat > ${grafanaEnvPath} <<EOF
-GF_SERVER_DOMAIN=$host
-GF_SERVER_ROOT_URL=$protocol://$host/grafana/
+GF_SERVER_DOMAIN=${config.networking.hostName}.$suffix
+GF_SERVER_ROOT_URL=https://${config.networking.hostName}.$suffix/grafana/
 EOF
   '';
 
@@ -39,13 +42,19 @@ in
   config = mkIf (cfg.enable && cfg.monitoring.enable) {
     systemd.services.gohome-grafana-env = mkIf (cfg.grafanaEnvFile == null && cfg.tailscale.enable) {
       description = "Generate Grafana env from Tailscale MagicDNS";
+      after = [ "tailscaled.service" ];
+      wants = [ "tailscaled.service" ];
       before = [ "grafana.service" ];
       requiredBy = [ "grafana.service" ];
       serviceConfig = {
         Type = "oneshot";
+        # Stays active, so a deploy that changes the script runs it again.
+        RemainAfterExit = true;
         ExecStart = grafanaEnvScript;
       };
     };
+    # ...and restarts Grafana to read the new address.
+    systemd.services.grafana.restartTriggers = mkIf (cfg.grafanaEnvFile == null && cfg.tailscale.enable) [ grafanaEnvScript ];
 
     services.grafana = {
       enable = true;
