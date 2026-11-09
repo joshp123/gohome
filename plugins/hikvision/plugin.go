@@ -22,12 +22,14 @@ var dashboardJSON []byte
 type Plugin struct {
 	client        *Client
 	stream        *alertStream
+	alarms        *alarmLog
+	frames        *recordedFrames
 	metrics       *MetricsCollector
 	health        core.HealthStatus
 	healthMessage string
 }
 
-// NewPlugin builds the plugin and starts reading the camera's event stream.
+// NewPlugin builds the plugin and starts reading the camera's event stream and alarm log.
 func NewPlugin(cfg *hikvisionv1.HikvisionConfig, _ *configv1.OAuthConfig) (Plugin, bool) {
 	if cfg == nil {
 		return Plugin{}, false
@@ -42,14 +44,16 @@ func NewPlugin(cfg *hikvisionv1.HikvisionConfig, _ *configv1.OAuthConfig) (Plugi
 	}
 	plugin := newPlugin(client)
 	go plugin.stream.Run(context.Background())
+	go plugin.alarms.Run(context.Background())
 	return plugin, true
 }
 
 func newPlugin(client *Client) Plugin {
 	metrics := NewMetricsCollector(client)
 	stream := newAlertStream(client, metrics.eventStarted, metrics.eventStopped)
-	metrics.stream = stream
-	return Plugin{client: client, stream: stream, metrics: metrics, health: core.HealthHealthy}
+	alarms := newAlarmLog(client, metrics.alarmStarted)
+	metrics.stream, metrics.alarms = stream, alarms
+	return Plugin{client: client, stream: stream, alarms: alarms, frames: newRecordedFrames(client), metrics: metrics, health: core.HealthHealthy}
 }
 
 func (p Plugin) ID() string {
@@ -78,7 +82,7 @@ func (p Plugin) Dashboards() []core.Dashboard {
 }
 
 func (p Plugin) RegisterGRPC(server *grpc.Server) {
-	RegisterHikvisionService(server, p.client, p.stream)
+	RegisterHikvisionService(server, p.client, p.stream, p.alarms, p.frames)
 }
 
 func (p Plugin) Collectors() []prometheus.Collector {

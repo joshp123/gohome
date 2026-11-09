@@ -16,10 +16,12 @@ type service struct {
 	hikvisionv1.UnimplementedHikvisionServiceServer
 	client *Client
 	stream *alertStream
+	alarms *alarmLog
+	frames *recordedFrames
 }
 
-func RegisterHikvisionService(server *grpc.Server, client *Client, stream *alertStream) {
-	hikvisionv1.RegisterHikvisionServiceServer(server, &service{client: client, stream: stream})
+func RegisterHikvisionService(server *grpc.Server, client *Client, stream *alertStream, alarms *alarmLog, frames *recordedFrames) {
+	hikvisionv1.RegisterHikvisionServiceServer(server, &service{client: client, stream: stream, alarms: alarms, frames: frames})
 }
 
 func (s *service) configured() error {

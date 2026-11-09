@@ -5,6 +5,18 @@ with lib;
 let
   cfg = config.services.gohome;
 
+  # A camera picture route, for tailnet clients only.
+  cameraPicture = picture: {
+    proxyPass = "http://${cfg.remotePlugins.hikvision or "127.0.0.1:${toString cfg.httpPort}"}/hikvision/${picture}";
+    extraConfig = ''
+      proxy_buffering off;
+      proxy_cache off;
+      allow 100.64.0.0/10;
+      allow fd7a:115c:a1e0::/48;
+      deny all;
+    '';
+  };
+
 in
 {
   config = mkIf (cfg.enable && cfg.monitoring.enable) (mkMerge [
@@ -28,16 +40,11 @@ in
           locations."/grafana/".proxyPass = "http://127.0.0.1:3000";
           locations."/vm/".proxyPass = "http://127.0.0.1:8428";
           locations."/gohome/".proxyPass = "http://127.0.0.1:${toString cfg.httpPort}/";
-          locations."= /gohome/hikvision/snapshot.jpg" = {
-            proxyPass = "http://${cfg.remotePlugins.hikvision or "127.0.0.1:${toString cfg.httpPort}"}/hikvision/snapshot.jpg";
-            extraConfig = ''
-              proxy_buffering off;
-              proxy_cache off;
-              allow 100.64.0.0/10;
-              allow fd7a:115c:a1e0::/48;
-              deny all;
-            '';
-          };
+          # Camera pictures: the latest, one from the recording at ?at= (the
+          # query string is passed on), and the latest alarm's.
+          locations."= /gohome/hikvision/snapshot.jpg" = cameraPicture "snapshot.jpg";
+          locations."= /gohome/hikvision/frame.jpg" = cameraPicture "frame.jpg";
+          locations."= /gohome/hikvision/alarm.jpg" = cameraPicture "alarm.jpg";
         };
       };
 

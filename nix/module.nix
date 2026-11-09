@@ -593,6 +593,8 @@ in
       after = [ "network.target" ];
       # gohome reads its config only at start, so a config change must restart it.
       restartTriggers = [ config.environment.etc."gohome/config.pbtxt".source ];
+      # The camera plugin decodes pictures from the camera's recording with ffmpeg.
+      path = lib.optional (cfg.plugins.hikvision != null) pkgs.ffmpeg-headless;
 
       serviceConfig = {
         User = "gohome";

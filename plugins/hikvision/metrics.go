@@ -14,10 +14,12 @@ import (
 // vocabularies, never from camera text.
 var eventLabels = []string{"kind", "target"}
 
-// MetricsCollector reads the camera on each scrape and counts alert-stream events as they arrive.
+// MetricsCollector reads the camera on each scrape, counts raw alert-stream
+// events as they arrive, and counts the alarms the camera logs.
 type MetricsCollector struct {
 	client *Client
 	stream *alertStream
+	alarms *alarmLog
 
 	scrapeSuccess     *prometheus.Desc
 	lastSuccess       prometheus.Gauge
@@ -28,6 +30,10 @@ type MetricsCollector struct {
 	events            *prometheus.CounterVec
 	eventsActive      *prometheus.GaugeVec
 	lastEvent         *prometheus.GaugeVec
+	alarmsTotal       *prometheus.CounterVec
+	lastAlarmStart    *prometheus.Desc
+	alarmLogReadable  *prometheus.Desc
+	alarmLogLastRead  *prometheus.Desc
 }
 
 func NewMetricsCollector(client *Client) *MetricsCollector {
@@ -51,16 +57,27 @@ func NewMetricsCollector(client *Client) *MetricsCollector {
 			"When the event stream last carried anything, including the ten-second keep-alive (epoch seconds)", nil, nil),
 		events: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "gohome_hikvision_events_total",
-			Help: "Events that started, however many notifications the camera repeated while each lasted. An event ends after 10 s without a repeat.",
+			Help: "Raw alert-stream events that started, before the camera's people-and-vehicle filter, so mostly wind and light. One per event however many notifications it repeated; an event ends after 10 s without a repeat. The filtered alarms are gohome_hikvision_alarms_total.",
 		}, eventLabels),
 		eventsActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "gohome_hikvision_events_active",
-			Help: "Events of this kind and target happening now. Absent while the event stream is disconnected.",
+			Help: "Raw alert-stream events of this kind and target happening now. Absent while the event stream is disconnected.",
 		}, eventLabels),
 		lastEvent: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "gohome_hikvision_last_event_timestamp_seconds",
-			Help: "When the latest event of this kind and target started (epoch seconds)",
+			Help: "When the latest raw alert-stream event of this kind and target started (epoch seconds)",
 		}, eventLabels),
+		alarmsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "gohome_hikvision_alarms_total",
+			Help: "Alarms the camera raised and logged since gohome started: the ones its detection filter accepted (a person or vehicle, for motion filtered to them).",
+		}, []string{"kind"}),
+		lastAlarmStart: prometheus.NewDesc("gohome_hikvision_last_alarm_start_timestamp_seconds",
+			"When the latest logged alarm of this kind started, camera clock (epoch seconds). Absent while the alarm log is unreadable.",
+			[]string{"kind"}, nil),
+		alarmLogReadable: prometheus.NewDesc("gohome_hikvision_alarm_log_readable",
+			"Whether gohome read the camera's alarm log in the last minute (1) or not (0)", nil, nil),
+		alarmLogLastRead: prometheus.NewDesc("gohome_hikvision_alarm_log_last_read_timestamp_seconds",
+			"When gohome last read the camera's alarm log (epoch seconds)", nil, nil),
 	}
 }
 
@@ -69,6 +86,10 @@ func (c *MetricsCollector) eventStarted(event cameraEvent) {
 	c.events.With(labels).Inc()
 	c.eventsActive.With(labels).Inc()
 	c.lastEvent.With(labels).Set(float64(event.ReceivedAt.Unix()))
+}
+
+func (c *MetricsCollector) alarmStarted(a alarm) {
+	c.alarmsTotal.With(prometheus.Labels{"kind": kindLabel(a.Kind)}).Inc()
 }
 
 func (c *MetricsCollector) eventStopped(event cameraEvent) {
@@ -100,6 +121,10 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	c.events.Describe(ch)
 	c.eventsActive.Describe(ch)
 	c.lastEvent.Describe(ch)
+	c.alarmsTotal.Describe(ch)
+	ch <- c.lastAlarmStart
+	ch <- c.alarmLogReadable
+	ch <- c.alarmLogLastRead
 }
 
 // settingsRead is what each scrape reads from the camera.
@@ -159,6 +184,25 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	c.events.Collect(ch)
 	c.lastEvent.Collect(ch)
+	c.collectAlarms(ch)
+}
+
+func (c *MetricsCollector) collectAlarms(ch chan<- prometheus.Metric) {
+	c.alarmsTotal.Collect(ch)
+	if c.alarms == nil {
+		return
+	}
+	status := c.alarms.Status()
+	ch <- prometheus.MustNewConstMetric(c.alarmLogReadable, prometheus.GaugeValue, boolValue(status.Readable))
+	if !status.LastRead.IsZero() {
+		ch <- prometheus.MustNewConstMetric(c.alarmLogLastRead, prometheus.GaugeValue, float64(status.LastRead.Unix()))
+	}
+	if !status.Readable {
+		return
+	}
+	for kind, start := range status.LatestStart {
+		ch <- prometheus.MustNewConstMetric(c.lastAlarmStart, prometheus.GaugeValue, float64(start.Unix()), kindLabel(kind))
+	}
 }
 
 func boolValue(b bool) float64 {

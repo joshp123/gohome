@@ -40,8 +40,9 @@ var recordedPaths = map[string]string{
 }
 
 // fakeCamera answers like the real one: a Digest challenge, then the recorded
-// response. Any request that is not a GET fails the test.
+// response. Any request that is not a GET or a search fails the test.
 type fakeCamera struct {
+	searches           fakeSearches
 	t                  *testing.T
 	server             *httptest.Server
 	unavailable        atomic.Bool
@@ -75,7 +76,7 @@ func (c *fakeCamera) client(t *testing.T, password string) *Client {
 }
 
 func (c *fakeCamera) serve(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	if r.Method != http.MethodGet && !(r.Method == http.MethodPost && searchPaths[r.URL.Path]) {
 		c.t.Errorf("plugin sent %s %s; it must only read", r.Method, r.URL.Path)
 		http.Error(w, "read-only", http.StatusMethodNotAllowed)
 		return
@@ -89,7 +90,7 @@ func (c *fakeCamera) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c.authorisedRequests.Add(1)
-	if !validDigest(authorization, r.URL.Path, nonce) {
+	if !validDigest(authorization, r.Method, r.URL.Path, nonce) {
 		w.Header().Set("WWW-Authenticate", challenge)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -99,6 +100,8 @@ func (c *fakeCamera) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch r.URL.Path {
+	case pathLogSearch, pathRecordingSearch:
+		c.searches.serve(c.t, w, r)
 	case pathMainStreamPicture:
 		w.Header().Set("Content-Type", "image/jpeg")
 		_, _ = w.Write([]byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0xFF, 0xD9})
@@ -135,14 +138,14 @@ func (c *fakeCamera) serve(w http.ResponseWriter, r *http.Request) {
 }
 
 // validDigest checks the response the way the camera does (RFC 7616, MD5, qop=auth).
-func validDigest(header, uri, nonce string) bool {
+func validDigest(header, method, uri, nonce string) bool {
 	params := map[string]string{}
 	for _, part := range splitDigestParams(strings.TrimPrefix(header, "Digest ")) {
 		key, value, _ := strings.Cut(part, "=")
 		params[strings.TrimSpace(key)] = strings.Trim(strings.TrimSpace(value), `"`)
 	}
 	ha1 := md5Hex(testUsername + ":" + params["realm"] + ":" + testPassword)
-	ha2 := md5Hex("GET:" + uri)
+	ha2 := md5Hex(method + ":" + uri)
 	want := md5Hex(ha1 + ":" + nonce + ":" + params["nc"] + ":" + params["cnonce"] + ":auth:" + ha2)
 	return params["username"] == testUsername && params["uri"] == uri && params["nonce"] == nonce && params["response"] == want
 }

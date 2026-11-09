@@ -1,7 +1,9 @@
 package hikvision
 
 import (
+	"bytes"
 	"context"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net"
@@ -11,8 +13,10 @@ import (
 	"time"
 )
 
-// The only camera resources this plugin reads. Every request is a GET; the
-// client has no way to send anything else.
+// The only camera resources this plugin reads. Every request is a GET,
+// except the two searches, which ISAPI asks for as a POST of the search terms
+// and which only read: the camera's logs and its recordings. The client has
+// no way to send anything else.
 const (
 	pathDeviceInfo             = "/ISAPI/System/deviceInfo"
 	pathSystemCapabilities     = "/ISAPI/System/capabilities"
@@ -24,6 +28,8 @@ const (
 	pathFieldDetectionCaps     = "/ISAPI/Smart/FieldDetection/1/capabilities"
 	pathMainStreamPicture      = "/ISAPI/Streaming/channels/101/picture"
 	pathAlertStream            = "/ISAPI/Event/notification/alertStream"
+	pathLogSearch              = "/ISAPI/ContentMgmt/logSearch"
+	pathRecordingSearch        = "/ISAPI/ContentMgmt/search"
 	readTimeout                = 10 * time.Second
 	maxXMLResponseBytes        = 1 << 20
 	maxSnapshotBytes           = 8 << 20
@@ -60,9 +66,20 @@ func NewClient(cfg Config) (*Client, error) {
 	}, nil
 }
 
+// searchPaths are the only resources the client POSTs to. Both are searches.
+var searchPaths = map[string]bool{pathLogSearch: true, pathRecordingSearch: true}
+
 // get answers the camera's Digest challenge and returns the authorised
 // response, which the caller must close.
 func (c *Client) get(ctx context.Context, httpClient *http.Client, path string) (*http.Response, error) {
+	return c.request(ctx, httpClient, http.MethodGet, path, nil)
+}
+
+// request sends a GET, or a POST of search terms to a search resource.
+func (c *Client) request(ctx context.Context, httpClient *http.Client, method, path string, body []byte) (*http.Response, error) {
+	if method != http.MethodGet && !(method == http.MethodPost && searchPaths[path]) {
+		return nil, fmt.Errorf("%s %s: this client only reads", method, path)
+	}
 	c.mu.Lock()
 	rejectedAt := c.credentialsRejectedAt
 	c.mu.Unlock()
@@ -72,22 +89,22 @@ func (c *Client) get(ctx context.Context, httpClient *http.Client, path string) 
 	}
 
 	endpoint := c.baseURL + path
-	challengeResp, err := c.send(ctx, httpClient, endpoint, "")
+	challengeResp, err := c.send(ctx, httpClient, method, endpoint, body, "")
 	if err != nil {
 		return nil, err
 	}
 	if challengeResp.StatusCode != http.StatusUnauthorized {
 		challengeResp.Body.Close()
-		return nil, fmt.Errorf("GET %s: expected a Digest challenge, got %s", path, challengeResp.Status)
+		return nil, fmt.Errorf("%s %s: expected a Digest challenge, got %s", method, path, challengeResp.Status)
 	}
 	header := challengeResp.Header.Get("WWW-Authenticate")
 	drainAndClose(challengeResp)
 	challenge, err := parseDigestChallenge(header)
 	if err != nil {
-		return nil, fmt.Errorf("GET %s: %w", path, err)
+		return nil, fmt.Errorf("%s %s: %w", method, path, err)
 	}
 
-	resp, err := c.send(ctx, httpClient, endpoint, challenge.authorization(c.username, c.password, http.MethodGet, path))
+	resp, err := c.send(ctx, httpClient, method, endpoint, body, challenge.authorization(c.username, c.password, method, path))
 	if err != nil {
 		return nil, err
 	}
@@ -97,10 +114,10 @@ func (c *Client) get(ctx context.Context, httpClient *http.Client, path string) 
 		c.mu.Lock()
 		c.credentialsRejectedAt = time.Now()
 		c.mu.Unlock()
-		return nil, fmt.Errorf("GET %s: camera rejected the credentials", path)
+		return nil, fmt.Errorf("%s %s: camera rejected the credentials", method, path)
 	case resp.StatusCode < 200 || resp.StatusCode > 299:
 		drainAndClose(resp)
-		return nil, fmt.Errorf("GET %s: %s", path, resp.Status)
+		return nil, fmt.Errorf("%s %s: %s", method, path, resp.Status)
 	}
 	c.mu.Lock()
 	c.credentialsRejectedAt = time.Time{}
@@ -108,17 +125,24 @@ func (c *Client) get(ctx context.Context, httpClient *http.Client, path string) 
 	return resp, nil
 }
 
-func (c *Client) send(ctx context.Context, httpClient *http.Client, endpoint, authorization string) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+func (c *Client) send(ctx context.Context, httpClient *http.Client, method, endpoint string, body []byte, authorization string) (*http.Response, error) {
+	var reader io.Reader
+	if body != nil {
+		reader = bytes.NewReader(body)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/xml")
 	}
 	if authorization != "" {
 		req.Header.Set("Authorization", authorization)
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("GET %s: %w", req.URL.Path, err)
+		return nil, fmt.Errorf("%s %s: %w", method, req.URL.Path, err)
 	}
 	return resp, nil
 }
@@ -142,6 +166,27 @@ func (c *Client) getBody(ctx context.Context, path string, limit int64) ([]byte,
 		return nil, nil, fmt.Errorf("GET %s: response larger than %d bytes", path, limit)
 	}
 	return body, resp.Header, nil
+}
+
+// search POSTs search terms to a search resource and decodes the result.
+func (c *Client) search(ctx context.Context, path string, terms any, dest any) error {
+	body, err := xml.Marshal(terms)
+	if err != nil {
+		return fmt.Errorf("encode %s search: %w", path, err)
+	}
+	resp, err := c.request(ctx, c.readClient, http.MethodPost, path, append([]byte(xml.Header), body...))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	result, err := io.ReadAll(io.LimitReader(resp.Body, maxXMLResponseBytes+1))
+	if err != nil {
+		return fmt.Errorf("POST %s: read body: %w", path, err)
+	}
+	if len(result) > maxXMLResponseBytes {
+		return fmt.Errorf("POST %s: response larger than %d bytes", path, maxXMLResponseBytes)
+	}
+	return decodeXML(path, result, dest)
 }
 
 func (c *Client) getXML(ctx context.Context, path string, dest any) error {

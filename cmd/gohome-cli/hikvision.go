@@ -11,6 +11,7 @@ import (
 	hikvisionv1 "github.com/joshp123/gohome/proto/gen/plugins/hikvision/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func hikvisionCmd(ctx context.Context, conn *grpc.ClientConn, args []string, jsonOutput bool) {
@@ -66,10 +67,78 @@ func hikvisionCmd(ctx context.Context, conn *grpc.ClientConn, args []string, jso
 				enumWord(event.GetState().String(), "EVENT_STATE_"),
 				enumWord(event.GetTarget().String(), "DETECTION_TARGET_"))
 		}
+	case "alarms":
+		since := 24 * time.Hour
+		if len(args) > 1 {
+			parsed, err := time.ParseDuration(args[1])
+			if err != nil {
+				fatal("hikvision alarms", fmt.Errorf("since must be a duration such as 24h: %w", err))
+			}
+			since = parsed
+		}
+		resp, err := client.ListAlarms(ctx, &hikvisionv1.ListAlarmsRequest{Since: timestamppb.New(time.Now().Add(-since))})
+		if err != nil {
+			fatal("hikvision alarms", err)
+		}
+		for _, alarm := range resp.GetAlarms() {
+			printAlarm(alarm, jsonOutput)
+		}
+	case "watch-alarms":
+		watchCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		stream, err := client.WatchAlarms(watchCtx, &hikvisionv1.WatchAlarmsRequest{})
+		if err != nil {
+			fatal("hikvision watch-alarms", err)
+		}
+		for {
+			alarm, err := stream.Recv()
+			if err != nil {
+				if watchCtx.Err() != nil {
+					return
+				}
+				fatal("hikvision watch-alarms", err)
+			}
+			printAlarm(alarm, jsonOutput)
+		}
+	case "frame":
+		if len(args) < 3 {
+			fatal("hikvision frame", fmt.Errorf("usage: frame <RFC 3339 time> <file.jpg>"))
+		}
+		at, err := time.Parse(time.RFC3339Nano, args[1])
+		if err != nil {
+			fatal("hikvision frame", err)
+		}
+		frameCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		resp, err := client.GetFrame(frameCtx, &hikvisionv1.GetFrameRequest{At: timestamppb.New(at)})
+		if err != nil {
+			fatal("hikvision frame", err)
+		}
+		if err := os.WriteFile(args[2], resp.GetJpeg(), 0o600); err != nil {
+			fatal("hikvision frame", err)
+		}
+		fmt.Printf("wrote %s (%d bytes, recorded %s)\n", args[2], len(resp.GetJpeg()),
+			resp.GetAt().AsTime().Local().Format(time.RFC3339))
 	default:
 		hikvisionUsage()
 		os.Exit(2)
 	}
+}
+
+func printAlarm(alarm *hikvisionv1.Alarm, jsonOutput bool) {
+	if jsonOutput {
+		fmt.Println(protojson.MarshalOptions{}.Format(alarm))
+		return
+	}
+	duration := "under way"
+	if alarm.GetDuration() != nil {
+		duration = alarm.GetDuration().AsDuration().String()
+	}
+	fmt.Printf("%s\t%s\t%s\t%s\n",
+		alarm.GetStartedAt().AsTime().Local().Format(time.RFC3339),
+		enumWord(alarm.GetKind().String(), "EVENT_KIND_"),
+		enumWord(alarm.GetState().String(), "EVENT_STATE_"),
+		duration)
 }
 
 func enumWord(name, prefix string) string {
@@ -82,5 +151,8 @@ func hikvisionUsage() {
 	fmt.Println("Commands:")
 	fmt.Println("  camera            identity, firmware, detection settings, event-stream status")
 	fmt.Println("  snapshot <file>   save one JPEG from the main stream")
-	fmt.Println("  events            print on-camera events as they arrive (Ctrl-C to stop)")
+	fmt.Println("  events            print raw alert-stream events as they arrive (Ctrl-C to stop)")
+	fmt.Println("  alarms [24h]      list the alarms the camera logged in the last period")
+	fmt.Println("  watch-alarms      print alarms as the camera logs them (Ctrl-C to stop)")
+	fmt.Println("  frame <time> <file>  save the recorded JPEG at an RFC 3339 time")
 }

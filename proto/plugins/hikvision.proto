@@ -4,6 +4,7 @@ package gohome.plugins.hikvision.v1;
 
 option go_package = "github.com/joshp123/gohome/proto/gen/plugins/hikvision/v1;hikvisionv1";
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 // What the camera says it detected. The camera's own word is kept in
@@ -105,9 +106,12 @@ message Camera {
   AlertStreamStatus alert_stream = 6;
 }
 
-// The start or end of one event. An end carries the fields of the event's
-// last notification, so its times say when the event was last seen; it
-// arrives 10 to 20 s after that.
+// The start or end of one raw event from the camera's alert stream. Raw:
+// motion here is everything the camera's motion detector reacts to, before
+// its people-and-vehicle filter, so most of it is wind, shadows and light.
+// The filtered alarms the camera acts on are Alarm. An end carries the fields
+// of the event's last notification, so its times say when the event was last
+// seen; it arrives 10 to 20 s after that.
 message CameraEvent {
   EventKind kind = 1;
   EventState state = 2;
@@ -181,6 +185,53 @@ message GetSnapshotResponse {
 
 message WatchEventsRequest {}
 
+// One alarm the camera raised: a start and stop line in its own alarm log.
+// These are the alarms its detection filter accepts (for motion filtered to
+// people and vehicles: a person or vehicle), the filter its app
+// notifications also come from. Times are the camera clock.
+message Alarm {
+  EventKind kind = 1;
+  // ACTIVE when the alarm started, INACTIVE when it ended.
+  EventState state = 2;
+  uint32 channel_id = 3;
+  google.protobuf.Timestamp started_at = 4;
+  // Absent while the alarm is under way.
+  google.protobuf.Timestamp ended_at = 5;
+  // ended_at minus started_at. Absent while the alarm is under way.
+  google.protobuf.Duration duration = 6;
+  // The camera's log type for the start, e.g. "motionStart".
+  string camera_alarm_type = 7;
+  // When gohome first read this state from the camera's log. Later than the
+  // camera time by the poll interval, or by any outage of the camera.
+  google.protobuf.Timestamp seen_at = 8;
+}
+
+message ListAlarmsRequest {
+  // Alarms that started at or after since and before until. until defaults
+  // to now. The camera keeps about the last few weeks.
+  google.protobuf.Timestamp since = 1;
+  google.protobuf.Timestamp until = 2;
+}
+
+message ListAlarmsResponse {
+  // Oldest first. An alarm whose end is not in the log yet has no ended_at.
+  repeated Alarm alarms = 1;
+}
+
+message WatchAlarmsRequest {}
+
+message GetFrameRequest {
+  // The moment to show, e.g. an alarm's started_at. Read from the camera's
+  // own recording; second precision.
+  google.protobuf.Timestamp at = 1;
+}
+
+message GetFrameResponse {
+  bytes jpeg = 1; // main stream, full resolution
+  // The second the recording was read from.
+  google.protobuf.Timestamp at = 2;
+}
+
 // Read-only. No method changes the camera.
 service HikvisionService {
   // Current device load, storage health and space, video sessions and recording flags.
@@ -189,11 +240,21 @@ service HikvisionService {
   rpc GetCamera(GetCameraRequest) returns (GetCameraResponse);
   // One JPEG from the main stream.
   rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
-  // Each on-camera event's start (ACTIVE) and end (INACTIVE), beginning with
+  // Each raw alert-stream event's start (ACTIVE) and end (INACTIVE), beginning with
   // the starts of events already under way. Each line-crossing or intrusion
   // rule is its own event. UNAVAILABLE while gohome is not connected to the
   // camera's event stream, and when it loses it: events under way then have
   // no end. A subscriber that falls behind is ended with RESOURCE_EXHAUSTED.
   // Reconnect after either.
   rpc WatchEvents(WatchEventsRequest) returns (stream CameraEvent);
+  // Alarms the camera raised (its alarm log), oldest first.
+  rpc ListAlarms(ListAlarmsRequest) returns (ListAlarmsResponse);
+  // Each new alarm's start (ACTIVE) and end (INACTIVE), as the camera logs
+  // them, beginning with alarms under way. gohome reads the log every five
+  // seconds; an alarm logged before gohome started is never sent as new.
+  // UNAVAILABLE while the log has been unreadable for a minute.
+  rpc WatchAlarms(WatchAlarmsRequest) returns (stream Alarm);
+  // One JPEG from the camera's own recording at a past moment. NOT_FOUND
+  // when the camera has no recording at that time.
+  rpc GetFrame(GetFrameRequest) returns (GetFrameResponse);
 }

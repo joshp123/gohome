@@ -287,7 +287,7 @@ func usage() {
 	fmt.Println("  tado <zones|set>")
 	fmt.Println("  roborock <status|rooms|clean|dock|locate|map>")
 	fmt.Println("  airgradient <current|snapshot|metrics|config>")
-	fmt.Println("  hikvision <camera|snapshot|events>")
+	fmt.Println("  hikvision <camera|snapshot|events|alarms|watch-alarms|frame>")
 	fmt.Println("  plugins list")
 	fmt.Println("  plugins describe <plugin_id>")
 	fmt.Println("  services")
