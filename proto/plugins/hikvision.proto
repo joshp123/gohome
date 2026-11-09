@@ -187,8 +187,7 @@ message WatchEventsRequest {}
 
 // One alarm the camera raised: a start and stop line in its own alarm log.
 // These are the alarms its detection filter accepts (for motion filtered to
-// people and vehicles: a person or vehicle), the filter its app
-// notifications also come from. Times are the camera clock.
+// people and vehicles: a person or vehicle). Times are the camera clock.
 message Alarm {
   EventKind kind = 1;
   // ACTIVE when the alarm started, INACTIVE when it ended.
@@ -252,7 +251,10 @@ service HikvisionService {
   // Each new alarm's start (ACTIVE) and end (INACTIVE), as the camera logs
   // them, beginning with alarms under way. gohome reads the log every five
   // seconds; an alarm logged before gohome started is never sent as new.
-  // UNAVAILABLE while the log has been unreadable for a minute.
+  // While the camera is unreachable the stream stays open; alarms logged
+  // meanwhile arrive when it is readable again, with their true times and a
+  // later seen_at. gohome_hikvision_alarm_log_readable says which. A
+  // subscriber more than 256 alarms behind is ended with RESOURCE_EXHAUSTED.
   rpc WatchAlarms(WatchAlarmsRequest) returns (stream Alarm);
   // One JPEG from the camera's own recording at a past moment. NOT_FOUND
   // when the camera has no recording at that time.

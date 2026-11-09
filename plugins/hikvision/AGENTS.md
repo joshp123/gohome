@@ -20,8 +20,7 @@ camera or update its firmware, and it has no method that could.
 - Take one JPEG snapshot from the main stream.
 - **Alarms**: the alarms the camera raises, as it logs them: the ones its
   detection filter accepts (for motion filtered to people and vehicles, a
-  person or vehicle). Its app notifications come from the same filter. List
-  them, and watch them as they are logged.
+  person or vehicle). List them, and watch them as they are logged.
 - Read one picture from the camera's own recording at a past moment, such as
   an alarm's start.
 - Watch the raw alert stream (motion, line crossing, intrusion, tamper and
@@ -88,8 +87,11 @@ Service `gohome.plugins.hikvision.v1.HikvisionService`:
   start is logged and one `INACTIVE` with `ended_at` and `duration` when its
   stop is logged (both in one read when the whole alarm was logged between
   two reads), beginning with announced alarms under way. Each alarm is sent
-  once. `UNAVAILABLE` once the log has been unreadable for a minute;
-  `RESOURCE_EXHAUSTED` for a subscriber more than 256 alarms behind.
+  once. While the camera is unreachable the stream stays open, and alarms
+  logged meanwhile arrive when it is readable again, with their true times
+  and a later `seen_at`; `gohome_hikvision_alarm_log_readable` says whether
+  the log is being read. `RESOURCE_EXHAUSTED` for a subscriber more than 256
+  alarms behind.
 - `GetFrame(at)`: one full-resolution JPEG from the camera's recording at the
   second `at`. Finds the recording with `/ISAPI/ContentMgmt/search` (track
   101), then plays it back over RTSP from that second and decodes the first

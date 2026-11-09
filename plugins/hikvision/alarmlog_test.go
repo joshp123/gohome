@@ -194,21 +194,18 @@ func TestAlarmLogDoesNotReplayHistoryAndSendsEachAlarmOnce(t *testing.T) {
 	test.camera.searches.alarm(old, true)
 	test.camera.searches.alarm(test.now.Add(-time.Minute), true)
 
-	if _, _, err := test.log.Subscribe(); err == nil {
-		t.Fatal("subscribed before the log was read")
-	}
+	early := test.log.Subscribe()
+	defer test.log.Unsubscribe(early)
 	test.poll(0)
+	noAlarm(t, early)
 	if len(test.started) != 0 {
 		t.Fatalf("history sent as new: %+v", test.started)
 	}
 	if latest, ok := test.log.LatestAlarmStart(); !ok || !latest.Equal(test.now.Add(-time.Minute)) {
 		t.Fatalf("latest alarm from history: %v %v", latest, ok)
 	}
-	sub, unsubscribe, err := test.log.Subscribe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer unsubscribe()
+	sub := test.log.Subscribe()
+	defer test.log.Unsubscribe(sub)
 
 	start := test.now.Add(2 * time.Second)
 	test.camera.searches.alarm(start, false)
@@ -246,10 +243,8 @@ func TestAlarmLogDoesNotReplayHistoryAndSendsEachAlarmOnce(t *testing.T) {
 func TestAlarmLogCatchesUpAfterOutage(t *testing.T) {
 	test := newTestAlarmLog(t)
 	test.poll(0)
-	sub, _, err := test.log.Subscribe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	sub := test.log.Subscribe()
+	defer test.log.Unsubscribe(sub)
 	test.camera.unavailable.Store(true)
 	during := test.now.Add(20 * time.Second)
 	test.camera.searches.alarm(during, true)
@@ -260,16 +255,24 @@ func TestAlarmLogCatchesUpAfterOutage(t *testing.T) {
 		t.Fatal("30 s of failed reads reported the log unreadable")
 	}
 	test.poll(40 * time.Second)
-	if _, open := <-sub.alarms; open || sub.ended != errAlarmLogUnreadable {
-		t.Fatalf("subscription not ended after a minute unreadable: %v", sub.ended)
-	}
 	if test.log.Status().Readable {
 		t.Fatal("log reported readable after a minute of failures")
 	}
+	// A watcher that connects during the outage is not refused.
+	late := test.log.Subscribe()
+	defer test.log.Unsubscribe(late)
 	test.camera.unavailable.Store(false)
 	test.poll(5 * time.Second)
 	if len(test.started) != 1 || !test.started[0].Start.Equal(during) {
 		t.Fatalf("alarm during the outage: %+v", test.started)
+	}
+	for _, watcher := range []*alarmSubscription{sub, late} {
+		start := nextAlarm(t, watcher)
+		end := nextAlarm(t, watcher)
+		if !start.Start.Equal(during) || start.state() != hikvisionv1.EventState_EVENT_STATE_ACTIVE ||
+			end.state() != hikvisionv1.EventState_EVENT_STATE_INACTIVE || !start.SeenStart.Equal(test.now) {
+			t.Fatalf("watcher missed the alarm during the outage: %+v %+v", start, end)
+		}
 	}
 }
 

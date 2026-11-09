@@ -31,7 +31,7 @@ const (
 	alarmLogBaseline = 7 * 24 * time.Hour
 	// The search ends this far after now, in case the camera clock runs ahead.
 	alarmLogClockAhead = time.Hour
-	// WatchAlarms reports UNAVAILABLE once the log has been unreadable this long.
+	// The log counts as unreadable once no read has succeeded for this long.
 	alarmLogUnreadableAfter = time.Minute
 	alarmLogPageSize        = 100
 	alarmLogMaxEntries      = 5000
@@ -39,10 +39,7 @@ const (
 	alarmForgetOpenAfter = 24 * time.Hour
 )
 
-var (
-	errAlarmLogUnreadable = errors.New("gohome cannot read the camera's alarm log")
-	errAlarmSubBehind     = errors.New("subscriber fell behind the camera's alarms")
-)
+var errAlarmSubBehind = errors.New("subscriber fell behind the camera's alarms")
 
 type logSearchXML struct {
 	XMLName    xml.Name `xml:"CMSearchDescription"`
@@ -275,6 +272,8 @@ func (l *alarmLog) poll(ctx context.Context) {
 	l.observe(now, since, entries)
 }
 
+// failed records a failed read. Subscribers stay connected: the log keeps
+// the alarms, and the next successful read sends what they missed.
 func (l *alarmLog) failed(now time.Time, err error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -284,11 +283,6 @@ func (l *alarmLog) failed(now time.Time, err error) {
 	l.lastError = err.Error()
 	if l.failingSince.IsZero() {
 		l.failingSince = now
-	}
-	if now.Sub(l.failingSince) >= alarmLogUnreadableAfter {
-		for sub := range l.subscribers {
-			l.endLocked(sub, errAlarmLogUnreadable)
-		}
 	}
 }
 
@@ -338,13 +332,11 @@ func (l *alarmLog) readableLocked() bool {
 }
 
 // Subscribe returns new alarms' starts and ends, beginning with the starts of
-// announced alarms under way. It fails while the log is unreadable.
-func (l *alarmLog) Subscribe() (*alarmSubscription, func(), error) {
+// announced alarms under way. While the log is unreadable the subscription
+// stays open, and alarms logged meanwhile arrive once it is readable again.
+func (l *alarmLog) Subscribe() *alarmSubscription {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if !l.readableLocked() {
-		return nil, nil, errAlarmLogUnreadable
-	}
 	sub := &alarmSubscription{alarms: make(chan alarm, subscriberBuffer)}
 	var underWay []alarm
 	for _, known := range l.known {
@@ -357,11 +349,14 @@ func (l *alarmLog) Subscribe() (*alarmSubscription, func(), error) {
 		sub.alarms <- a
 	}
 	l.subscribers[sub] = struct{}{}
-	return sub, func() {
-		l.mu.Lock()
-		defer l.mu.Unlock()
-		l.endLocked(sub, nil)
-	}, nil
+	return sub
+}
+
+// Unsubscribe ends a subscription that is still open.
+func (l *alarmLog) Unsubscribe(sub *alarmSubscription) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.endLocked(sub, nil)
 }
 
 func (l *alarmLog) endLocked(sub *alarmSubscription, why error) {

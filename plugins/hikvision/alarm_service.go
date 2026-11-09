@@ -43,22 +43,16 @@ func (s *service) WatchAlarms(_ *hikvisionv1.WatchAlarmsRequest, server grpc.Ser
 	if err := s.configured(); err != nil {
 		return err
 	}
-	sub, unsubscribe, err := s.alarms.Subscribe()
-	if err != nil {
-		return status.Error(codes.Unavailable, err.Error())
-	}
-	defer unsubscribe()
+	sub := s.alarms.Subscribe()
+	defer s.alarms.Unsubscribe(sub)
 	for {
 		select {
 		case <-server.Context().Done():
 			return nil
 		case a, open := <-sub.alarms:
 			if !open {
-				code := codes.Unavailable
-				if errors.Is(sub.ended, errAlarmSubBehind) {
-					code = codes.ResourceExhausted
-				}
-				return status.Errorf(code, "%v; reconnect", sub.ended)
+				// The only reason a subscription ends on its own.
+				return status.Errorf(codes.ResourceExhausted, "%v; reconnect", sub.ended)
 			}
 			if err := server.Send(alarmProto(a)); err != nil {
 				return err
