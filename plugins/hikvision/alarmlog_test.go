@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -505,6 +506,19 @@ func TestLiveWatchAlarms(t *testing.T) {
 			if !a.End.IsZero() {
 				return
 			}
+		}
+	}
+}
+
+func TestAlarmPollIntervalFromConfig(t *testing.T) {
+	credentials := filepath.Join(t.TempDir(), "camera")
+	if err := os.WriteFile(credentials, []byte("agent:secret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for seconds, want := range map[uint32]time.Duration{0: 5 * time.Second, 1: time.Second, 3: 3 * time.Second} {
+		cfg, err := ConfigFromProto(&hikvisionv1.HikvisionConfig{BaseUrl: "http://192.0.2.20", CredentialsFile: credentials, AlarmPollSeconds: seconds})
+		if err != nil || cfg.AlarmPollInterval != want {
+			t.Fatalf("alarm_poll_seconds %d: %v %v, want %v", seconds, cfg.AlarmPollInterval, err, want)
 		}
 	}
 }

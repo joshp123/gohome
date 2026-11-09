@@ -147,6 +147,7 @@ ${lib.concatMapStringsSep "\n" (cover: ''
     hikvision {
       base_url: ${textprotoString cfg.plugins.hikvision.baseUrl}
       credentials_file: ${textprotoString cfg.plugins.hikvision.credentialsFile}
+      alarm_poll_seconds: ${toString cfg.plugins.hikvision.alarmPollSeconds}
     }
   '' + optionalString (cfg.plugins.casambi != null) ''
     casambi {
@@ -504,6 +505,12 @@ in
           credentialsFile = mkOption {
             type = types.path;
             description = "Path to a file holding one line, username:password, for the camera (read-only secret)";
+          };
+
+          alarmPollSeconds = mkOption {
+            type = types.ints.positive;
+            default = 5;
+            description = "Seconds between reads of the camera's alarm log: how late at most a new alarm is noticed. Each read is one log search on the camera.";
           };
         };
       });

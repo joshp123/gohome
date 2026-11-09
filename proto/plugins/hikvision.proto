@@ -51,6 +51,9 @@ message HikvisionConfig {
   string base_url = 1;
   // File holding one line, "username:password". Read-only secret (agenix).
   string credentials_file = 2;
+  // Seconds between reads of the camera's alarm log: how late at most a new
+  // alarm is noticed. 0 means 5; at least 1.
+  uint32 alarm_poll_seconds = 3;
 }
 
 message Identity {
@@ -249,8 +252,8 @@ service HikvisionService {
   // Alarms the camera raised (its alarm log), oldest first.
   rpc ListAlarms(ListAlarmsRequest) returns (ListAlarmsResponse);
   // Each new alarm's start (ACTIVE) and end (INACTIVE), as the camera logs
-  // them, beginning with alarms under way. gohome reads the log every five
-  // seconds; an alarm logged before gohome started is never sent as new.
+  // them, beginning with alarms under way. gohome reads the log every
+  // alarm_poll_seconds; an alarm logged before gohome started is never sent as new.
   // While the camera is unreachable the stream stays open; alarms logged
   // meanwhile arrive when it is readable again, with their true times and a
   // later seen_at. gohome_hikvision_alarm_log_readable says which. A

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	hikvisionv1 "github.com/joshp123/gohome/proto/gen/plugins/hikvision/v1"
 )
@@ -13,6 +14,8 @@ type Config struct {
 	BaseURL  string
 	Username string
 	Password string
+	// AlarmPollInterval is how often the alarm log is read.
+	AlarmPollInterval time.Duration
 }
 
 // ConfigFromProto reads the credentials file named in the config.
@@ -35,7 +38,11 @@ func ConfigFromProto(cfg *hikvisionv1.HikvisionConfig) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("hikvision credentials_file: %w", err)
 	}
-	return Config{BaseURL: baseURL, Username: username, Password: password}, nil
+	pollInterval := alarmLogPollInterval
+	if cfg.AlarmPollSeconds != 0 {
+		pollInterval = time.Duration(cfg.AlarmPollSeconds) * time.Second
+	}
+	return Config{BaseURL: baseURL, Username: username, Password: password, AlarmPollInterval: pollInterval}, nil
 }
 
 // parseCredentials reads "username:password". Camera usernames cannot contain

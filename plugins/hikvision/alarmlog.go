@@ -22,6 +22,7 @@ import (
 // person or vehicle. The raw alert stream, by contrast, carries every
 // reaction of the motion detector before that filter.
 const (
+	// The default; services.gohome.plugins.hikvision.alarmPollSeconds sets it.
 	alarmLogPollInterval = 5 * time.Second
 	// A poll searches from this long before the previous successful poll, so
 	// an alarm logged late, or during an outage, is still found.

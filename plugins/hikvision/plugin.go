@@ -43,6 +43,7 @@ func NewPlugin(cfg *hikvisionv1.HikvisionConfig, _ *configv1.OAuthConfig) (Plugi
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
 	}
 	plugin := newPlugin(client)
+	plugin.alarms.pollInterval = runtimeCfg.AlarmPollInterval
 	go plugin.stream.Run(context.Background())
 	go plugin.alarms.Run(context.Background())
 	return plugin, true
