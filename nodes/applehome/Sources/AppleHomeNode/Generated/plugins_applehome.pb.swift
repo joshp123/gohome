@@ -152,7 +152,7 @@ public nonisolated struct Gohome_Plugins_Applehome_V1_ThermostatState: Sendable 
   fileprivate var _targetTemperatureReadAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-/// Each value is set only when it is current: the accessory is reachable and the
+/// Each value is set only when it is current: the
 /// value was read from it without error within the last 3 minutes (three polls).
 /// Each value's *_read_at is when the reader last got it from the accessory. It is
 /// set even when the value is not, so a caller can see how long a sensor has been
@@ -327,7 +327,7 @@ public nonisolated struct Gohome_Plugins_Applehome_V1_Characteristic: Sendable {
   /// The HAP characteristic type UUID.
   public var typeUuid: String = String()
 
-  /// Set only when current: the accessory is reachable and the value was read from it
+  /// Set only when current: the value was read from the accessory
   /// without error within the last 3 minutes (three polls). HomeKit's cached value
   /// is never returned.
   public var value: Gohome_Plugins_Applehome_V1_Characteristic.OneOf_Value? = nil
@@ -388,7 +388,7 @@ public nonisolated struct Gohome_Plugins_Applehome_V1_Characteristic: Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  /// Set only when current: the accessory is reachable and the value was read from it
+  /// Set only when current: the value was read from the accessory
   /// without error within the last 3 minutes (three polls). HomeKit's cached value
   /// is never returned.
   public nonisolated enum OneOf_Value: Equatable, Sendable {

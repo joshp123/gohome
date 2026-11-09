@@ -42,6 +42,24 @@ import Testing
     #expect(!bed.hasTemperatureCelsius)
 }
 
+/// HomeKit marks the living-room monitor unreachable for seconds at a time while it still answers reads:
+/// a value read successfully a moment ago is reported whatever the flag says.
+@Test func freshReadsAreReportedWhileHomeKitSaysUnreachable() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    var livingRoom = sensor("Living room", [
+        characteristic(HAPType.currentTemperature, "Current Temperature", 21.9, readAt: now.addingTimeInterval(-20)),
+    ])
+    livingRoom.reachable = false
+
+    let state = HomeState()
+    state.setAccess(.granted)
+    state.recordPoll(homeCount: 1, accessories: [livingRoom], finishedAt: now.addingTimeInterval(-5))
+
+    let metrics = Metrics.render(state.current(), now: now)
+    #expect(metrics.contains(#"gohome_applehome_temperature_celsius{accessory_id="Living room",accessory="Living room",room="Living room",sensor="IKEA of Sweden ALPSTUGA air quality monitor",home="Home"} 21.9"#))
+    #expect(metrics.contains(#"gohome_applehome_accessory_reachable{"#))
+}
+
 private func sensor(_ name: String, _ characteristics: [Characteristic]) -> Accessory {
     var service = AccessoryService()
     service.id = name + " sensor"

@@ -22,8 +22,9 @@ home.
   change, made only when the owner asks for it.
 - Only current values are reported. The app reads every readable characteristic
   once a minute and takes HomeKit change notifications in between. A value is
-  current when the accessory is reachable and the value was read without error in
-  the last 3 minutes. Any other value is left out of the metrics and the API, never
+  current when it was read without error in the last 3 minutes. HomeKit's
+  reachable flag does not decide it: HomeKit marks an ALPSTUGA air monitor
+  unreachable for seconds at a time while it still answers reads. Any other value is left out of the metrics and the API, never
   repeated from HomeKit's cache, so a silent sensor shows as a gap.
 - No HomePods. HomeKit leaves HomePods, and so their temperature and humidity
   sensors, out of what it gives third-party apps; only Apple's Home app shows them.

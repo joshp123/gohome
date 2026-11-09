@@ -152,11 +152,14 @@ extension Characteristic {
 extension Accessory {
     /// The accessory with every value that is not current removed. `read_at` and
     /// `read_error` stay, so callers can see how old the last good read is.
+    /// HomeKit's reachable flag does not decide this: it marks some battery and Thread
+    /// accessories unreachable for seconds at a time while they still answer reads, and a
+    /// value read successfully within the window is a real reading either way.
     func current(at now: Date) -> Accessory {
         var out = self
         for s in out.services.indices {
             for c in out.services[s].characteristics.indices
-            where !reachable || !out.services[s].characteristics[c].isCurrent(at: now) {
+            where !out.services[s].characteristics[c].isCurrent(at: now) {
                 out.services[s].characteristics[c].value = nil
             }
         }

@@ -12,7 +12,10 @@ import (
 )
 
 const (
-	growattMinFetchInterval = 5 * time.Minute
+	// The inverter reports every five minutes. VictoriaMetrics scrapes every 15 s, so a fetch happens at the first
+	// scrape after this interval: at 5 minutes the fetches fell 5 m 15 s apart and one report in about twenty was
+	// never read. Just under five minutes keeps the fetches no further apart than the reports.
+	growattMinFetchInterval = 4*time.Minute + 50*time.Second
 )
 
 type cachedSnapshot struct {

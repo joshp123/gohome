@@ -1,6 +1,7 @@
 package weheat
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -85,32 +86,16 @@ func TestDashboardsOnlyReferenceExportedWeheatMetrics(t *testing.T) {
 }
 
 func exportedWeheatMetrics() map[string]struct{} {
-	names := map[string]struct{}{
-		"gohome_weheat_scrape_success":                            {},
-		"gohome_weheat_energy_scrape_success":                     {},
-		"gohome_weheat_energy_log_scrape_success":                 {},
-		"gohome_weheat_last_success_timestamp_seconds":            {},
-		"gohome_weheat_energy_last_success_timestamp_seconds":     {},
-		"gohome_weheat_energy_log_last_success_timestamp_seconds": {},
-		"gohome_weheat_last_update_timestamp_seconds":             {},
-		"gohome_weheat_energy_log_time_bucket_timestamp_seconds":  {},
-		"gohome_weheat_energy_total_ein_heating_kwh":              {},
-		"gohome_weheat_energy_total_ein_standby_kwh":              {},
-		"gohome_weheat_energy_total_ein_dhw_kwh":                  {},
-		"gohome_weheat_energy_total_ein_heating_defrost_kwh":      {},
-		"gohome_weheat_energy_total_ein_dhw_defrost_kwh":          {},
-		"gohome_weheat_energy_total_ein_cooling_kwh":              {},
-		"gohome_weheat_energy_total_eout_heating_kwh":             {},
-		"gohome_weheat_energy_total_eout_dhw_kwh":                 {},
-		"gohome_weheat_energy_total_eout_heating_defrost_kwh":     {},
-		"gohome_weheat_energy_total_eout_dhw_defrost_kwh":         {},
-		"gohome_weheat_energy_total_eout_cooling_kwh":             {},
-	}
-	for _, field := range buildLogFields() {
-		names[field.metricName] = struct{}{}
-	}
-	for _, field := range buildEnergyLogFields() {
-		names[field.metricName] = struct{}{}
+	// Every metric the collector describes, so this list cannot drift from the collector.
+	descs := make(chan *prometheus.Desc, 1024)
+	NewMetricsCollector(&Client{}).Describe(descs)
+	close(descs)
+	nameRE := regexp.MustCompile(`fqName: "([^"]+)"`)
+	names := map[string]struct{}{}
+	for desc := range descs {
+		if m := nameRE.FindStringSubmatch(desc.String()); m != nil {
+			names[m[1]] = struct{}{}
+		}
 	}
 	return names
 }

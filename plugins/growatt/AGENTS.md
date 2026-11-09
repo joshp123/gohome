@@ -60,9 +60,11 @@ sample carries the device's timestamp, interpreted using the plant timezone.
 
 ### Calls and throttling
 
-Normal polling makes three requests every five minutes: `plant/data`,
+Normal polling makes three requests about every five minutes: `plant/data`,
 `device/list`, and `v4/new-api/queryLastData`; plant discovery adds one request
-at startup. This is 36 requests/hour, 12 per endpoint, unchanged by telemetry
+at startup. It fetches at the first scrape at least 4 m 50 s after the last
+fetch, never further apart than the inverter's five-minute reports, so no
+report is skipped. This is about 37 requests/hour, unchanged by telemetry
 collection. RPC requests are additional calls: do not use them as another poller.
 `error_frequently_access` (10012) means stop, not retry in a tight loop. The
 client returns errors immediately. The legacy energy backfill stops on an error

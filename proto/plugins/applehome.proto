@@ -48,7 +48,7 @@ message ThermostatState {
   google.protobuf.Timestamp target_temperature_read_at = 6;
 }
 
-// Each value is set only when it is current: the accessory is reachable and the
+// Each value is set only when it is current: the
 // value was read from it without error within the last 3 minutes (three polls).
 // Each value's *_read_at is when the reader last got it from the accessory. It is
 // set even when the value is not, so a caller can see how long a sensor has been
@@ -108,7 +108,7 @@ message Characteristic {
   string type = 2;
   // The HAP characteristic type UUID.
   string type_uuid = 3;
-  // Set only when current: the accessory is reachable and the value was read from it
+  // Set only when current: the value was read from the accessory
   // without error within the last 3 minutes (three polls). HomeKit's cached value
   // is never returned.
   oneof value {
