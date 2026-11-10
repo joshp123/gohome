@@ -24,6 +24,10 @@ Nix‑native home automation. Replace Home Assistant with a deterministic Go sys
 
 
 
+## Data repairs
+
+- Readings deleted from VictoriaMetrics cannot be restored. Save the removed readings first, in a private backup outside this repo.
+
 ## Security Rules
 
 - NEVER commit secrets, tokens, keys, or personal data

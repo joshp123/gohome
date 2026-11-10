@@ -74,7 +74,6 @@ are excluded.
 
 
 
-
 ## Thermostat no-reading value
 
 Weheat reports -1 for `tRoom` and `tRoomTarget` while it has no reading from the
