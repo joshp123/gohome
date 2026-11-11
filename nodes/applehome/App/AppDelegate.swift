@@ -40,6 +40,10 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
+/// UIKit on macOS 27.2 kills an app at launch unless it adopts the scene lifecycle
+/// (UIApplicationSceneManifest in Info.plist). The scene stays empty: the app has no window.
+final class SceneDelegate: UIResponder, UIWindowSceneDelegate {}
+
 private extension Int {
     var nonZero: Int? { self == 0 ? nil : self }
 }
