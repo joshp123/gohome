@@ -15,7 +15,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -71,7 +70,7 @@ func authCodeCmd(args []string) {
 	printToken := flags.Bool("print-token", false, "Include refresh token in output")
 	persistAgenix := flags.Bool("persist-agenix", true, "Persist bootstrap secret via agenix")
 	timeout := flags.Duration("timeout", 5*time.Minute, "Timeout for auth flow")
-	agenixRepo := flags.String("agenix-repo", defaultAgenixRepo(), "Path to secrets repo")
+	agenixRepo := flags.String("agenix-repo", "", "Path to the agenix secrets repo the bootstrap is saved in")
 	agenixSecret := flags.String("agenix-secret", "", "Override agenix secret name")
 	agenixRecipients := flags.String("agenix-recipients", "", "Space-separated recipient override")
 	skipBlob := flags.Bool("skip-blob", false, "Skip blob storage persistence")
@@ -185,7 +184,7 @@ func deviceCmd(args []string) {
 	printToken := flags.Bool("print-token", false, "Include refresh token in output")
 	persistAgenix := flags.Bool("persist-agenix", true, "Persist bootstrap secret via agenix")
 	timeout := flags.Duration("timeout", 5*time.Minute, "Timeout for device flow")
-	agenixRepo := flags.String("agenix-repo", defaultAgenixRepo(), "Path to secrets repo")
+	agenixRepo := flags.String("agenix-repo", "", "Path to the agenix secrets repo the bootstrap is saved in")
 	agenixSecret := flags.String("agenix-secret", "", "Override agenix secret name")
 	agenixRecipients := flags.String("agenix-recipients", "", "Space-separated recipient override")
 	skipBlob := flags.Bool("skip-blob", false, "Skip blob storage persistence")
@@ -289,7 +288,7 @@ func persistCmd(args []string) {
 	jsonOut := flags.Bool("json", false, "Output JSON to stdout")
 	printToken := flags.Bool("print-token", false, "Include refresh token in output")
 	persistAgenix := flags.Bool("persist-agenix", true, "Persist bootstrap secret via agenix")
-	agenixRepo := flags.String("agenix-repo", defaultAgenixRepo(), "Path to secrets repo")
+	agenixRepo := flags.String("agenix-repo", "", "Path to the agenix secrets repo the bootstrap is saved in")
 	agenixSecret := flags.String("agenix-secret", "", "Override agenix secret name")
 	agenixRecipients := flags.String("agenix-recipients", "", "Space-separated recipient override")
 	skipBlob := flags.Bool("skip-blob", false, "Skip blob storage persistence")
@@ -739,19 +738,6 @@ func parseRecipients(raw string) []string {
 	return strings.Fields(raw)
 }
 
-func defaultAgenixRepo() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	repo := filepath.Join(home, "code", "nix", "secrets")
-	info, err := os.Stat(repo)
-	if err != nil || !info.IsDir() {
-		return ""
-	}
-	return repo
-}
-
 func defaultAgenixSecret(provider string) string {
 	return fmt.Sprintf("gohome-%s-bootstrap.age", provider)
 }
@@ -759,7 +745,7 @@ func defaultAgenixSecret(provider string) string {
 func persistAgenixBootstrap(ctx context.Context, provider string, bootstrap oauth.Bootstrap, opts oauthRunOptions) (string, error) {
 	repo := strings.TrimSpace(opts.agenixRepo)
 	if repo == "" {
-		return "", fmt.Errorf("agenix repo not configured")
+		return "", fmt.Errorf("agenix repo not configured: pass --agenix-repo")
 	}
 	secret := strings.TrimSpace(opts.agenixSecret)
 	if secret == "" {

@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// Writer persists secrets into a secrets repo via agenix.
+// Writer persists secrets into an agenix secrets repo.
 type Writer struct {
 	RepoPath   string
 	RulesPath  string
