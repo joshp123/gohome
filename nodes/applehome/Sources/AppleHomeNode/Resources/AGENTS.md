@@ -3,8 +3,8 @@
 ## What This Is
 Every accessory in the house's Apple Home, read through Apple's HomeKit framework
 by a small Mac app on a Mac. It covers accessories gohome can't reach any
-  other way without unpairing them from Apple Home, such as a thermostat
-thermostat, and everything else Apple Home gives third-party apps: radiator
+other way without unpairing them from Apple Home, such as a thermostat
+wired to the heat pump, and everything else Apple Home gives third-party apps: radiator
 thermostats, air-quality monitors, lights and shutters.
 
 It runs as a gohome node on a Mac, not in the gohome hub: HomeKit is only
@@ -23,7 +23,7 @@ home.
 - Only current values are reported. The app reads every readable characteristic
   once a minute and takes HomeKit change notifications in between. A value is
   current when it was read without error in the last 3 minutes. HomeKit's
-  reachable flag does not decide it: HomeKit marks an ALPSTUGA air monitor
+  reachable flag does not decide it: HomeKit can mark an accessory
   unreachable, for seconds or for hours at a time, while it still answers reads. Any other value is left out of the metrics and the API, never
   repeated from HomeKit's cache, so a silent sensor shows as a gap.
 - No HomePods. HomeKit leaves HomePods, and so their temperature and humidity

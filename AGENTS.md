@@ -24,15 +24,20 @@ Nix‑native home automation. Replace Home Assistant with a deterministic Go sys
 
 
 
+
 ## Data repairs
 
 - Readings deleted from VictoriaMetrics cannot be restored. Save the removed readings first, in a private backup outside this repo.
 
-## Security Rules
+## Public repo
 
-- NEVER commit secrets, tokens, keys, or personal data
-- Use placeholder identities (Mr‑Robot style)
-- Keep private repo references out of public docs
+gohome is public on GitHub. Nothing about the owner's house or household goes in it: not in
+files, commit messages or branches, including branches you think are temporary. That
+means room and device facts, measurements and analyses of this house, addresses and
+network details, installer paperwork, and when people are home. Write code and docs that
+would be true of any house, with placeholder identities (Mr-Robot style). Never commit
+secrets, tokens or keys.
+
 
 ## Commit Policy
 
