@@ -1,43 +1,30 @@
 # Releasing / Deploying GoHome
 
-GoHome is deployed directly to the `gohome` host via Nix; there is no separate release artifact.
-
-## Preconditions
-
-- Local changes are committed and pushed to `main`.
-- Secrets are available on the host via agenix.
-- Tailscale access to the host is working.
+GoHome ships as a Nix flake: a package and a NixOS module. There is no
+separate release artifact and no host in this repo.
 
 ## Deploy
 
-```bash
-scripts/deploy.sh gohome
-```
-
-Notes:
-- The script SSHes to the host over Tailscale and pulls `main`.
-- It runs `nixos-rebuild switch` and rolls back on failure.
-- Health check: `curl http://localhost:8080/health`.
+In your host's NixOS configuration, add this flake as an input, import
+`inputs.gohome.nixosModules.default`, set `services.gohome` (plugins, their
+addresses and secret files), pin the input to the commit you want and deploy
+that host as usual, for example with `nixos-rebuild switch --flake`.
 
 ## Verify
 
 ```bash
-# Health
-curl -sSf http://gohome/health
-
-# Metrics (example)
-curl -sS http://gohome/metrics | grep gohome_
+curl -sSf http://localhost:8080/health
+curl -sS http://localhost:8080/metrics | grep _scrape_success
 ```
 
-Grafana (MagicDNS):
-- `http://gohome/grafana/`
-- Dashboards are provisioned from `/var/lib/gohome/dashboards`.
+Grafana is served under `/grafana/`; dashboards are provisioned from
+`/var/lib/gohome/dashboards`.
 
 ## Rollback
 
-Automatic rollback is triggered by the deploy script if rebuild or health check fails.
+`nixos-rebuild switch --rollback` on the host, or deploy the previous pin.
 
 ## Enable/Disable Plugins
 
-- Edit `nix/hosts/gohome.nix` to add or remove `services.gohome.plugins.<name>`.
-- Re-deploy with `scripts/deploy.sh gohome`.
+Add or remove `services.gohome.plugins.<name>` in the host's configuration and
+deploy it.

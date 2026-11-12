@@ -75,30 +75,15 @@ GoHome exposes an idiomatic nix-openclaw plugin via `openclawPlugin` in `flake.n
 - Packages: `gohome` (includes `gohome-cli` on PATH)
 - Required env: none (optional `GOHOME_GRPC_ADDR` supported by `gohome-cli`)
 
-## Smoke Test (remote)
+## Deploying
 
-Default host: `gohome` (matches `flake.nix` nixosConfigurations). Always deploy over the private network, not the public IP.
+This repo is the product only and holds no host. gohome is a NixOS module:
+a host imports `nixosModules.default`, sets `services.gohome`, and is deployed
+from that host's own configuration, which lives outside this repo.
 
-Command:
-`scripts/deploy.sh gohome`
-
-Notes:
-- Runs `sudo nixos-rebuild switch` on the host and rolls back on failure.
-- Uses `curl http://localhost:8080/health` as the health check.
-- SSH access must be configured for the target host. The default NixOS host config (`nix/hosts/gohome.nix`) only sets root SSH keys, so use `root@gohome` or configure your local SSH config to map `gohome` to the correct user/host.
-- The deploy script maps `gohome` to `$GOHOME_DEPLOY_HOST`, the host's ssh target, which is kept in private config.
-- The current host uses `/root/gohome` (not `/etc/nixos`) and a secrets checkout. The deploy script detects this and overrides the secrets input accordingly.
-- GoHome binaries should be on PATH on the host (via `environment.systemPackages`).
-  - If PATH is missing, use systemd to locate them:
-    - `ssh root@<host> 'systemctl cat gohome | grep -n ExecStart'`
-    - Run the CLI via the ExecStart path, e.g. `ssh root@<host> '<execstart> roborock probe --methods ...'`.
-
-## Bootstrap + Self-Bootstrapping
-
-- The host is expected to have a working checkout of this repo.
-  - `scripts/deploy.sh` runs `git pull` only if the checkout has a `.git` directory.
-  - If the host has a tarball or bare tree, the deploy script clones the repo to a separate directory and uses that for builds.
-- Bootstrap secrets are stored in the secrets repo and materialized by agenix on the host.
-  - Roborock bootstrap JSON is generated locally, encrypted into `gohome-roborock-bootstrap.age`,
-    and surfaced to GoHome via `services.gohome.plugins.roborock.bootstrapFile`.
-- The deploy script should be the only path to update the remote host; it rebuilds and rolls back on failure.
+- Health check on a host: `curl http://localhost:8080/health`.
+- `gohome` and `gohome-cli` are on the host's PATH. If not, find them with
+  `systemctl cat gohome | grep -n ExecStart`.
+- Bootstrap secrets (for example the Roborock bootstrap JSON) are encrypted
+  with agenix in the host's secrets repo and passed to the module as file
+  paths, such as `services.gohome.plugins.roborock.bootstrapFile`.

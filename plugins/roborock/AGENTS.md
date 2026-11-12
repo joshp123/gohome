@@ -146,10 +146,10 @@ Roborock emails a short verification code to your account; paste it when prompte
 agenix -e gohome-roborock-bootstrap.age
 ```
 Paste the JSON contents from `/tmp/roborock-bootstrap.json` into the editor.
-4) Wire secrets + config:
-   - `nix/hosts/secrets.nix` adds `roborock-bootstrap` when the plugin is enabled.
-   - `nix/hosts/gohome.nix` uses `config.age.secrets.roborock-bootstrap.path`.
-5) Deploy: `scripts/deploy.sh gohome`
+4) Wire secrets + config in your host's configuration:
+   - declare `age.secrets.roborock-bootstrap` for that file;
+   - set `services.gohome.plugins.roborock.bootstrapFile = config.age.secrets.roborock-bootstrap.path`.
+5) Deploy your host.
 
 ## Development
 Use `devenv` for toolchain setup (Go + protoc plugins):

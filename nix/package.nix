@@ -10,10 +10,7 @@ buildGoModule {
         rel = lib.removePrefix (toString ../.) (toString path);
       in
       lib.cleanSourceFilter path type
-      && !(lib.hasPrefix "/vendor" rel)
-      && !(lib.hasInfix "/infra/tofu/.terraform" rel)
-      && rel != "/infra/tofu/terraform.tfstate"
-      && rel != "/infra/tofu/terraform.tfstate.backup";
+      && !(lib.hasPrefix "/vendor" rel);
   };
   vendorHash = "sha256-Xc0sowbOqsWhkUsxRQeC4mNqOPNeROsBl1GdupVehGA=";
   nativeBuildInputs = [
