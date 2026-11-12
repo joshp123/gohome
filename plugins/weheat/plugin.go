@@ -23,9 +23,6 @@ const (
 //go:embed AGENTS.md
 var agentsMD string
 
-//go:embed dashboard.json
-var dashboardJSON []byte
-
 // Plugin implements the GoHome plugin contract.
 type Plugin struct {
 	client        *Client
@@ -87,10 +84,6 @@ func (p Plugin) OAuthDeclaration() oauth.Declaration {
 		Scope:        "openid offline_access",
 		StatePath:    "/var/lib/gohome/weheat-credentials.json",
 	}
-}
-
-func (p Plugin) Dashboards() []core.Dashboard {
-	return []core.Dashboard{{Name: "overview", Folder: "Devices", JSON: dashboardJSON}}
 }
 
 func (p Plugin) RegisterGRPC(server *grpc.Server) {

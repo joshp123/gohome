@@ -56,10 +56,6 @@ func main() {
 
 	activePlugins := core.ObservePlugins(core.FilterPlugins(compiledPlugins, enabled, false))
 
-	if err := core.WriteDashboards(cfg.Core.DashboardDir, activePlugins); err != nil {
-		log.Fatalf("write dashboards: %v", err)
-	}
-
 	grpcServer, err := server.NewGRPCServer(cfg.Core.GrpcAddr)
 	if err != nil {
 		log.Fatalf("grpc listen: %v", err)
@@ -91,7 +87,6 @@ func main() {
 		}
 		httpMux.Handle("/metrics/"+plugin.ID(), server.MetricsHandler(registry))
 	}
-	httpMux.Handle("/dashboards/", server.DashboardsHandler(core.DashboardsMap(activePlugins)))
 	for _, plugin := range activePlugins {
 		if registrant, ok := plugin.(core.HTTPRegistrant); ok {
 			registrant.RegisterHTTP(httpMux)

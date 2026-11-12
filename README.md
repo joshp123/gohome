@@ -13,7 +13,7 @@
 
 - **It's just a dumb API.** We expose gRPC endpoints and a CLI. Your SOTA agent (Claude, GPT, whatever) figures out how to use them. We don't try to be smart.
 
-- **Plugins bootstrap themselves.** Metrics shape, Grafana dashboards, OAuth flows - all declared by the plugin. Enable it in Nix, it just works.
+- **Plugins bootstrap themselves.** Metrics shape, OAuth flows - all declared by the plugin. Enable it in Nix, it just works.
 
 - **Fully declarative.** Once you have credentials wired up, you shouldn't have to care. `nixos-rebuild switch` to update. `nixos-rebuild --rollback` if something breaks. Your AI agent manages the rest.
 
@@ -154,7 +154,7 @@ Reference the README and nix/module.nix in the repo for config options.
 
 1. Single Go binary exposes gRPC + HTTP (metrics/health)
 2. Plugins compiled in at build time (no runtime loading)
-3. Each plugin brings: proto definitions, Prometheus metrics, Grafana dashboards
+3. Each plugin brings: proto definitions, Prometheus metrics
 4. OAuth tokens persisted locally + mirrored to S3 for disaster recovery
 5. Config is pure Nix - no YAML, no env vars, no runtime mutations
 
@@ -206,10 +206,10 @@ Reference the README and nix/module.nix in the repo for config options.
 
 ## Plugin philosophy
 
-- **Plugins own everything**: proto, metrics, dashboards, AGENTS.md
+- **Plugins own everything**: proto, metrics, AGENTS.md
 - **Code-first**: behavior in Go, Nix only wires config/secrets
 - **No runtime mutability**: state is mutable, config is not
-- **Observability built-in**: metrics and dashboards are part of the contract
+- **Observability built-in**: metrics are part of the contract; dashboards are each deployment's own, in Grafana
 
 ## Creating a plugin (WIP)
 
@@ -231,7 +231,6 @@ What I need you to do:
    - Proto definitions for the gRPC API
    - OAuth wiring if needed (use the oauth provider in pkg/oauth)
    - Prometheus metrics (what state should we expose?)
-   - Grafana dashboard JSON
    - AGENTS.md explaining how an AI agent should use this plugin
 4. Wire it into the Nix module (nix/module.nix)
 5. Test it works: metrics show up, gRPC calls succeed
@@ -246,9 +245,8 @@ Clawdbot (or any AI agent) how to talk to your plugin.
 plugins/yourdevice/
 ├── proto/              # gRPC service definitions
 ├── client.go           # Device/API client logic (steal from HA)
-├── plugin.go           # Plugin registration, metrics, dashboards
-├── AGENTS.md           # How an AI agent should use this plugin
-└── dashboards/         # Grafana JSON
+├── plugin.go           # Plugin registration, metrics
+└── AGENTS.md           # How an AI agent should use this plugin
 ```
 
 I've had good results with Codex + GPT-5.2 (high reasoning) for this. It can read the HA Python code and translate to Go surprisingly well.

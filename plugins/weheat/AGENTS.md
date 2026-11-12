@@ -66,9 +66,8 @@ excluded, and hourly energy buckets must be within two hours.
 
 `gohome_weheat_history_log_*` and `gohome_weheat_history_energy_*`, labelled
 `interval="Hour"`, contain recovered hourly aggregates for a past date range.
-Where the live energy counter was not read at both ends of an hour, the
-dashboards take that hour from this history (`weheat_hourly` in
-`tools/dashboards/common.py`). These are separate from live metrics: never splice averages into raw
+Where the live energy counter was not read at both ends of an hour, a
+dashboard can take that hour from this history. These are separate from live metrics: never splice averages into raw
 series or interpolate missing instantaneous readings. The false device readings
 are excluded.
 

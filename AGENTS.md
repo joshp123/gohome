@@ -16,7 +16,7 @@ Nix‑native home automation. Replace Home Assistant with a deterministic Go sys
 
 - No runtime config editing
 - Protobuf/gRPC is the product
-- Plugins own proto, metrics, dashboards, and AGENTS.md
+- Plugins own proto, metrics and AGENTS.md
 - No UI beyond Grafana
 - Secrets via agenix only
 

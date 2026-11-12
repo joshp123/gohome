@@ -122,10 +122,6 @@ func pluginsCmd(ctx context.Context, conn *grpc.ClientConn, args []string) {
 		for _, svc := range resp.Plugin.Services {
 			fmt.Printf("  - %s\n", svc)
 		}
-		fmt.Println("dashboards:")
-		for _, dash := range resp.Plugin.Dashboards {
-			fmt.Printf("  - %s (%s)\n", dash.Name, dash.Path)
-		}
 		fmt.Println("agents_md:")
 		fmt.Println(resp.Plugin.AgentsMd)
 	default:

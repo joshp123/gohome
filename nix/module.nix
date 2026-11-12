@@ -63,7 +63,6 @@ ${lib.concatStringsSep "\n" lines}
     core {
       grpc_addr: ${textprotoString "${cfg.listenAddress}:${toString cfg.grpcPort}"}
       http_addr: ${textprotoString "${cfg.listenAddress}:${toString cfg.httpPort}"}
-      dashboard_dir: ${textprotoString "/var/lib/gohome/dashboards"}
     }
     oauth {
       blob_endpoint: ${textprotoString cfg.oauth.blobEndpoint}
@@ -130,10 +129,7 @@ ${p1TariffLine "tariff_export_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffEx
       base_url: ${textprotoString cfg.plugins.weheat.baseUrl}
   '' + ''
     }
-  '') + optionalString (cfg.plugins.home != null) ''
-    home {
-    }
-  '' + optionalString (cfg.plugins.shelly != null) ''
+  '') + optionalString (cfg.plugins.shelly != null) ''
     shelly {
 ${lib.concatMapStringsSep "\n" (cover: ''
       covers {
@@ -189,7 +185,7 @@ in
     httpPort = mkOption {
       type = types.port;
       default = 8080;
-      description = "HTTP port (health/metrics/dashboards)";
+      description = "HTTP port (health, metrics and the plugins' HTTP routes)";
     };
 
     monitoring.enable = mkOption {
@@ -208,7 +204,7 @@ in
       description = ''
         Plugins that run in another gohome, mapped to that gohome's HTTP address
         (host:port). VictoriaMetrics here scrapes their metrics from it with the labels
-        they would have here, and Grafana here shows their dashboards.
+        they would have here.
       '';
     };
 
@@ -523,14 +519,6 @@ in
       description = "Hikvision camera plugin config, read-only (presence enables the plugin)";
     };
 
-    plugins.home = mkOption {
-      type = types.nullOr (types.submodule {
-        options = { };
-      });
-      default = null;
-      description = "My Home overview dashboard";
-    };
-
     plugins.casambi = mkOption {
       type = types.nullOr (types.submodule {
         options = {
@@ -622,7 +610,6 @@ in
 
     systemd.tmpfiles.rules = [
       "d /var/lib/gohome 0755 gohome gohome - -"
-      "d /var/lib/gohome/dashboards 0755 gohome gohome - -"
     ];
 
     environment.systemPackages = [

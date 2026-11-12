@@ -17,14 +17,6 @@ const (
 	HealthError    HealthStatus = "ERROR"
 )
 
-// Dashboard is a Grafana dashboard asset embedded by the plugin.
-type Dashboard struct {
-	Name string
-	// Folder is the Grafana folder the dashboard appears in: "House" for whole-house views, "Devices" for one device.
-	Folder string
-	JSON   []byte
-}
-
 // Manifest describes a plugin for discovery and registry metadata.
 type Manifest struct {
 	PluginID    string
@@ -39,7 +31,6 @@ type Plugin interface {
 	Manifest() Manifest
 	AgentsMD() string
 	OAuthDeclaration() oauth.Declaration
-	Dashboards() []Dashboard
 	RegisterGRPC(*grpc.Server)
 	Collectors() []prometheus.Collector
 	Health() HealthStatus

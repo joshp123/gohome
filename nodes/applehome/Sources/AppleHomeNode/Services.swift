@@ -8,11 +8,8 @@ enum Plugin {
     static let displayName = "Apple Home"
     static let version = "0.1.0"
     static let services = ["gohome.plugins.applehome.v1.AppleHomeService"]
-    static let dashboardName = "overview"
-    static let dashboardPath = "/dashboards/\(id)/\(dashboardName).json"
 
     static let agentsMD = resource("AGENTS", "md")
-    static let dashboardJSON = Data(resource("dashboard", "json").utf8)
     static let descriptorSetURL = Bundle.module.url(forResource: "applehome", withExtension: "pb")!
 
     private static func resource(_ name: String, _ ext: String) -> String {
@@ -55,10 +52,6 @@ struct RegistryService: Gohome_Registry_V1_Registry.SimpleServiceProtocol {
         descriptor.version = Plugin.version
         descriptor.services = Plugin.services
         descriptor.agentsMd = Plugin.agentsMD
-        var dashboard = Gohome_Registry_V1_Dashboard()
-        dashboard.name = Plugin.dashboardName
-        dashboard.path = Plugin.dashboardPath
-        descriptor.dashboards = [dashboard]
         descriptor.status = health.status.rawValue
         descriptor.healthMessage = health.message
         if let last = health.lastSuccess { descriptor.lastSuccess = Google_Protobuf_Timestamp(date: last) }

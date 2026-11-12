@@ -44,10 +44,6 @@ check_registry() {
     [ "$mode" = --dry-run ] || printf '0\n' > "$state/$registry_id-first-failure"
     while IFS= read -r plugin; do
       id=$(jq -r '.pluginId' <<< "$plugin")
-      # Dashboard-only plugins have healthy status without a source timestamp.
-      if jq -e '.status == "HEALTHY" and .lastSuccess == null' <<< "$plugin" >/dev/null; then
-        continue
-      fi
       first_seen=$now
       [ ! -f "$state/$id-first-seen" ] || first_seen=$(cat "$state/$id-first-seen")
       last_read=0

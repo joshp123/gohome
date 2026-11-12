@@ -48,7 +48,6 @@ Core does:
 - Load plugins
 - Route gRPC calls
 - Aggregate metrics
-- Serve dashboards
 
 Core does NOT:
 - Know about Tado, Roborock, etc.
@@ -60,7 +59,6 @@ Plugins own:
 - Their `AGENTS.md` (AI context - REQUIRED, first-class)
 - Their `.proto` API definition
 - Their Prometheus metrics
-- Their Grafana dashboards
 - Their Nix module
 
 ### 3. Prometheus IS the Database
@@ -98,7 +96,7 @@ packages.gohome = gohome.override {
 
 We don't build UIs. Ever.
 
-- **Dashboards** → Grafana (plugins provide JSON)
+- **Dashboards** → Grafana, each deployment's own (gohome ships none)
 - **Control** → Clawdbot (Telegram, voice)
 - **Debugging** → grpcurl, curl
 - **Automation** → Nix config, not UI flows
@@ -113,13 +111,11 @@ type Plugin interface {
     AgentsMD() string              // go:embed - missing file = compile fail
     RegisterGRPC(*grpc.Server)
     Collectors() []prometheus.Collector
-    Dashboards() []Dashboard       // go:embed - missing file = compile fail
     // ...
 }
 ```
 
 - Missing `AGENTS.md`? **Compile error.**
-- Missing `dashboard.json`? **Compile error.**
 - Wrong proto? **Compile error.**
 - Nix validates config schema at build time.
 
@@ -215,8 +211,7 @@ Home Assistant has 1395 integrations. We want them.
 3. **Write Go client** - Or use existing Go lib
 4. **Define protobuf** - API surface for Clawdbot
 5. **Define metrics** - What to export to Prometheus
-6. **Create dashboard** - Grafana JSON
-7. **Write Nix module** - Config schema, secrets
+6. **Write Nix module** - Config schema, secrets
 
 ### What to Port First
 
@@ -235,7 +230,6 @@ Priority based on:
 - [ ] Go client (or wrap existing)
 - [ ] proto/{name}.proto (gRPC service definition)
 - [ ] metrics.go (Prometheus collectors)
-- [ ] dashboard.json (Grafana)
 - [ ] nix/module.nix (config schema)
 - [ ] Tests
 - [ ] README with setup instructions
@@ -288,8 +282,7 @@ HA source: `homeassistant/components/tado/`
 2. **Go client**: Port from `python-tado` or generate from OpenAPI spec
 3. **Protobuf**: `TadoService` with `GetZones`, `SetTemperature`, `Boost`, etc.
 4. **Metrics**: `gohome_tado_temperature_celsius`, `gohome_tado_humidity_percent`, etc.
-5. **Dashboard**: Adapt existing Grafana dashboard
-6. **Nix**: `plugins.tado = { bootstrapFile = ...; }`
+5. **Nix**: `plugins.tado = { bootstrapFile = ...; }`
 
 ### Example: Porting Daikin
 
@@ -358,8 +351,7 @@ gohome/
 ├── internal/
 │   ├── core/                 # State, events, plugin loader
 │   ├── router/               # gRPC routing
-│   ├── metrics/              # Prometheus aggregation
-│   └── dashboard/            # Grafana serving
+│   └── metrics/              # Prometheus aggregation
 ├── proto/
 │   └── registry.proto        # Core service discovery
 ├── nix/

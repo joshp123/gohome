@@ -1,7 +1,7 @@
 # RFC: Core Router + Compile-Time Plugin Contract
 
 - Date: 2025-12-31
-- Status: Implemented
+- Status: Implemented; its dashboard parts are superseded by `docs/adr/2026-11-12-dashboards-are-not-part-of-gohome.md`
 - Audience: engineers, operators, future plugin authors
 
 ## 1) Narrative: what we are building and why

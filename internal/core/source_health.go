@@ -46,9 +46,6 @@ func (p *observedPlugin) SourceHealth() (HealthStatus, string, time.Time) {
 		return HealthError, p.Plugin.HealthMessage(), time.Time{}
 	}
 	if len(p.collectors) == 0 {
-		if len(p.Manifest().Services) == 0 {
-			return HealthHealthy, "No data source (dashboard only)", time.Time{}
-		}
 		return HealthDegraded, "No source read available", time.Time{}
 	}
 	status, message := HealthHealthy, "Source read successfully"

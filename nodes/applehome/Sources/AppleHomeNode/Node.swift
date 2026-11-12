@@ -7,7 +7,7 @@ import NIOHTTP1
 import NIOPosix
 
 /// A gohome node serving the applehome plugin: the registry and applehome gRPC services
-/// with reflection, and /health, /metrics/applehome and the dashboard over HTTP.
+/// with reflection, and /health and /metrics/applehome over HTTP.
 public enum Node {
     public struct Addresses: Sendable {
         public var host: String
@@ -60,8 +60,6 @@ enum HTTPServer {
             return (.ok, "text/plain", Data("ok".utf8))
         case "/metrics/\(Plugin.id)":
             return (.ok, "text/plain; version=0.0.4", Data(Metrics.render(state.current()).utf8))
-        case Plugin.dashboardPath:
-            return (.ok, "application/json", Plugin.dashboardJSON)
         default:
             return (.notFound, "text/plain", Data("not found".utf8))
         }

@@ -30,15 +30,6 @@ GF_SERVER_ROOT_URL=https://${config.networking.hostName}.$suffix/grafana/
 EOF
   '';
 
-  # The dashboards of the plugins another gohome runs, from this build's copy of each plugin.
-  # A remote plugin with no plugins/<name>/dashboard.json in this build gets no dashboard.
-  remoteDashboardFile = plugin: ../plugins + "/${plugin}/dashboard.json";
-  remoteDashboards = pkgs.runCommand "gohome-remote-dashboards" { } (''
-    mkdir -p $out/Devices
-  '' + concatMapStrings (plugin: ''
-    cp ${remoteDashboardFile plugin} $out/Devices/${plugin}-overview.json
-  '') (filter (plugin: builtins.pathExists (remoteDashboardFile plugin)) (attrNames cfg.remotePlugins)));
-
 in
 {
   config = mkIf (cfg.enable && cfg.monitoring.enable) {
@@ -76,7 +67,6 @@ in
         auth = {
           disable_login_form = true;
         };
-        dashboards.default_home_dashboard_path = "/var/lib/gohome/dashboards/House/home-home.json";
         date_formats = {
           full_date = "D MMM YYYY HH:mm:ss";
           interval_second = "HH:mm:ss";
@@ -103,28 +93,12 @@ in
             isDefault = true;
           }
         ];
-
-        dashboards.settings.providers = [
-          {
-            name = "GoHome";
-            options.path = "/var/lib/gohome/dashboards";
-            options.foldersFromFilesStructure = true;
-            updateIntervalSeconds = 10;
-          }
-        ] ++ optional (cfg.remotePlugins != { }) {
-          name = "GoHome remote plugins";
-          options.path = remoteDashboards;
-          options.foldersFromFilesStructure = true;
-        };
       };
     };
 
     services.grafana-image-renderer = {
       enable = true;
     };
-
-    # gohome rewrites the dashboard files when it starts; provisioning them mid-rewrite leaves Grafana with none.
-    systemd.services.grafana.after = [ "gohome.service" ];
 
     systemd.services.grafana.serviceConfig.EnvironmentFile = mkMerge [
       (mkIf (cfg.grafanaEnvFile != null) [ cfg.grafanaEnvFile ])

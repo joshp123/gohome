@@ -68,13 +68,6 @@ func (r *RegistryService) DescribePlugin(ctx context.Context, req *registryv1.De
 			LastSuccess:   lastGood,
 		}
 
-		for _, d := range p.Dashboards() {
-			descriptor.Dashboards = append(descriptor.Dashboards, &registryv1.Dashboard{
-				Name: d.Name,
-				Path: "/dashboards/" + manifest.PluginID + "/" + d.Name + ".json",
-			})
-		}
-
 		return &registryv1.DescribePluginResponse{Plugin: descriptor}, nil
 	}
 

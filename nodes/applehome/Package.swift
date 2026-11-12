@@ -1,7 +1,7 @@
 // swift-tools-version:6.0
 import PackageDescription
 
-// The node's server half: registry, applehome gRPC service, metrics and dashboards.
+// The node's server half: registry, applehome gRPC service and metrics.
 // It has no HomeKit code, so it builds and tests on plain macOS; the Mac Catalyst app
 // in App/ supplies the HomeKit reader.
 let package = Package(
@@ -35,7 +35,6 @@ let package = Package(
             ],
             resources: [
                 .copy("Resources/AGENTS.md"),
-                .copy("Resources/dashboard.json"),
                 .copy("Resources/applehome.pb"),
             ]
         ),

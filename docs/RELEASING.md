@@ -17,8 +17,8 @@ curl -sSf http://localhost:8080/health
 curl -sS http://localhost:8080/metrics | grep _scrape_success
 ```
 
-Grafana is served under `/grafana/`; dashboards are provisioned from
-`/var/lib/gohome/dashboards`.
+Grafana is served under `/grafana/`. gohome provisions its datasource only; the
+deployment provisions its own dashboards.
 
 ## Rollback
 

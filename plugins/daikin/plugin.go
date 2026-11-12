@@ -15,9 +15,6 @@ import (
 //go:embed AGENTS.md
 var agentsMD string
 
-//go:embed dashboard.json
-var dashboardJSON []byte
-
 // Plugin implements the GoHome plugin contract.
 type Plugin struct {
 	client        *Client
@@ -81,10 +78,6 @@ func (p Plugin) RateLimits() rate.Declaration {
 		MaxRequestsPer(rate.Minute, 20).
 		MaxRequestsPer(rate.Day, 200).
 		ReadHeaders(rate.StandardHeaders())
-}
-
-func (p Plugin) Dashboards() []core.Dashboard {
-	return []core.Dashboard{{Name: "overview", Folder: "Devices", JSON: dashboardJSON}}
 }
 
 func (p Plugin) RegisterGRPC(server *grpc.Server) {

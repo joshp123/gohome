@@ -15,7 +15,6 @@ const (
 	DefaultPath                        = "/etc/gohome/config.pbtxt"
 	DefaultGRPCAddr                    = "0.0.0.0:9000"
 	DefaultHTTPAddr                    = "0.0.0.0:8080"
-	DefaultDashboardDir                = "/var/lib/gohome/dashboards"
 	DefaultOAuthPrefix                 = "gohome/oauth"
 	DefaultOAuthRefreshIntervalSeconds = 600
 )
@@ -54,9 +53,6 @@ func applyDefaults(cfg *configv1.Config) {
 	if cfg.Core.HttpAddr == "" {
 		cfg.Core.HttpAddr = DefaultHTTPAddr
 	}
-	if cfg.Core.DashboardDir == "" {
-		cfg.Core.DashboardDir = DefaultDashboardDir
-	}
 
 	if cfg.Oauth == nil {
 		cfg.Oauth = &configv1.OAuthConfig{}
@@ -89,9 +85,6 @@ func Validate(cfg *configv1.Config) error {
 	}
 	if cfg.Core.HttpAddr == "" {
 		return fmt.Errorf("core.http_addr is required")
-	}
-	if cfg.Core.DashboardDir == "" {
-		return fmt.Errorf("core.dashboard_dir is required")
 	}
 
 	// Tado, Daikin and Weheat keep their rotating OAuth tokens in the blob store.
@@ -168,9 +161,6 @@ func EnabledPlugins(cfg *configv1.Config) map[string]bool {
 	}
 	if cfg.Weheat != nil {
 		enabled["weheat"] = true
-	}
-	if cfg.Home != nil {
-		enabled["home"] = true
 	}
 	if cfg.Shelly != nil {
 		enabled["shelly"] = true

@@ -11,7 +11,6 @@ import "proto/plugins/roborock.proto";
 import "proto/plugins/p1_homewizard.proto";
 import "proto/plugins/airgradient.proto";
 import "proto/plugins/weheat.proto";
-import "proto/plugins/home.proto";
 import "proto/plugins/shelly.proto";
 import "proto/plugins/hikvision.proto";
 import "proto/plugins/sonos.proto";
@@ -20,7 +19,8 @@ import "proto/plugins/casambi.proto";
 message CoreConfig {
   string grpc_addr = 1;
   string http_addr = 2;
-  string dashboard_dir = 3;
+  reserved 3;
+  reserved "dashboard_dir";
 }
 
 message OAuthConfig {
@@ -45,7 +45,8 @@ message Config {
   gohome.plugins.p1_homewizard.v1.P1HomewizardConfig p1_homewizard = 14;
   gohome.plugins.airgradient.v1.AirgradientConfig airgradient = 15;
   gohome.plugins.weheat.v1.WeheatConfig weheat = 16;
-  gohome.plugins.home.v1.HomeConfig home = 17;
+  reserved 17;
+  reserved "home";
   gohome.plugins.shelly.v1.ShellyConfig shelly = 18;
   gohome.plugins.hikvision.v1.HikvisionConfig hikvision = 19;
   gohome.plugins.sonos.v1.SonosConfig sonos = 20;

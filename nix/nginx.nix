@@ -35,7 +35,7 @@ in
             real_ip_header X-Forwarded-For;
             absolute_redirect off;
           '';
-          # The house is read in Grafana; its home dashboard is the House overview.
+          # The house is read in Grafana.
           locations."= /".return = "302 /grafana/";
           locations."/grafana/".proxyPass = "http://127.0.0.1:3000";
           locations."/vm/".proxyPass = "http://127.0.0.1:8428";

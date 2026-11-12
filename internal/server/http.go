@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-// HTTPServer serves health, metrics, and dashboards.
+// HTTPServer serves health, metrics and the plugins' HTTP routes.
 type HTTPServer struct {
 	Server *http.Server
 }

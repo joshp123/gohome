@@ -7,7 +7,7 @@ read it is DEGRADED with "Awaiting first source read". All of a plugin's `*_scra
 collection must have completed within one minute, and the oldest reported
 `*_last_success_timestamp_seconds` must be within 15 minutes. This accommodates
 the existing five-minute Growatt and ten-minute Daikin fetch intervals.
-Configuration failures remain ERROR; dashboard-only plugins have no source.
+Configuration failures remain ERROR.
 
 `ListPlugins` and `DescribePlugin` expose `last_success` as a protobuf Timestamp.
 It is absent before any successful read and does not advance on a failure.
@@ -40,7 +40,7 @@ a successful read, `gohome-source-alert` posts the affected sources, outage time
 health messages and journal command to a chat webhook. Notifications are limited to
 one per 24 hours. Last observed successful reads survive restarts in
 `/var/lib/gohome-source-alert`; a source with no recorded success gets six hours
-from its first observation. Dashboard-only plugins are excluded. Old Growatt
+from its first observation. Old Growatt
 device data does not trigger an alert while API reads succeed.
 
 The service loads the alert webhook URL through a systemd credential.

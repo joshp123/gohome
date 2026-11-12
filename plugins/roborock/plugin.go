@@ -17,9 +17,6 @@ import (
 //go:embed AGENTS.md
 var agentsMD string
 
-//go:embed dashboard.json
-var dashboardJSON []byte
-
 // Plugin implements the GoHome plugin contract.
 type Plugin struct {
 	client        *Client
@@ -90,10 +87,6 @@ func (p Plugin) AgentsMD() string {
 
 func (p Plugin) OAuthDeclaration() oauth.Declaration {
 	return oauth.Declaration{Provider: "roborock"}
-}
-
-func (p Plugin) Dashboards() []core.Dashboard {
-	return []core.Dashboard{{Name: "overview", Folder: "Devices", JSON: dashboardJSON}}
 }
 
 func (p Plugin) RegisterGRPC(server *grpc.Server) {

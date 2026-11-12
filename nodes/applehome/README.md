@@ -5,8 +5,7 @@ Written by AI on 2026.11.07 by model claude opus 5.5.
 A small Mac app that reads every accessory in Apple Home through
 Apple's HomeKit framework, read-only, and serves it as a gohome node: the gohome
 registry, the `applehome` gRPC service (`proto/plugins/applehome.proto`) with
-reflection, `/metrics/applehome`, `/dashboards/applehome/overview.json` and
-`/health`. What it offers agents is in
+reflection, `/metrics/applehome` and `/health`. What it offers agents is in
 `Sources/AppleHomeNode/Resources/AGENTS.md`. The gohome hub scrapes it through
 `services.gohome.remotePlugins`, like a plugin another gohome runs.
 
@@ -19,7 +18,7 @@ reflection, `/metrics/applehome`, `/dashboards/applehome/overview.json` and
   development build runs only on Macs registered on the team, so the Mac must
   be a registered device and the provisioning profile must list it.
 - **Two halves.** `Sources/AppleHomeNode` (Swift package) is the server: registry,
-  gRPC, metrics, dashboard. It has no HomeKit code and builds with `swift build`.
+  gRPC, metrics. It has no HomeKit code and builds with `swift build`.
   `App/` is the Catalyst app: the HomeKit reader and the entry point.
 - **Read-only by construction.** The reader calls `readValue` and
   `enableNotification` only. There is no `writeValue` anywhere in the code.
@@ -31,7 +30,7 @@ reflection, `/metrics/applehome`, `/dashboards/applehome/overview.json` and
 | `App/HomeKitReader.swift` | Polls every readable characteristic once a minute and takes change notifications |
 | `App/AppDelegate.swift` | Windowless app entry; settings from launch arguments |
 | `Sources/AppleHomeNode/` | Node server, metrics, health; `Generated/` is protoc output |
-| `Sources/AppleHomeNode/Resources/` | AGENTS.md, dashboard, reflection descriptor set |
+| `Sources/AppleHomeNode/Resources/` | AGENTS.md, reflection descriptor set |
 | `Tests/` | Package tests: stale and failed reads never reported as current |
 | `project.yml` | XcodeGen spec for the Catalyst app |
 | `generate.sh` | Regenerates `Generated/` and the descriptor set from `proto/` |

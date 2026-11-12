@@ -15,7 +15,6 @@ type stubPlugin struct {
 	name          string
 	version       string
 	services      []string
-	dashboards    []Dashboard
 	agents        string
 	health        HealthStatus
 	healthMessage string
@@ -43,8 +42,6 @@ func (s stubPlugin) OAuthDeclaration() oauth.Declaration {
 	}
 }
 
-func (s stubPlugin) Dashboards() []Dashboard { return s.dashboards }
-
 func (s stubPlugin) RegisterGRPC(*grpc.Server) {}
 
 func (s stubPlugin) Collectors() []prometheus.Collector { return nil }
@@ -55,13 +52,12 @@ func (s stubPlugin) HealthMessage() string { return s.healthMessage }
 
 func newStubPlugin(id string) stubPlugin {
 	return stubPlugin{
-		id:         id,
-		name:       "Demo",
-		version:    "0.1.0",
-		services:   []string{"gohome.plugins.demo.v1.DemoService"},
-		agents:     "demo agents",
-		health:     HealthHealthy,
-		dashboards: []Dashboard{{Name: "demo", JSON: []byte("{}")}},
+		id:       id,
+		name:     "Demo",
+		version:  "0.1.0",
+		services: []string{"gohome.plugins.demo.v1.DemoService"},
+		agents:   "demo agents",
+		health:   HealthHealthy,
 	}
 }
 
@@ -99,12 +95,6 @@ func TestRegistryDescribePlugin(t *testing.T) {
 	}
 	if resp.Plugin.PluginId != "demo" {
 		t.Fatalf("unexpected plugin id: %s", resp.Plugin.PluginId)
-	}
-	if len(resp.Plugin.Dashboards) != 1 {
-		t.Fatalf("expected 1 dashboard, got %d", len(resp.Plugin.Dashboards))
-	}
-	if resp.Plugin.Dashboards[0].Path != "/dashboards/demo/demo.json" {
-		t.Fatalf("unexpected dashboard path: %s", resp.Plugin.Dashboards[0].Path)
 	}
 }
 
