@@ -110,7 +110,7 @@ ${textprotoProfile "default_profile" cfg.plugins.roborock.defaultProfile}
     }
   '') + optionalString (cfg.plugins.p1_homewizard != null) ''
     p1_homewizard {
-      base_url: ${textprotoString (if cfg.plugins.p1_homewizard.baseUrl == null then "http://192.0.2.48" else cfg.plugins.p1_homewizard.baseUrl)}
+      base_url: ${textprotoString cfg.plugins.p1_homewizard.baseUrl}
 ${p1TariffLine "tariff_import_t1_eur_per_kwh" cfg.plugins.p1_homewizard.tariffImportT1EurPerKwh}
 ${p1TariffLine "tariff_import_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffImportT2EurPerKwh}
 ${p1TariffLine "tariff_export_t1_eur_per_kwh" cfg.plugins.p1_homewizard.tariffExportT1EurPerKwh}
@@ -118,7 +118,7 @@ ${p1TariffLine "tariff_export_t2_eur_per_kwh" cfg.plugins.p1_homewizard.tariffEx
     }
   '' + optionalString (cfg.plugins.airgradient != null) ''
     airgradient {
-      base_url: ${textprotoString (if cfg.plugins.airgradient.baseUrl == null then "http://192.0.2.43" else cfg.plugins.airgradient.baseUrl)}
+      base_url: ${textprotoString cfg.plugins.airgradient.baseUrl}
     }
   '' + optionalString (cfg.plugins.sonos != null) ''
     sonos {
@@ -394,9 +394,9 @@ in
       type = types.nullOr (types.submodule {
         options = {
           baseUrl = mkOption {
-            type = types.nullOr types.str;
-            default = null;
-            description = "P1 Homewizard base URL (default http://192.0.2.48)";
+            type = types.str;
+            example = "http://192.0.2.48";
+            description = "P1 Homewizard base URL";
           };
 
           tariffImportT1EurPerKwh = mkOption {
@@ -432,9 +432,9 @@ in
       type = types.nullOr (types.submodule {
         options = {
           baseUrl = mkOption {
-            type = types.nullOr types.str;
-            default = null;
-            description = "AirGradient base URL (default http://192.0.2.43)";
+            type = types.str;
+            example = "http://192.0.2.43";
+            description = "AirGradient base URL";
           };
         };
       });

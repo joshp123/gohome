@@ -7,10 +7,6 @@ import (
 	airgradientv1 "github.com/joshp123/gohome/proto/gen/plugins/airgradient/v1"
 )
 
-const (
-	defaultBaseURL = "http://192.0.2.43"
-)
-
 // Config defines runtime configuration for the AirGradient client.
 type Config struct {
 	BaseURL string
@@ -23,7 +19,7 @@ func ConfigFromProto(cfg *airgradientv1.AirgradientConfig) (Config, error) {
 
 	baseURL := strings.TrimSpace(cfg.BaseUrl)
 	if baseURL == "" {
-		baseURL = defaultBaseURL
+		return Config{}, fmt.Errorf("airgradient base_url is required")
 	}
 
 	return Config{BaseURL: baseURL}, nil

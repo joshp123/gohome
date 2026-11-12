@@ -7,10 +7,6 @@ import (
 	p1v1 "github.com/joshp123/gohome/proto/gen/plugins/p1_homewizard/v1"
 )
 
-const (
-	defaultBaseURL = "http://192.0.2.48"
-)
-
 // Config defines runtime configuration for the P1 Homewizard client.
 type Config struct {
 	BaseURL string
@@ -36,7 +32,7 @@ func ConfigFromProto(cfg *p1v1.P1HomewizardConfig) (Config, error) {
 
 	baseURL := strings.TrimSpace(cfg.BaseUrl)
 	if baseURL == "" {
-		baseURL = defaultBaseURL
+		return Config{}, fmt.Errorf("p1_homewizard base_url is required")
 	}
 
 	return Config{
