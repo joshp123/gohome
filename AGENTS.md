@@ -23,8 +23,6 @@ Nix‑native home automation. Replace Home Assistant with a deterministic Go sys
 ## In-flight (living log)
 
 
-
-
 ## Data repairs
 
 - Readings deleted from VictoriaMetrics cannot be restored. Save the removed readings first, in a private backup outside this repo.
@@ -38,6 +36,7 @@ network details, installer paperwork, and when people are home. Write code and d
 would be true of any house, with placeholder identities (Mr-Robot style). Never commit
 secrets, tokens or keys.
 
+Notes, facts and analyses about a specific house live in private repos, never here.
 
 ## Commit Policy
 
