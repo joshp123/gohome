@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -33,6 +34,7 @@ type Manager struct {
 	clientID        string
 	clientSecret    string
 	refreshInFlight bool
+	lastRefreshErr  string
 	config          *oauth2.Config
 }
 
@@ -158,7 +160,7 @@ func (m *Manager) TriggerRefresh(ctx context.Context) {
 			m.refreshInFlight = false
 			m.mu.Unlock()
 		}()
-		_ = m.refresh(ctx)
+		m.refreshAndLog(ctx)
 	}()
 }
 
@@ -178,7 +180,24 @@ func (m *Manager) refreshIfNeeded(ctx context.Context, threshold time.Duration) 
 		m.mu.Unlock()
 	}()
 
-	_ = m.refresh(ctx)
+	m.refreshAndLog(ctx)
+}
+
+// refreshAndLog logs a refresh failure when it first appears or changes, and the recovery after one.
+// Callers hold refreshInFlight, so only one runs at a time.
+func (m *Manager) refreshAndLog(ctx context.Context) {
+	msg := ""
+	if err := m.refresh(ctx); err != nil {
+		msg = err.Error()
+	}
+	switch {
+	case msg == m.lastRefreshErr:
+	case msg == "":
+		log.Printf("oauth %s: token refresh recovered", m.decl.Provider)
+	default:
+		log.Printf("oauth %s: %s", m.decl.Provider, msg)
+	}
+	m.lastRefreshErr = msg
 }
 
 func (m *Manager) refresh(ctx context.Context) error {
