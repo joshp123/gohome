@@ -15,4 +15,8 @@ type Declaration struct {
 	DeviceTokenURL string
 	Scope          string
 	StatePath      string
+	// ClientID and ClientSecret are set only for a provider that publishes its client credentials.
+	// Such a provider needs no bootstrap file.
+	ClientID     string
+	ClientSecret string
 }

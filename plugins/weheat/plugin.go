@@ -42,14 +42,13 @@ func NewPlugin(cfg *weheatv1.WeheatConfig, oauthCfg *configv1.OAuthConfig) (Plug
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
 	}
 
+	decl := Plugin{}.OAuthDeclaration()
 	bootstrap := oauth.Bootstrap{
 		SchemaVersion: 1,
-		ClientID:      weheatClientID,
-		ClientSecret:  weheatClientSecret,
-		Scope:         "openid offline_access",
+		ClientID:      decl.ClientID,
+		ClientSecret:  decl.ClientSecret,
+		Scope:         decl.Scope,
 	}
-
-	decl := Plugin{}.OAuthDeclaration()
 	client, err := NewClient(runtimeCfg, bootstrap, decl, oauthCfg)
 	if err != nil {
 		return Plugin{health: core.HealthError, healthMessage: err.Error()}, true
@@ -83,6 +82,8 @@ func (p Plugin) OAuthDeclaration() oauth.Declaration {
 		TokenURL:     "https://auth.weheat.nl/auth/realms/Weheat/protocol/openid-connect/token/",
 		Scope:        "openid offline_access",
 		StatePath:    "/var/lib/gohome/weheat-credentials.json",
+		ClientID:     weheatClientID,
+		ClientSecret: weheatClientSecret,
 	}
 }
 

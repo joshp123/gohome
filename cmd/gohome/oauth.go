@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -103,11 +104,7 @@ func authCodeCmd(args []string) {
 		fatal("oauth", fmt.Errorf("provider %q missing scope", decl.Provider))
 	}
 
-	bootstrapPath, err := resolveBootstrapPath(cfg, *provider, *bootstrapFile)
-	if err != nil {
-		fatal("oauth", err)
-	}
-	bootstrap, err := oauth.LoadBootstrap(bootstrapPath)
+	bootstrap, err := resolveBootstrap(cfg, decl, *bootstrapFile)
 	if err != nil {
 		fatal("oauth", err)
 	}
@@ -128,7 +125,8 @@ func authCodeCmd(args []string) {
 		fatal("oauth", err)
 	}
 
-	authURL := conf.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	verifier := oauth2.GenerateVerifier()
+	authURL := conf.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.S256ChallengeOption(verifier))
 	printAuthPrompt(*jsonOut, "Open this URL to authorize:", authURL, "")
 
 	if !*noOpen {
@@ -143,7 +141,7 @@ func authCodeCmd(args []string) {
 		fatal("oauth", err)
 	}
 
-	token, err := conf.Exchange(ctx, code)
+	token, err := conf.Exchange(ctx, code, oauth2.VerifierOption(verifier))
 	if err != nil {
 		fatal("oauth", err)
 	}
@@ -214,11 +212,7 @@ func deviceCmd(args []string) {
 		fatal("oauth", fmt.Errorf("provider %q missing scope", decl.Provider))
 	}
 
-	bootstrapPath, err := resolveBootstrapPath(cfg, *provider, *bootstrapFile)
-	if err != nil {
-		fatal("oauth", err)
-	}
-	bootstrap, err := oauth.LoadBootstrap(bootstrapPath)
+	bootstrap, err := resolveBootstrap(cfg, decl, *bootstrapFile)
 	if err != nil {
 		fatal("oauth", err)
 	}
@@ -359,11 +353,18 @@ func lookupDeclaration(cfg *configv1.Config, provider string) (oauth.Declaration
 	return oauth.Declaration{}, fmt.Errorf("unknown provider %q (available: %s)", provider, strings.Join(available, ", "))
 }
 
-func resolveBootstrapPath(cfg *configv1.Config, provider, override string) (string, error) {
-	if override != "" {
-		return override, nil
+func resolveBootstrap(cfg *configv1.Config, decl oauth.Declaration, override string) (oauth.Bootstrap, error) {
+	if override == "" && decl.ClientID != "" {
+		return oauth.Bootstrap{SchemaVersion: oauth.SchemaVersion, ClientID: decl.ClientID, ClientSecret: decl.ClientSecret, Scope: decl.Scope}, nil
 	}
-	return config.BootstrapPathForProvider(cfg, provider)
+	path := override
+	if path == "" {
+		var err error
+		if path, err = config.BootstrapPathForProvider(cfg, decl.Provider); err != nil {
+			return oauth.Bootstrap{}, err
+		}
+	}
+	return oauth.LoadBootstrap(path)
 }
 
 func waitForAuthCode(ctx context.Context, redirectURL, state string, jsonOut bool) (string, error) {
@@ -440,6 +441,8 @@ func listenForAuthCode(ctx context.Context, redirect *url.URL, state string) (st
 	}
 }
 
+var codeParam = regexp.MustCompile(`[?&]code=([^&#]+)`)
+
 func readCodeFromStdin() (string, error) {
 	reader := bufio.NewReader(os.Stdin)
 	line, err := reader.ReadString('\n')
@@ -451,8 +454,11 @@ func readCodeFromStdin() (string, error) {
 		return "", fmt.Errorf("no code provided")
 	}
 
-	if parsed, err := url.Parse(line); err == nil && parsed.Query().Get("code") != "" {
-		return parsed.Query().Get("code"), nil
+	// The code can sit inside another URL's query, as on Home Assistant's redirect page.
+	if unescaped, err := url.QueryUnescape(line); err == nil {
+		if match := codeParam.FindStringSubmatch(unescaped); match != nil {
+			return match[1], nil
+		}
 	}
 
 	return line, nil
@@ -674,7 +680,8 @@ func persistLoadedState(ctx context.Context, cfg *configv1.Config, decl oauth.De
 	output.StatePath = persistResult.StatePath
 	output.BlobPersisted = persistResult.BlobSaved
 
-	if opts.persistAgenix {
+	// A provider with published client credentials has no bootstrap secret to keep.
+	if opts.persistAgenix && decl.ClientID == "" {
 		agenixPath, err := persistAgenixBootstrap(ctx, decl.Provider, bootstrap, opts)
 		if err != nil {
 			return output, err

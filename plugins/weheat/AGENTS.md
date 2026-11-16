@@ -14,7 +14,7 @@ Weheat controls cloud telemetry for Weheat heat pumps (Sparrow/BlackBird/Flint).
 
 ## Limits
 - Cloud polling only (no LAN access).
-- OAuth credentials required (Keycloak device flow recommended).
+- Needs a WeHeat account sign-in (OAuth). The client credentials are built in.
 - No control endpoints discovered (read-only).
 
 ## Methods
@@ -39,15 +39,37 @@ Weheat controls cloud telemetry for Weheat heat pumps (Sparrow/BlackBird/Flint).
 Canonical config file: `/etc/gohome/config.pbtxt` (textproto).
 
 Fields:
-- `weheat.bootstrap_file` (required; JSON with client_id/client_secret + refresh_token)
 - `weheat.base_url` (optional; defaults to `https://api.weheat.nl/third_party`)
 - `oauth.blob_*` (required for refresh token persistence)
 
-Auth flow:
-- `gohome oauth device --provider weheat` (recommended)
-- `gohome oauth auth-code --provider weheat --redirect-url <url>`
+State file: `/var/lib/gohome/weheat-credentials.json`
 
-State file (written by runner): `/var/lib/gohome/weheat-credentials.json`
+## Signing in
+
+Written by AI on 2026.11.16 by model claude opus 5.5.
+
+gohome uses WeHeat's published Home Assistant client (`HomeAssistantAPI`),
+built into the plugin, so WeHeat needs no bootstrap file and no agenix secret.
+That client allows only the browser sign-in (auth-code) flow with PKCE, and
+only Home Assistant's redirect address. WeHeat rejects `localhost`.
+
+Sign in on the host, as root:
+
+```
+gohome oauth auth-code --provider weheat --redirect-url https://my.home-assistant.io/redirect/oauth --no-open
+```
+
+Open the printed URL and sign in to WeHeat. The browser ends on a
+my.home-assistant.io page; paste that page's full address at the prompt (the
+code is inside it). The command writes the state file and the blob copy. Then
+`chown gohome:gohome` the state file and restart `gohome`: the running service
+keeps the old token in memory.
+
+A refresh that fails with `invalid_grant` "Stale token" means WeHeat revoked
+every earlier sign-in (a password change, signing out everywhere, or WeHeat
+itself). Retrying cannot recover it; sign in again. gohome logs refresh
+failures. Upstream reference: Home Assistant's `weheat` integration
+(`homeassistant/components/weheat`), which uses the same client.
 
 ## API access and historical data
 
