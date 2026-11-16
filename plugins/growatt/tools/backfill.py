@@ -2,7 +2,7 @@
 """Paced, resumable MIN history capture, import and verification.
 
 Uses the hub's existing token over SSH; never stores or prints it. Requires the
-Go import-file converter. Raw responses, backups and health evidence stay in a
+Go import-file converter. Raw responses and health evidence stay in a
 private directory outside the repository. No device settings are written.
 """
 import argparse
@@ -131,9 +131,6 @@ def main():
 
     try:
         health()
-        backup = args.directory / 'before-all.jsonl'
-        if not backup.exists():
-            backup.write_bytes(http(args.vm + '/api/v1/export', {'match[]': selector}))
         day, end = dt.date.fromisoformat(args.start), dt.date.fromisoformat(args.end)
         while day <= end:
             date = day.isoformat()

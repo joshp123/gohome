@@ -13,10 +13,7 @@ start a separate token refresher. Request seven-day windows, at Hour interval,
 and inspect the first and last returned buckets to establish available history.
 The API can include the end bucket: deduplicate by metric, labels and timestamp.
 
-Before importing, export all affected `gohome_weheat_history_log_*` and
-`gohome_weheat_history_energy_*` series from VictoriaMetrics to a private backup,
-verify its gzip integrity and record its checksum. Retain source responses too.
-Compare timestamps against stored data and import only missing observations;
+Retain the source responses. Compare timestamps against stored data and import only missing observations;
 never delete live series or overwrite the previous sentinel repair.
 
 Use the source `timeBucket` as the sample timestamp and preserve `interval`.
@@ -30,8 +27,7 @@ Verify imported counts and sample values against the retained API responses.
 Written by AI on 2026.11.08 by model gpt-6-astra.
 
 `recover_history.py` prepares missing hourly observations from complete hub
-responses. It archives each seven-day response, saves the affected history's
-compressed backup and checksum, preserves existing samples (including conflicts),
+responses. It archives each seven-day response, preserves existing samples (including conflicts),
 and writes `missing.jsonl` and `verification.json`. It uses the same metric-name
 conversion and label set as the existing history, so resumed work does not create
 a second copy under different names. It skips each thermostat field's entire
@@ -54,8 +50,7 @@ Exact checks after the combined deployment:
    Compare its keys with the vendor debugger schema; absent fields are not zero.
 3. Compare device state/status metrics with ListHeatPumps and last-cooling epoch
    seconds with GetLatestLog when the latter returns a timestamp.
-4. Prepare the documented recovery interval, inspect missing counts and backup
-   integrity, then import and verify. Probe earlier explicit windows to establish
+4. Prepare the documented recovery interval, inspect missing counts, then import and verify. Probe earlier explicit windows to establish
    the provider's retention and extend only where actual buckets exist. Keep
    recovered hourly aggregates separate from instantaneous live readings.
 5. Confirm source-value equality after import, unchanged existing observations,

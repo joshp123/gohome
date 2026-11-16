@@ -155,7 +155,7 @@ is exclusive. The first run prepares an import without writing VictoriaMetrics:
 python3 -B plugins/tado/recover_history.py --host root@hub.example --vm 'http://<hub>/vm' --start 2026-11-07 --end 2026-11-08 --directory /private/history/tado
 ```
 
-It saves a gzip backup plus SHA-256, daily source reports, `missing.jsonl` and
+It saves daily source reports, `missing.jsonl` and
 `verification.json`. Repeat the same command with `--import` to write and verify.
 Existing timestamps, including conflicting values, are left untouched and counted.
 The actual quota header must leave enough calls for the collector until reset
@@ -169,7 +169,7 @@ mode and weather intervals retain categorical labels and the source interval's
 duration in seconds at its start timestamp. Sunny is boolean, not solar intensity.
 No null values or missing timestamps become zero. Sub-1% humidity stays sub-1%.
 The Go backfill converter follows the same principles for its supported fields;
-use the RPC recovery script for backups, quota checks and safe resumption.
+use the RPC recovery script for quota checks and safe resumption.
 
 Post-deploy checks:
 1. Read ZONES, ZONE_STATES and WEATHER through GetSourceData. Record quota headers;
@@ -180,6 +180,6 @@ Post-deploy checks:
    retain only health metadata, not device values.
 3. Prepare one complete day's history for all zones. Inspect source point and
    interval timestamps, category names, humidity units and the candidate series.
-4. Expand to the available history within quota; review the backup checksum and
-   missing-sample counts, then import. Require matching post-import values and
+4. Expand to the available history within quota; review the missing-sample
+   counts, then import. Require matching post-import values and
    counts; rerunning must prepare zero already-imported samples.

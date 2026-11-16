@@ -1,8 +1,6 @@
 """Read hub RPCs, archive responses, and import only missing source observations."""
 import argparse
 import datetime as dt
-import gzip
-import hashlib
 import json
 import pathlib
 import re
@@ -69,17 +67,8 @@ def recover(source, fetch):
     if args.end <= args.start:
         parser.error("end must be after start")
     args.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-    # Never replace a backup on a resumed run.
+    # Only missing samples are imported; stored ones are never overwritten, so no backup is needed.
     selector = '{__name__=~"gohome_' + source + '_history_.*"}'
-    backup = args.directory / "before.jsonl.gz"
-    if not backup.exists():
-        with gzip.open(backup, "wb") as target:
-            target.write(export(args.vm, selector))
-    with gzip.open(backup, "rb") as source_file:
-        original = source_file.read()
-    observations(original)
-    (args.directory / "backup.sha256").write_text(hashlib.sha256(backup.read_bytes()).hexdigest() + "\n")
-    # Re-read current storage too: never overwrite another recovery's work.
     existing = observations(export(args.vm, selector))
     proposed = {}
     conflicts = set()
@@ -106,7 +95,7 @@ def recover(source, fetch):
                 break
             time.sleep(1)
         if any(actual.get(identity) != value for identity, value in proposed.items()):
-            raise ValueError("import verification failed; keep source archive and backup")
+            raise ValueError("import verification failed; keep the source archive")
         report["imported_samples"] = len(rows)
     (args.directory / "verification.json").write_text(json.dumps(report, indent=2)+"\n")
     print(json.dumps(report))
