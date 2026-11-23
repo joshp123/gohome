@@ -1,0 +1,53 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - bidichk
+    - bodyclose
+    - depguard
+    - durationcheck
+    - errcheck
+    - errorlint
+    - exhaustive
+    - fatcontext
+    - gocheckcompilerdirectives
+    - govet
+    - ineffassign
+    - makezero
+    - nilnesserr
+    - nolintlint
+    - nosprintfhostport
+    - reassign
+    - staticcheck
+    - unused
+  settings:
+    depguard:
+      rules:
+        internal-core-boundary:
+          files:
+            - "**/internal/core/**/*.go"
+            - "**/internal/oauth/**/*.go"
+            - "**/internal/rate/**/*.go"
+            - "**/internal/router/**/*.go"
+            - "**/internal/server/**/*.go"
+          deny:
+            - pkg: "github.com/joshp123/gohome/plugins/"
+              desc: "core infrastructure must stay plugin-neutral and never import a plugin"
+            - pkg: "github.com/joshp123/gohome/cmd/"
+              desc: "internal packages must not import cmd binaries"
+        plugin-no-cmd-import:
+          files:
+            - "**/plugins/**/*.go"
+          deny:
+            - pkg: "github.com/joshp123/gohome/cmd/"
+              desc: "plugins implement core contracts and must not import cmd binaries"
+    exhaustive:
+      default-signifies-exhaustive: true
+    nolintlint:
+      require-explanation: true
+      require-specific: true

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+
+if command -v buf >/dev/null 2>&1; then
+  echo "lint: proto (buf)"
+  buf lint
+else
+  echo "lint: skipping buf (install via devenv shell or nix develop)" >&2
+fi
+
+if command -v golangci-lint >/dev/null 2>&1; then
+  echo "lint: go (golangci-lint)"
+  golangci-lint config verify --config "$root/.golangci.yml"
+  golangci-lint run --config "$root/.golangci.yml" ./...
+else
+  echo "lint: golangci-lint not found; falling back to go vet" >&2
+  go vet ./...
+fi
+
+echo "check-lint: ok"
