@@ -4,16 +4,37 @@ import (
 	"context"
 	"log"
 	"math"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/joshp123/gohome/internal/core"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+var (
+	powerFailureDurationDesc = prometheus.NewDesc(
+		"gohome_p1_homewizard_power_failure_duration_seconds",
+		"Duration of a long power failure from the DSMR 1-0:99.97.0 event log, timestamped at restoration (seconds)",
+		nil,
+		nil,
+	)
+	deviceInfoDesc = prometheus.NewDesc(
+		"gohome_p1_homewizard_info",
+		"P1 Homewizard meter and dongle firmware metadata",
+		[]string{"firmware", "smr_version", "meter_model"},
+		nil,
+	)
+)
+
 // MetricsCollector collects P1 Homewizard power metrics.
 type MetricsCollector struct {
 	client  *Client
 	tariffs Tariffs
+
+	infoMu      sync.Mutex
+	cachedInfo  *Info
+	infoFetched time.Time
 
 	wifiStrengthPercent prometheus.Gauge
 	activePowerW        prometheus.Gauge
@@ -33,6 +54,9 @@ type MetricsCollector struct {
 	voltageSwellL1Count prometheus.Gauge
 	anyPowerFailCount   prometheus.Gauge
 	longPowerFailCount  prometheus.Gauge
+
+	lastPowerFailTimestamp prometheus.Gauge
+	lastPowerFailDuration  prometheus.Gauge
 
 	tariffImportT1  prometheus.Gauge
 	tariffImportT2  prometheus.Gauge
@@ -125,6 +149,14 @@ func NewMetricsCollector(client *Client, tariffs Tariffs) *MetricsCollector {
 			Name: "gohome_p1_homewizard_long_power_fail_count",
 			Help: "Long power fail count",
 		}),
+		lastPowerFailTimestamp: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "gohome_p1_homewizard_last_power_failure_timestamp_seconds",
+			Help: "Restoration timestamp of the latest long power failure from DSMR 1-0:99.97.0 (epoch seconds)",
+		}),
+		lastPowerFailDuration: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "gohome_p1_homewizard_last_power_failure_duration_seconds",
+			Help: "Duration of the latest long power failure from DSMR 1-0:99.97.0 (seconds)",
+		}),
 		tariffImportT1: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "gohome_p1_homewizard_tariff_import_t1_eur_per_kwh",
 			Help: "Configured import tariff 1 (EUR/kWh)",
@@ -194,6 +226,10 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	c.voltageSagL1Count.Describe(ch)
 	c.voltageSwellL1Count.Describe(ch)
 	c.anyPowerFailCount.Describe(ch)
+	ch <- powerFailureDurationDesc
+	ch <- deviceInfoDesc
+	c.lastPowerFailTimestamp.Describe(ch)
+	c.lastPowerFailDuration.Describe(ch)
 	c.longPowerFailCount.Describe(ch)
 	c.tariffImportT1.Describe(ch)
 	c.tariffImportT2.Describe(ch)
@@ -262,6 +298,9 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	lastUpdated := time.Now()
+	c.lastPowerFailTimestamp.Set(math.NaN())
+	c.lastPowerFailDuration.Set(math.NaN())
+	var powerFailureEvents []PowerFailureEvent
 	telegram, tErr := c.client.Telegram(ctx)
 	if tErr != nil {
 		c.telegramSuccess.Set(0)
@@ -276,6 +315,17 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 			if metrics.Timestamp != nil {
 				lastUpdated = *metrics.Timestamp
 			}
+			powerFailureEvents = metrics.PowerFailureEvents
+			if len(powerFailureEvents) > 0 {
+				latest := powerFailureEvents[0]
+				for _, ev := range powerFailureEvents[1:] {
+					if ev.RestoredAt.After(latest.RestoredAt) {
+						latest = ev
+					}
+				}
+				c.lastPowerFailTimestamp.Set(float64(latest.RestoredAt.Unix()))
+				c.lastPowerFailDuration.Set(latest.DurationSeconds)
+			}
 		} else {
 			c.telegramSuccess.Set(0)
 			c.importPowerW.Set(math.NaN())
@@ -285,6 +335,47 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	c.lastUpdated.Set(float64(lastUpdated.Unix()))
 	c.collectAll(ch)
+	seen := make(map[int64]struct{}, len(powerFailureEvents))
+	for _, ev := range powerFailureEvents {
+		ts := ev.RestoredAt.Unix()
+		if _, exists := seen[ts]; exists {
+			continue
+		}
+		seen[ts] = struct{}{}
+		metric := prometheus.MustNewConstMetric(powerFailureDurationDesc, prometheus.GaugeValue, ev.DurationSeconds)
+		ch <- prometheus.NewMetricWithTimestamp(ev.RestoredAt, metric)
+	}
+	if info := c.deviceInfo(ctx, data); info != nil {
+		ch <- prometheus.MustNewConstMetric(
+			deviceInfoDesc,
+			prometheus.GaugeValue,
+			1,
+			info.Firmware,
+			strconv.Itoa(info.SMRVersion),
+			info.MeterModel,
+		)
+	}
+}
+
+func (c *MetricsCollector) deviceInfo(ctx context.Context, data Data) *Info {
+	c.infoMu.Lock()
+	defer c.infoMu.Unlock()
+	if c.cachedInfo != nil && time.Since(c.infoFetched) < time.Hour {
+		return c.cachedInfo
+	}
+	info, err := c.client.Info(ctx)
+	if err != nil {
+		return c.cachedInfo
+	}
+	if info.SMRVersion == 0 && data.SMRVersion != nil {
+		info.SMRVersion = *data.SMRVersion
+	}
+	if info.MeterModel == "" && data.MeterModel != nil {
+		info.MeterModel = *data.MeterModel
+	}
+	c.cachedInfo = &info
+	c.infoFetched = time.Now()
+	return c.cachedInfo
 }
 
 func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
@@ -306,6 +397,8 @@ func (c *MetricsCollector) collectAll(ch chan<- prometheus.Metric) {
 	core.CollectPresent(c.voltageSwellL1Count, ch)
 	core.CollectPresent(c.anyPowerFailCount, ch)
 	core.CollectPresent(c.longPowerFailCount, ch)
+	core.CollectPresent(c.lastPowerFailTimestamp, ch)
+	core.CollectPresent(c.lastPowerFailDuration, ch)
 	c.tariffImportT1.Collect(ch)
 	c.tariffImportT2.Collect(ch)
 	c.tariffExportT1.Collect(ch)
