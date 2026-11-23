@@ -66,10 +66,15 @@ func p1Cmd(ctx context.Context, conn *grpc.ClientConn, out render.Renderer, args
 			pairs = append(pairs, render.KeyValue{Key: "long_power_failures", Value: fmt.Sprintf("%.0f", r.GetLongPowerFailCount())})
 		}
 		if len(r.PowerFailureEvents) > 0 {
-			last := r.PowerFailureEvents[len(r.PowerFailureEvents)-1]
+			latest := r.PowerFailureEvents[0]
+			for _, ev := range r.PowerFailureEvents[1:] {
+				if ev.GetRestoredAt().AsTime().After(latest.GetRestoredAt().AsTime()) {
+					latest = ev
+				}
+			}
 			pairs = append(pairs, render.KeyValue{
 				Key:   "last_power_failure",
-				Value: fmt.Sprintf("%s (%.0fs)", last.GetRestoredAt().AsTime().Local().Format(time.RFC3339), last.GetDurationSeconds()),
+				Value: fmt.Sprintf("%s (%.0fs)", latest.GetRestoredAt().AsTime().Local().Format(time.RFC3339), latest.GetDurationSeconds()),
 			})
 		}
 		_ = out.WriteKeyValues(pairs)
