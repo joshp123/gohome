@@ -463,6 +463,9 @@ func (c *MetricsCollector) applyLog(labels prometheus.Labels, log *latestLog) {
 		if thermostatFields[field.jsonName] && val == thermostatNoReading {
 			continue
 		}
+		if flowSentinelFields[field.jsonName] && val == flowNoReadingSentinel {
+			continue
+		}
 		metric.With(labels).Set(val)
 	}
 }
@@ -473,6 +476,11 @@ func (c *MetricsCollector) applyLog(labels prometheus.Labels, log *latestLog) {
 const thermostatNoReading = -1
 
 var thermostatFields = map[string]bool{"tRoom": true, "tRoomTarget": true}
+
+// Weheat reports 255 (0xFF) for pump flow percentage when a pump channel is idle/unreported.
+const flowNoReadingSentinel = 255
+
+var flowSentinelFields = map[string]bool{"dhwFlow": true, "centralHeatingFlow": true}
 
 func (c *MetricsCollector) applyEnergy(labels prometheus.Labels, energy *energyTotals) {
 	if energy == nil {

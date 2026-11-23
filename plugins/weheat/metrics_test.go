@@ -1,6 +1,10 @@
 package weheat
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 func TestBuildLogFieldsIncludesCurrentUpstreamPowerFields(t *testing.T) {
 	names := make(map[string]struct{})
@@ -43,5 +47,30 @@ func TestBuildEnergyLogFieldsIncludesAveragePowerFields(t *testing.T) {
 		if _, ok := names[metric]; !ok {
 			t.Fatalf("missing energy log metric %q", metric)
 		}
+	}
+}
+
+func TestApplyLogDropsFlow255SentinelAndKeepsValidFlow(t *testing.T) {
+	collector := NewMetricsCollector(nil)
+	labels := prometheus.Labels{"heat_pump_id": "example", "serial_number": "example", "name": "example", "model": "example"}
+
+	sentinel := 255
+	valid := 38
+	collector.applyLog(labels, &latestLog{
+		DHWFlow:            &sentinel,
+		CentralHeatingFlow: &valid,
+	})
+
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(collector.logMetrics["dhwFlow"], collector.logMetrics["centralHeatingFlow"])
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(families) != 1 || families[0].GetName() != "gohome_weheat_log_central_heating_flow" {
+		t.Fatalf("expected only central_heating_flow (dhwFlow=255 dropped), got %v", families)
+	}
+	if got := families[0].Metric[0].Gauge.GetValue(); got != 38.0 {
+		t.Fatalf("central_heating_flow = %v, want 38", got)
 	}
 }
