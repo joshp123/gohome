@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type service struct {
@@ -50,6 +51,111 @@ func (s *service) GetHeatPump(ctx context.Context, req *weheatv1.GetHeatPumpRequ
 		return nil, status.Errorf(codes.Internal, "get heat pump: %v", err)
 	}
 	return &weheatv1.GetHeatPumpResponse{HeatPump: toHeatPumpDetail(pump)}, nil
+}
+
+func (s *service) GetLatestTelemetry(ctx context.Context, req *weheatv1.GetLatestTelemetryRequest) (*weheatv1.GetLatestTelemetryResponse, error) {
+	if s.client == nil {
+		return nil, status.Error(codes.FailedPrecondition, "weheat client not configured")
+	}
+	heatPumpID := req.GetHeatPumpId()
+	if heatPumpID == "" {
+		pumps, err := s.client.ListHeatPumps(ctx, nil)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "list heat pumps: %v", err)
+		}
+		if len(pumps) == 0 {
+			return nil, status.Error(codes.NotFound, "no heat pumps found")
+		}
+		heatPumpID = pumps[0].ID
+	}
+	entry, err := s.client.LatestLog(ctx, heatPumpID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get latest telemetry: %v", err)
+	}
+	telemetry := &weheatv1.HeatPumpTelemetry{
+		HeatPumpId:           entry.HeatPumpID,
+		Online:               entry.IsOnline,
+		WaterOutCelsius:      entry.TWaterOut,
+		WaterInCelsius:       entry.TWaterIn,
+		WaterHouseInCelsius:  entry.TWaterHouseIn,
+		WaterSetpointCelsius: entry.TThermostatSetpoint,
+		OutsideAirCelsius:    entry.TAirIn,
+		ExhaustAirCelsius:    entry.TAirOut,
+		TankTopCelsius:       entry.T1,
+		TankBottomCelsius:    entry.T2,
+		TankTargetCelsius:    entry.DhwTargetTemperature,
+		RoomCelsius:          entry.TRoom,
+		RoomTargetCelsius:    entry.TRoomTarget,
+		CompressorRpm:        entry.RPM,
+		WaterPumpActive:      entry.ControlBridgeStatusDecodedWaterPump,
+		DhwValveActive:       entry.ControlBridgeStatusDecodedDHWValve,
+		ElectricHeaterActive: entry.ControlBridgeStatusDecodedElectricHeater,
+	}
+	if !entry.Timestamp.IsZero() {
+		telemetry.ObservedAt = timestamppb.New(entry.Timestamp)
+	}
+	if entry.State != nil {
+		v := int32(*entry.State)
+		telemetry.OperatingStateCode = &v
+	}
+	if entry.CMMassPowerIn != nil {
+		v := int32(*entry.CMMassPowerIn)
+		telemetry.ElectricityInWatts = &v
+	}
+	if entry.CMMassPowerOut != nil {
+		v := int32(*entry.CMMassPowerOut)
+		telemetry.HeatOutWatts = &v
+	}
+	if entry.CentralHeatingFlow != nil && *entry.CentralHeatingFlow < 255 {
+		v := int32(*entry.CentralHeatingFlow)
+		telemetry.CentralHeatingFlowPercent = &v
+	}
+	if entry.DHWFlow != nil && *entry.DHWFlow < 255 {
+		v := int32(*entry.DHWFlow)
+		telemetry.DhwFlowPercent = &v
+	}
+	if entry.Error != nil {
+		v := int32(*entry.Error)
+		telemetry.ErrorCode = &v
+	}
+	return &weheatv1.GetLatestTelemetryResponse{Telemetry: telemetry}, nil
+}
+
+func (s *service) GetEnergySummary(ctx context.Context, req *weheatv1.GetEnergySummaryRequest) (*weheatv1.GetEnergySummaryResponse, error) {
+	if s.client == nil {
+		return nil, status.Error(codes.FailedPrecondition, "weheat client not configured")
+	}
+	heatPumpID := req.GetHeatPumpId()
+	if heatPumpID == "" {
+		pumps, err := s.client.ListHeatPumps(ctx, nil)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "list heat pumps: %v", err)
+		}
+		if len(pumps) == 0 {
+			return nil, status.Error(codes.NotFound, "no heat pumps found")
+		}
+		heatPumpID = pumps[0].ID
+	}
+	totals, err := s.client.EnergyTotals(ctx, heatPumpID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get energy summary: %v", err)
+	}
+	return &weheatv1.GetEnergySummaryResponse{
+		Summary: &weheatv1.HeatPumpEnergySummary{
+			HeatPumpId:                   totals.HeatPumpID,
+			ElectricityInHeatingKwh:      totals.TotalEInHeating,
+			ElectricityInDhwKwh:          totals.TotalEInDHW,
+			ElectricityInStandbyKwh:      totals.TotalEInStandby,
+			ElectricityInHeatingDefrostKwh: totals.TotalEInHeatingDefrost,
+			ElectricityInDhwDefrostKwh:   totals.TotalEInDHWDefrost,
+			ElectricityInCoolingKwh:      totals.TotalEInCooling,
+			HeatOutHeatingKwh:            totals.TotalEOutHeating,
+			HeatOutDhwKwh:                totals.TotalEOutDHW,
+			HeatOutHeatingDefrostKwh:     totals.TotalEOutHeatingDefrost,
+			HeatOutDhwDefrostKwh:         totals.TotalEOutDHWDefrost,
+			HeatOutCoolingKwh:            totals.TotalEOutCooling,
+		},
+	}, nil
 }
 
 func (s *service) GetLatestLog(ctx context.Context, req *weheatv1.GetLatestLogRequest) (*weheatv1.GetLatestLogResponse, error) {

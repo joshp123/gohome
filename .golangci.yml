@@ -15,6 +15,7 @@ linters:
     - errorlint
     - exhaustive
     - fatcontext
+    - forbidigo
     - gocheckcompilerdirectives
     - govet
     - ineffassign
@@ -26,6 +27,17 @@ linters:
     - staticcheck
     - unused
   settings:
+    errcheck:
+      exclude-functions:
+        - (io.Closer).Close
+        - (io.ReadCloser).Close
+        - (net.Conn).Close
+        - (*os.File).Close
+        - (*github.com/minio/minio-go/v7.Object).Close
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - os.RemoveAll
     depguard:
       rules:
         internal-core-boundary:
@@ -33,6 +45,8 @@ linters:
             - "**/internal/core/**/*.go"
             - "**/internal/oauth/**/*.go"
             - "**/internal/rate/**/*.go"
+            - "**/internal/render/**/*.go"
+            - "**/internal/actuation/**/*.go"
             - "**/internal/router/**/*.go"
             - "**/internal/server/**/*.go"
           deny:
@@ -48,6 +62,27 @@ linters:
               desc: "plugins implement core contracts and must not import cmd binaries"
     exhaustive:
       default-signifies-exhaustive: true
+    forbidigo:
+      forbid:
+        - pattern: '^(fmt\.Print|fmt\.Printf|fmt\.Println|log\.Print|log\.Printf|log\.Println)$'
+          msg: "use internal/render for CLI output instead of direct fmt/log printing"
     nolintlint:
       require-explanation: true
       require-specific: true
+    staticcheck:
+      checks:
+        - all
+        - -QF1001
+        - -QF1002
+        - -QF1003
+        - -ST1000
+        - -ST1003
+        - -ST1021
+  exclusions:
+    rules:
+      - path-except: "^cmd/(gohome-cli|gohome-act)/"
+        linters:
+          - forbidigo
+      - path: "_test\\.go$"
+        linters:
+          - errcheck

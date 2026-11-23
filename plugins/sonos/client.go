@@ -3,6 +3,7 @@ package sonos
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -129,7 +130,7 @@ func soapValues(payload []byte) (map[string]string, error) {
 	var text strings.Builder
 	for {
 		token, err := decoder.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return values, nil
 		}
 		if err != nil {

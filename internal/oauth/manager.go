@@ -21,10 +21,9 @@ var ErrScopeMismatch = errors.New("oauth scope mismatch")
 
 // Manager manages OAuth refresh tokens and access token caching.
 type Manager struct {
-	decl          Declaration
-	bootstrapPath string
-	blobStore     BlobStore
-	httpClient    *http.Client
+	decl       Declaration
+	blobStore  BlobStore
+	httpClient *http.Client
 
 	mu              sync.Mutex
 	accessToken     string

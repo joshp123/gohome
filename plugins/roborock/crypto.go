@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/md5" // nolint:gosec
+	"crypto/md5" //nolint:gosec // Roborock local wire protocol requires MD5
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -17,7 +17,7 @@ const (
 )
 
 func md5Bytes(data []byte) []byte {
-	sum := md5.Sum(data) // nolint:gosec
+	sum := md5.Sum(data) //nolint:gosec // Roborock local wire protocol requires MD5
 	return sum[:]
 }
 

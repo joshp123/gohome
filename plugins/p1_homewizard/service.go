@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	p1v1 "github.com/joshp123/gohome/proto/gen/plugins/p1_homewizard/v1"
 )
@@ -35,6 +36,53 @@ func (s *service) GetInfo(ctx context.Context, _ *p1v1.GetInfoRequest) (*p1v1.Ge
 		FirmwareVersion: info.Firmware,
 		ApiVersion:      info.APIVersion,
 	}}, nil
+}
+
+func (s *service) GetReading(ctx context.Context, _ *p1v1.GetReadingRequest) (*p1v1.GetReadingResponse, error) {
+	if s.client == nil {
+		return nil, status.Error(codes.FailedPrecondition, "p1_homewizard client not configured")
+	}
+	data, err := s.client.Data(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get reading: %v", err)
+	}
+	reading := &p1v1.SmartMeterReading{
+		MeterModel:            data.MeterModel,
+		WifiStrengthPercent:   data.WifiStrengthPercent,
+		TotalImportKwh:        data.TotalImportKWh,
+		TotalImportT1Kwh:      data.TotalImportT1KWh,
+		TotalImportT2Kwh:      data.TotalImportT2KWh,
+		TotalExportKwh:        data.TotalExportKWh,
+		TotalExportT1Kwh:      data.TotalExportT1KWh,
+		TotalExportT2Kwh:      data.TotalExportT2KWh,
+		ActivePowerWatts:      data.ActivePowerW,
+		ActivePowerL1Watts:    data.ActivePowerL1W,
+		ActiveCurrentAmperes:  data.ActiveCurrentA,
+		ActiveCurrentL1Amperes: data.ActiveCurrentL1A,
+		VoltageSagL1Count:     data.VoltageSagL1Count,
+		VoltageSwellL1Count:   data.VoltageSwellL1Count,
+		AnyPowerFailCount:     data.AnyPowerFailCount,
+		LongPowerFailCount:    data.LongPowerFailCount,
+	}
+	if data.SMRVersion != nil {
+		v := int32(*data.SMRVersion)
+		reading.SmrVersion = &v
+	}
+	if data.ActiveTariff != nil {
+		v := int32(*data.ActiveTariff)
+		reading.ActiveTariff = &v
+	}
+	if rawTelegram, err := s.client.Telegram(ctx); err == nil {
+		if parsed, ok := ParseTelegram(rawTelegram); ok {
+			for _, ev := range parsed.PowerFailureEvents {
+				reading.PowerFailureEvents = append(reading.PowerFailureEvents, &p1v1.PowerFailureRecord{
+					RestoredAt:      timestamppb.New(ev.RestoredAt),
+					DurationSeconds: ev.DurationSeconds,
+				})
+			}
+		}
+	}
+	return &p1v1.GetReadingResponse{Reading: reading}, nil
 }
 
 func (s *service) GetSnapshot(ctx context.Context, _ *p1v1.GetSnapshotRequest) (*p1v1.GetSnapshotResponse, error) {

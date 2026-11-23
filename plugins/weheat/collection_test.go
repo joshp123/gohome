@@ -25,13 +25,13 @@ func TestScrapeDropsUnavailableReadings(t *testing.T) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/heat-pumps"):
 			if phase == "discovery failure" {
-				http.Error(w, "unavailable", 503)
+				http.Error(w, "unavailable", http.StatusServiceUnavailable)
 				return
 			}
 			fmt.Fprint(w, `{"data":[{"id":"test-pump"}]}`)
 		case strings.HasSuffix(r.URL.Path, "/logs/latest"):
 			if phase == "read failure" {
-				http.Error(w, "unavailable", 503)
+				http.Error(w, "unavailable", http.StatusServiceUnavailable)
 				return
 			}
 			timestamp := time.Now()

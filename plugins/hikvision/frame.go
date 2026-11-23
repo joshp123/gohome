@@ -183,7 +183,7 @@ func (c *Client) decodeFrame(ctx context.Context, ffmpeg string, at time.Time) (
 	if err := cmd.Run(); err != nil {
 		// ffmpeg's message can quote the playlist line; keep the credentials out of it.
 		message := strings.ReplaceAll(strings.TrimSpace(stderr.String()), strictURLEscape(c.password), "***")
-		return nil, fmt.Errorf("decode recorded picture: %v: %s", err, message)
+		return nil, fmt.Errorf("decode recorded picture: %w: %s", err, message)
 	}
 	jpeg := stdout.Bytes()
 	if len(jpeg) < 4 || jpeg[0] != 0xFF || jpeg[1] != 0xD8 {

@@ -132,20 +132,25 @@ func (c *Client) DeviceStateJSON(ctx context.Context, deviceID string) (string, 
 	return "", fmt.Errorf("device %q not found", deviceID)
 }
 
+type characteristicPatchPayload struct {
+	Value json.RawMessage `json:"value"`
+	Path  string          `json:"path,omitempty"`
+}
+
 // SetOnOff updates onOffMode for the given management point.
 func (c *Client) SetOnOff(ctx context.Context, deviceID, embeddedID, onOffMode string) error {
-	return c.patchCharacteristic(ctx, deviceID, embeddedID, "onOffMode", "", onOffMode)
+	return c.patchStringCharacteristic(ctx, deviceID, embeddedID, "onOffMode", "", onOffMode)
 }
 
 // SetOperationMode updates operationMode for the given management point.
 func (c *Client) SetOperationMode(ctx context.Context, deviceID, embeddedID, mode string) error {
-	return c.patchCharacteristic(ctx, deviceID, embeddedID, "operationMode", "", mode)
+	return c.patchStringCharacteristic(ctx, deviceID, embeddedID, "operationMode", "", mode)
 }
 
 // SetTemperature updates the setpoint for the given operation mode and setpoint key.
 func (c *Client) SetTemperature(ctx context.Context, deviceID, embeddedID, operationMode, setpoint string, temperature float64) error {
 	path := fmt.Sprintf("/operationModes/%s/setpoints/%s", operationMode, setpoint)
-	return c.patchCharacteristic(ctx, deviceID, embeddedID, "temperatureControl", path, temperature)
+	return c.patchFloatCharacteristic(ctx, deviceID, embeddedID, "temperatureControl", path, temperature)
 }
 
 func (c *Client) resolveClimateControlID(ctx context.Context, deviceID string) (string, error) {
@@ -222,10 +227,26 @@ func (c *Client) gatewayDevicesRaw(ctx context.Context) ([]json.RawMessage, erro
 	return cached, nil
 }
 
-func (c *Client) patchCharacteristic(ctx context.Context, deviceID, embeddedID, dataPoint, dataPointPath string, value any) error {
-	payload := map[string]any{"value": value}
-	if dataPointPath != "" {
-		payload["path"] = dataPointPath
+func (c *Client) patchStringCharacteristic(ctx context.Context, deviceID, embeddedID, dataPoint, dataPointPath, value string) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return c.patchCharacteristicRaw(ctx, deviceID, embeddedID, dataPoint, dataPointPath, raw)
+}
+
+func (c *Client) patchFloatCharacteristic(ctx context.Context, deviceID, embeddedID, dataPoint, dataPointPath string, value float64) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return c.patchCharacteristicRaw(ctx, deviceID, embeddedID, dataPoint, dataPointPath, raw)
+}
+
+func (c *Client) patchCharacteristicRaw(ctx context.Context, deviceID, embeddedID, dataPoint, dataPointPath string, value json.RawMessage) error {
+	payload := characteristicPatchPayload{
+		Value: value,
+		Path:  dataPointPath,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {

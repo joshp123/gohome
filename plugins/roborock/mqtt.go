@@ -308,6 +308,8 @@ func (c *Client) sendMQTTRPC(ctx context.Context, device HomeDataDevice, method 
 						return
 					}
 				}
+			default:
+				// Ignore non-response protocol frames on the reply channel.
 			}
 		}
 	})

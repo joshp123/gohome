@@ -403,10 +403,12 @@ func TestAlarmMetrics(t *testing.T) {
 func TestClientOnlyPostsSearches(t *testing.T) {
 	camera := newFakeCamera(t)
 	client := camera.client(t, testPassword)
-	if _, err := client.request(context.Background(), client.readClient, http.MethodPost, pathDeviceInfo, []byte("<x/>")); err == nil {
+	if resp, err := client.request(context.Background(), client.readClient, http.MethodPost, pathDeviceInfo, []byte("<x/>")); err == nil {
+		_ = resp.Body.Close()
 		t.Fatal("client POSTed to a settings resource")
 	}
-	if _, err := client.request(context.Background(), client.readClient, http.MethodPut, pathLogSearch, []byte("<x/>")); err == nil {
+	if resp, err := client.request(context.Background(), client.readClient, http.MethodPut, pathLogSearch, []byte("<x/>")); err == nil {
+		_ = resp.Body.Close()
 		t.Fatal("client sent a PUT")
 	}
 }

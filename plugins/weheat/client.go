@@ -158,7 +158,7 @@ func (c *Client) readJSON(ctx context.Context, path string, query url.Values, ou
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Weheat read %s: HTTP %d", path, resp.StatusCode)
+		return fmt.Errorf("weheat read %s: HTTP %d", path, resp.StatusCode)
 	}
 	return json.NewDecoder(resp.Body).Decode(out)
 }

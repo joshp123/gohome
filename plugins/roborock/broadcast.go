@@ -21,7 +21,7 @@ func DiscoverBroadcast(ctx context.Context, timeout time.Duration) ([]BroadcastM
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = conn.SetReadDeadline(deadline)

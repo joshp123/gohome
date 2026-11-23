@@ -38,11 +38,10 @@ type bucket struct {
 }
 
 type cacheEntry struct {
-	status   int
-	header   http.Header
-	body     []byte
-	expires  time.Time
-	provider string
+	status  int
+	header  http.Header
+	body    []byte
+	expires time.Time
 }
 
 // State tracks observed limits.

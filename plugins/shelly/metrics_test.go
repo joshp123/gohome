@@ -16,7 +16,7 @@ func TestFailedSystemReadKeepsCoverButDropsSystemValues(t *testing.T) {
 			w.Write([]byte(`{"device_id":"example","uptime":100,"components":[{"type":4,"cal_done":true,"state_str":"idle","cur_pos":100,"move_time_ms":17280,"move_power":168}]}`))
 		case "/rpc/Sys.GetInfo":
 			if systemDown {
-				http.Error(w, "unavailable", 503)
+				http.Error(w, "unavailable", http.StatusServiceUnavailable)
 				return
 			}
 			w.Write([]byte(`{"ram_free":200000}`))

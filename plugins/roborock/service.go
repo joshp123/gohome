@@ -500,9 +500,7 @@ func displayRoomLabel(label string, id int) string {
 }
 
 func parseRoomSegmentID(room string) (uint32, bool) {
-	if strings.HasPrefix(room, "segment_") {
-		room = strings.TrimPrefix(room, "segment_")
-	}
+	room = strings.TrimPrefix(room, "segment_")
 	if room == "" {
 		return 0, false
 	}

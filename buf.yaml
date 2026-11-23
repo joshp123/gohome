@@ -1,9 +1,26 @@
 version: v2
 modules:
-  - path: proto
+  - path: .
+    excludes:
+      - vendor
 lint:
   use:
     - STANDARD
   except:
     - PACKAGE_VERSION_SUFFIX
     - PACKAGE_DIRECTORY_MATCH
+    - DIRECTORY_SAME_PACKAGE
+  ignore_only:
+    ENUM_VALUE_PREFIX:
+      - proto/plugins/growatt.proto
+      - proto/plugins/tado.proto
+    RPC_REQUEST_STANDARD_NAME:
+      - proto/plugins/roborock.proto
+    RPC_RESPONSE_STANDARD_NAME:
+      - proto/plugins/hikvision.proto
+      - proto/plugins/roborock.proto
+      - proto/registry.proto
+    RPC_REQUEST_RESPONSE_UNIQUE:
+      - proto/plugins/roborock.proto
+    SERVICE_SUFFIX:
+      - proto/registry.proto

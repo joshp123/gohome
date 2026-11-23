@@ -3,6 +3,7 @@ package roborock
 import (
 	"context"
 	"crypto/hmac"
+	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -107,7 +108,7 @@ func NewRoborockApiClient(username, baseURL string) *RoborockApiClient {
 
 func randomDeviceID() string {
 	b := make([]byte, 16)
-	_, _ = rand.Read(b)
+	_, _ = cryptorand.Read(b)
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 

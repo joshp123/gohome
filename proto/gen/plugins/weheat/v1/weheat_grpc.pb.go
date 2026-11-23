@@ -19,13 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	WeheatService_ListHeatPumps_FullMethodName   = "/gohome.plugins.weheat.v1.WeheatService/ListHeatPumps"
-	WeheatService_GetHeatPump_FullMethodName     = "/gohome.plugins.weheat.v1.WeheatService/GetHeatPump"
-	WeheatService_GetLatestLog_FullMethodName    = "/gohome.plugins.weheat.v1.WeheatService/GetLatestLog"
-	WeheatService_GetRawLogs_FullMethodName      = "/gohome.plugins.weheat.v1.WeheatService/GetRawLogs"
-	WeheatService_GetLogViews_FullMethodName     = "/gohome.plugins.weheat.v1.WeheatService/GetLogViews"
-	WeheatService_GetEnergyTotals_FullMethodName = "/gohome.plugins.weheat.v1.WeheatService/GetEnergyTotals"
-	WeheatService_GetEnergyLogs_FullMethodName   = "/gohome.plugins.weheat.v1.WeheatService/GetEnergyLogs"
+	WeheatService_ListHeatPumps_FullMethodName      = "/gohome.plugins.weheat.v1.WeheatService/ListHeatPumps"
+	WeheatService_GetHeatPump_FullMethodName        = "/gohome.plugins.weheat.v1.WeheatService/GetHeatPump"
+	WeheatService_GetLatestTelemetry_FullMethodName = "/gohome.plugins.weheat.v1.WeheatService/GetLatestTelemetry"
+	WeheatService_GetEnergySummary_FullMethodName   = "/gohome.plugins.weheat.v1.WeheatService/GetEnergySummary"
+	WeheatService_GetLatestLog_FullMethodName       = "/gohome.plugins.weheat.v1.WeheatService/GetLatestLog"
+	WeheatService_GetRawLogs_FullMethodName         = "/gohome.plugins.weheat.v1.WeheatService/GetRawLogs"
+	WeheatService_GetLogViews_FullMethodName        = "/gohome.plugins.weheat.v1.WeheatService/GetLogViews"
+	WeheatService_GetEnergyTotals_FullMethodName    = "/gohome.plugins.weheat.v1.WeheatService/GetEnergyTotals"
+	WeheatService_GetEnergyLogs_FullMethodName      = "/gohome.plugins.weheat.v1.WeheatService/GetEnergyLogs"
 )
 
 // WeheatServiceClient is the client API for WeheatService service.
@@ -34,6 +36,8 @@ const (
 type WeheatServiceClient interface {
 	ListHeatPumps(ctx context.Context, in *ListHeatPumpsRequest, opts ...grpc.CallOption) (*ListHeatPumpsResponse, error)
 	GetHeatPump(ctx context.Context, in *GetHeatPumpRequest, opts ...grpc.CallOption) (*GetHeatPumpResponse, error)
+	GetLatestTelemetry(ctx context.Context, in *GetLatestTelemetryRequest, opts ...grpc.CallOption) (*GetLatestTelemetryResponse, error)
+	GetEnergySummary(ctx context.Context, in *GetEnergySummaryRequest, opts ...grpc.CallOption) (*GetEnergySummaryResponse, error)
 	GetLatestLog(ctx context.Context, in *GetLatestLogRequest, opts ...grpc.CallOption) (*GetLatestLogResponse, error)
 	GetRawLogs(ctx context.Context, in *GetRawLogsRequest, opts ...grpc.CallOption) (*GetRawLogsResponse, error)
 	GetLogViews(ctx context.Context, in *GetLogViewsRequest, opts ...grpc.CallOption) (*GetLogViewsResponse, error)
@@ -63,6 +67,26 @@ func (c *weheatServiceClient) GetHeatPump(ctx context.Context, in *GetHeatPumpRe
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetHeatPumpResponse)
 	err := c.cc.Invoke(ctx, WeheatService_GetHeatPump_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *weheatServiceClient) GetLatestTelemetry(ctx context.Context, in *GetLatestTelemetryRequest, opts ...grpc.CallOption) (*GetLatestTelemetryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetLatestTelemetryResponse)
+	err := c.cc.Invoke(ctx, WeheatService_GetLatestTelemetry_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *weheatServiceClient) GetEnergySummary(ctx context.Context, in *GetEnergySummaryRequest, opts ...grpc.CallOption) (*GetEnergySummaryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetEnergySummaryResponse)
+	err := c.cc.Invoke(ctx, WeheatService_GetEnergySummary_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +149,8 @@ func (c *weheatServiceClient) GetEnergyLogs(ctx context.Context, in *GetEnergyLo
 type WeheatServiceServer interface {
 	ListHeatPumps(context.Context, *ListHeatPumpsRequest) (*ListHeatPumpsResponse, error)
 	GetHeatPump(context.Context, *GetHeatPumpRequest) (*GetHeatPumpResponse, error)
+	GetLatestTelemetry(context.Context, *GetLatestTelemetryRequest) (*GetLatestTelemetryResponse, error)
+	GetEnergySummary(context.Context, *GetEnergySummaryRequest) (*GetEnergySummaryResponse, error)
 	GetLatestLog(context.Context, *GetLatestLogRequest) (*GetLatestLogResponse, error)
 	GetRawLogs(context.Context, *GetRawLogsRequest) (*GetRawLogsResponse, error)
 	GetLogViews(context.Context, *GetLogViewsRequest) (*GetLogViewsResponse, error)
@@ -145,6 +171,12 @@ func (UnimplementedWeheatServiceServer) ListHeatPumps(context.Context, *ListHeat
 }
 func (UnimplementedWeheatServiceServer) GetHeatPump(context.Context, *GetHeatPumpRequest) (*GetHeatPumpResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetHeatPump not implemented")
+}
+func (UnimplementedWeheatServiceServer) GetLatestTelemetry(context.Context, *GetLatestTelemetryRequest) (*GetLatestTelemetryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetLatestTelemetry not implemented")
+}
+func (UnimplementedWeheatServiceServer) GetEnergySummary(context.Context, *GetEnergySummaryRequest) (*GetEnergySummaryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetEnergySummary not implemented")
 }
 func (UnimplementedWeheatServiceServer) GetLatestLog(context.Context, *GetLatestLogRequest) (*GetLatestLogResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetLatestLog not implemented")
@@ -214,6 +246,42 @@ func _WeheatService_GetHeatPump_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WeheatServiceServer).GetHeatPump(ctx, req.(*GetHeatPumpRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WeheatService_GetLatestTelemetry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLatestTelemetryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WeheatServiceServer).GetLatestTelemetry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WeheatService_GetLatestTelemetry_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WeheatServiceServer).GetLatestTelemetry(ctx, req.(*GetLatestTelemetryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WeheatService_GetEnergySummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEnergySummaryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WeheatServiceServer).GetEnergySummary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WeheatService_GetEnergySummary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WeheatServiceServer).GetEnergySummary(ctx, req.(*GetEnergySummaryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -322,6 +390,14 @@ var WeheatService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetHeatPump",
 			Handler:    _WeheatService_GetHeatPump_Handler,
+		},
+		{
+			MethodName: "GetLatestTelemetry",
+			Handler:    _WeheatService_GetLatestTelemetry_Handler,
+		},
+		{
+			MethodName: "GetEnergySummary",
+			Handler:    _WeheatService_GetEnergySummary_Handler,
 		},
 		{
 			MethodName: "GetLatestLog",

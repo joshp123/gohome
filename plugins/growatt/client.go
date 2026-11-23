@@ -3,7 +3,6 @@ package growatt
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -32,14 +31,6 @@ type APIError struct {
 
 func (e APIError) Error() string {
 	return fmt.Sprintf("growatt api error %d: %s", e.Code, e.Msg)
-}
-
-func isRateLimit(err error) bool {
-	var apiErr APIError
-	if errors.As(err, &apiErr) {
-		return apiErr.Code == 10012 || apiErr.Code == 100 || apiErr.Code == 102
-	}
-	return false
 }
 
 // Client talks to the Growatt OpenAPI.

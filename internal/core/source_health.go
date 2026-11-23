@@ -42,8 +42,8 @@ func (p *observedPlugin) RegisterHTTP(mux *http.ServeMux) {
 	}
 }
 func (p *observedPlugin) SourceHealth() (HealthStatus, string, time.Time) {
-	if p.Plugin.Health() == HealthError {
-		return HealthError, p.Plugin.HealthMessage(), time.Time{}
+	if p.Health() == HealthError {
+		return HealthError, p.HealthMessage(), time.Time{}
 	}
 	if len(p.collectors) == 0 {
 		return HealthDegraded, "No source read available", time.Time{}

@@ -261,22 +261,41 @@ func (c *Client) Weather(ctx context.Context) (Weather, error) {
 	}, nil
 }
 
+type zoneOverlayTemperature struct {
+	Celsius float64 `json:"celsius"`
+}
+
+type zoneOverlaySetting struct {
+	Type        string                 `json:"type"`
+	Power       string                 `json:"power"`
+	Temperature zoneOverlayTemperature `json:"temperature"`
+}
+
+type zoneOverlayTerminationPayload struct {
+	Type string `json:"type"`
+}
+
+type zoneOverlayRequest struct {
+	Setting     zoneOverlaySetting            `json:"setting"`
+	Termination zoneOverlayTerminationPayload `json:"termination"`
+}
+
 func (c *Client) SetZoneTemperature(ctx context.Context, zoneID int, temperatureC float64) error {
 	homeID, err := c.HomeID(ctx)
 	if err != nil {
 		return err
 	}
 
-	payload := map[string]any{
-		"setting": map[string]any{
-			"type":  "HEATING",
-			"power": "ON",
-			"temperature": map[string]any{
-				"celsius": temperatureC,
+	payload := zoneOverlayRequest{
+		Setting: zoneOverlaySetting{
+			Type:  "HEATING",
+			Power: "ON",
+			Temperature: zoneOverlayTemperature{
+				Celsius: temperatureC,
 			},
 		},
-		"termination": map[string]any{
-			"type": "MANUAL",
+		Termination: zoneOverlayTerminationPayload{
+			Type: "MANUAL",
 		},
 	}
 

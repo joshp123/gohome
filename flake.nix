@@ -22,6 +22,8 @@
           buildInputs = with pkgs; [
             go
             gopls
+            golangci-lint
+            buf
             delve
             protobuf
             protoc-gen-go

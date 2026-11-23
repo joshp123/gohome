@@ -91,6 +91,64 @@ message GetEnergyLogsResponse {
   repeated string json = 1;
 }
 
+message HeatPumpTelemetry {
+  string heat_pump_id = 1;
+  google.protobuf.Timestamp observed_at = 2;
+  optional int32 operating_state_code = 3;
+  optional bool online = 4;
+  optional double water_out_celsius = 5;
+  optional double water_in_celsius = 6;
+  optional double water_house_in_celsius = 7;
+  optional double water_setpoint_celsius = 8;
+  optional double outside_air_celsius = 9;
+  optional double exhaust_air_celsius = 10;
+  optional double tank_top_celsius = 11;
+  optional double tank_bottom_celsius = 12;
+  optional double tank_target_celsius = 13;
+  optional double room_celsius = 14;
+  optional double room_target_celsius = 15;
+  optional double compressor_rpm = 16;
+  optional int32 electricity_in_watts = 17;
+  optional int32 heat_out_watts = 18;
+  optional int32 central_heating_flow_percent = 19;
+  optional int32 dhw_flow_percent = 20;
+  optional bool water_pump_active = 21;
+  optional bool dhw_valve_active = 22;
+  optional bool electric_heater_active = 23;
+  optional int32 error_code = 24;
+}
+
+message GetLatestTelemetryRequest {
+  string heat_pump_id = 1;
+}
+
+message GetLatestTelemetryResponse {
+  HeatPumpTelemetry telemetry = 1;
+}
+
+message HeatPumpEnergySummary {
+  string heat_pump_id = 1;
+  optional double electricity_in_heating_kwh = 2;
+  optional double electricity_in_dhw_kwh = 3;
+  optional double electricity_in_standby_kwh = 4;
+  optional double electricity_in_heating_defrost_kwh = 5;
+  optional double electricity_in_dhw_defrost_kwh = 6;
+  optional double electricity_in_cooling_kwh = 7;
+  optional double heat_out_heating_kwh = 8;
+  optional double heat_out_dhw_kwh = 9;
+  optional double heat_out_heating_defrost_kwh = 10;
+  optional double heat_out_dhw_defrost_kwh = 11;
+  optional double heat_out_cooling_kwh = 12;
+}
+
+message GetEnergySummaryRequest {
+  string heat_pump_id = 1;
+}
+
+message GetEnergySummaryResponse {
+  HeatPumpEnergySummary summary = 1;
+}
+
 message WeheatConfig {
   optional string base_url = 1;
 }
@@ -98,6 +156,8 @@ message WeheatConfig {
 service WeheatService {
   rpc ListHeatPumps(ListHeatPumpsRequest) returns (ListHeatPumpsResponse);
   rpc GetHeatPump(GetHeatPumpRequest) returns (GetHeatPumpResponse);
+  rpc GetLatestTelemetry(GetLatestTelemetryRequest) returns (GetLatestTelemetryResponse);
+  rpc GetEnergySummary(GetEnergySummaryRequest) returns (GetEnergySummaryResponse);
   rpc GetLatestLog(GetLatestLogRequest) returns (GetLatestLogResponse);
   rpc GetRawLogs(GetRawLogsRequest) returns (GetRawLogsResponse);
   rpc GetLogViews(GetLogViewsRequest) returns (GetLogViewsResponse);

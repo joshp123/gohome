@@ -4,12 +4,47 @@ package gohome.plugins.p1_homewizard.v1;
 
 option go_package = "github.com/joshp123/gohome/proto/gen/plugins/p1_homewizard/v1;p1homewizardv1";
 
+import "google/protobuf/timestamp.proto";
+
 message Info {
   string product_name = 1;
   string product_type = 2;
   string serial = 3;
   string firmware_version = 4;
   string api_version = 5;
+}
+
+message PowerFailureRecord {
+  google.protobuf.Timestamp restored_at = 1;
+  double duration_seconds = 2;
+}
+
+message SmartMeterReading {
+  optional int32 smr_version = 1;
+  optional string meter_model = 2;
+  optional double wifi_strength_percent = 3;
+  optional int32 active_tariff = 4;
+  optional double total_import_kwh = 5;
+  optional double total_import_t1_kwh = 6;
+  optional double total_import_t2_kwh = 7;
+  optional double total_export_kwh = 8;
+  optional double total_export_t1_kwh = 9;
+  optional double total_export_t2_kwh = 10;
+  optional double active_power_watts = 11;
+  optional double active_power_l1_watts = 12;
+  optional double active_current_amperes = 13;
+  optional double active_current_l1_amperes = 14;
+  optional double voltage_sag_l1_count = 15;
+  optional double voltage_swell_l1_count = 16;
+  optional double any_power_fail_count = 17;
+  optional double long_power_fail_count = 18;
+  repeated PowerFailureRecord power_failure_events = 19;
+}
+
+message GetReadingRequest {}
+
+message GetReadingResponse {
+  SmartMeterReading reading = 1;
 }
 
 message GetInfoRequest {}
@@ -40,6 +75,7 @@ message P1HomewizardConfig {
 
 service P1HomewizardService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
+  rpc GetReading(GetReadingRequest) returns (GetReadingResponse);
   rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
   rpc GetTelegram(GetTelegramRequest) returns (GetTelegramResponse);
 }

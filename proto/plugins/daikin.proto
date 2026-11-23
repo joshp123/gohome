@@ -17,6 +17,37 @@ message ListUnitsResponse {
   repeated Unit units = 1;
 }
 
+message OperationModeSetpoint {
+  string operation_mode = 1;
+  string setpoint_key = 2;
+  double temperature_celsius = 3;
+}
+
+message ClimateUnitStatus {
+  string unit_id = 1;
+  string name = 2;
+  string model = 3;
+  string climate_control_id = 4;
+  bool cloud_connected = 5;
+  optional string on_off_mode = 6;
+  optional string operation_mode = 7;
+  optional double room_temperature_celsius = 8;
+  optional double outdoor_temperature_celsius = 9;
+  optional double room_humidity_percent = 10;
+  repeated OperationModeSetpoint setpoints = 11;
+  optional bool error_state = 12;
+  optional bool warning_state = 13;
+  optional bool holiday_mode_active = 14;
+}
+
+message GetUnitStatusRequest {
+  string unit_id = 1;
+}
+
+message GetUnitStatusResponse {
+  ClimateUnitStatus status = 1;
+}
+
 message GetUnitStateRequest {
   string unit_id = 1;
 }
@@ -57,6 +88,7 @@ message DaikinConfig {
 
 service DaikinService {
   rpc ListUnits(ListUnitsRequest) returns (ListUnitsResponse);
+  rpc GetUnitStatus(GetUnitStatusRequest) returns (GetUnitStatusResponse);
   rpc GetUnitState(GetUnitStateRequest) returns (GetUnitStateResponse);
   rpc SetOnOff(SetOnOffRequest) returns (SetOnOffResponse);
   rpc SetOperationMode(SetOperationModeRequest) returns (SetOperationModeResponse);

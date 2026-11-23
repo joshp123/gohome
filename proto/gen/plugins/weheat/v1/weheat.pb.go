@@ -906,6 +906,542 @@ func (x *GetEnergyLogsResponse) GetJson() []string {
 	return nil
 }
 
+type HeatPumpTelemetry struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	HeatPumpId                string                 `protobuf:"bytes,1,opt,name=heat_pump_id,json=heatPumpId,proto3" json:"heat_pump_id,omitempty"`
+	ObservedAt                *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	OperatingStateCode        *int32                 `protobuf:"varint,3,opt,name=operating_state_code,json=operatingStateCode,proto3,oneof" json:"operating_state_code,omitempty"`
+	Online                    *bool                  `protobuf:"varint,4,opt,name=online,proto3,oneof" json:"online,omitempty"`
+	WaterOutCelsius           *float64               `protobuf:"fixed64,5,opt,name=water_out_celsius,json=waterOutCelsius,proto3,oneof" json:"water_out_celsius,omitempty"`
+	WaterInCelsius            *float64               `protobuf:"fixed64,6,opt,name=water_in_celsius,json=waterInCelsius,proto3,oneof" json:"water_in_celsius,omitempty"`
+	WaterHouseInCelsius       *float64               `protobuf:"fixed64,7,opt,name=water_house_in_celsius,json=waterHouseInCelsius,proto3,oneof" json:"water_house_in_celsius,omitempty"`
+	WaterSetpointCelsius      *float64               `protobuf:"fixed64,8,opt,name=water_setpoint_celsius,json=waterSetpointCelsius,proto3,oneof" json:"water_setpoint_celsius,omitempty"`
+	OutsideAirCelsius         *float64               `protobuf:"fixed64,9,opt,name=outside_air_celsius,json=outsideAirCelsius,proto3,oneof" json:"outside_air_celsius,omitempty"`
+	ExhaustAirCelsius         *float64               `protobuf:"fixed64,10,opt,name=exhaust_air_celsius,json=exhaustAirCelsius,proto3,oneof" json:"exhaust_air_celsius,omitempty"`
+	TankTopCelsius            *float64               `protobuf:"fixed64,11,opt,name=tank_top_celsius,json=tankTopCelsius,proto3,oneof" json:"tank_top_celsius,omitempty"`
+	TankBottomCelsius         *float64               `protobuf:"fixed64,12,opt,name=tank_bottom_celsius,json=tankBottomCelsius,proto3,oneof" json:"tank_bottom_celsius,omitempty"`
+	TankTargetCelsius         *float64               `protobuf:"fixed64,13,opt,name=tank_target_celsius,json=tankTargetCelsius,proto3,oneof" json:"tank_target_celsius,omitempty"`
+	RoomCelsius               *float64               `protobuf:"fixed64,14,opt,name=room_celsius,json=roomCelsius,proto3,oneof" json:"room_celsius,omitempty"`
+	RoomTargetCelsius         *float64               `protobuf:"fixed64,15,opt,name=room_target_celsius,json=roomTargetCelsius,proto3,oneof" json:"room_target_celsius,omitempty"`
+	CompressorRpm             *float64               `protobuf:"fixed64,16,opt,name=compressor_rpm,json=compressorRpm,proto3,oneof" json:"compressor_rpm,omitempty"`
+	ElectricityInWatts        *int32                 `protobuf:"varint,17,opt,name=electricity_in_watts,json=electricityInWatts,proto3,oneof" json:"electricity_in_watts,omitempty"`
+	HeatOutWatts              *int32                 `protobuf:"varint,18,opt,name=heat_out_watts,json=heatOutWatts,proto3,oneof" json:"heat_out_watts,omitempty"`
+	CentralHeatingFlowPercent *int32                 `protobuf:"varint,19,opt,name=central_heating_flow_percent,json=centralHeatingFlowPercent,proto3,oneof" json:"central_heating_flow_percent,omitempty"`
+	DhwFlowPercent            *int32                 `protobuf:"varint,20,opt,name=dhw_flow_percent,json=dhwFlowPercent,proto3,oneof" json:"dhw_flow_percent,omitempty"`
+	WaterPumpActive           *bool                  `protobuf:"varint,21,opt,name=water_pump_active,json=waterPumpActive,proto3,oneof" json:"water_pump_active,omitempty"`
+	DhwValveActive            *bool                  `protobuf:"varint,22,opt,name=dhw_valve_active,json=dhwValveActive,proto3,oneof" json:"dhw_valve_active,omitempty"`
+	ElectricHeaterActive      *bool                  `protobuf:"varint,23,opt,name=electric_heater_active,json=electricHeaterActive,proto3,oneof" json:"electric_heater_active,omitempty"`
+	ErrorCode                 *int32                 `protobuf:"varint,24,opt,name=error_code,json=errorCode,proto3,oneof" json:"error_code,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *HeatPumpTelemetry) Reset() {
+	*x = HeatPumpTelemetry{}
+	mi := &file_proto_plugins_weheat_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeatPumpTelemetry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeatPumpTelemetry) ProtoMessage() {}
+
+func (x *HeatPumpTelemetry) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_plugins_weheat_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeatPumpTelemetry.ProtoReflect.Descriptor instead.
+func (*HeatPumpTelemetry) Descriptor() ([]byte, []int) {
+	return file_proto_plugins_weheat_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *HeatPumpTelemetry) GetHeatPumpId() string {
+	if x != nil {
+		return x.HeatPumpId
+	}
+	return ""
+}
+
+func (x *HeatPumpTelemetry) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
+func (x *HeatPumpTelemetry) GetOperatingStateCode() int32 {
+	if x != nil && x.OperatingStateCode != nil {
+		return *x.OperatingStateCode
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetOnline() bool {
+	if x != nil && x.Online != nil {
+		return *x.Online
+	}
+	return false
+}
+
+func (x *HeatPumpTelemetry) GetWaterOutCelsius() float64 {
+	if x != nil && x.WaterOutCelsius != nil {
+		return *x.WaterOutCelsius
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetWaterInCelsius() float64 {
+	if x != nil && x.WaterInCelsius != nil {
+		return *x.WaterInCelsius
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetWaterHouseInCelsius() float64 {
+	if x != nil && x.WaterHouseInCelsius != nil {
+		return *x.WaterHouseInCelsius
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetWaterSetpointCelsius() float64 {
+	if x != nil && x.WaterSetpointCelsius != nil {
+		return *x.WaterSetpointCelsius
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetOutsideAirCelsius() float64 {
+	if x != nil && x.OutsideAirCelsius != nil {
+		return *x.OutsideAirCelsius
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetExhaustAirCelsius() float64 {
+	if x != nil && x.ExhaustAirCelsius != nil {
+		return *x.ExhaustAirCelsius
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetTankTopCelsius() float64 {
+	if x != nil && x.TankTopCelsius != nil {
+		return *x.TankTopCelsius
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetTankBottomCelsius() float64 {
+	if x != nil && x.TankBottomCelsius != nil {
+		return *x.TankBottomCelsius
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetTankTargetCelsius() float64 {
+	if x != nil && x.TankTargetCelsius != nil {
+		return *x.TankTargetCelsius
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetRoomCelsius() float64 {
+	if x != nil && x.RoomCelsius != nil {
+		return *x.RoomCelsius
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetRoomTargetCelsius() float64 {
+	if x != nil && x.RoomTargetCelsius != nil {
+		return *x.RoomTargetCelsius
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetCompressorRpm() float64 {
+	if x != nil && x.CompressorRpm != nil {
+		return *x.CompressorRpm
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetElectricityInWatts() int32 {
+	if x != nil && x.ElectricityInWatts != nil {
+		return *x.ElectricityInWatts
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetHeatOutWatts() int32 {
+	if x != nil && x.HeatOutWatts != nil {
+		return *x.HeatOutWatts
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetCentralHeatingFlowPercent() int32 {
+	if x != nil && x.CentralHeatingFlowPercent != nil {
+		return *x.CentralHeatingFlowPercent
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetDhwFlowPercent() int32 {
+	if x != nil && x.DhwFlowPercent != nil {
+		return *x.DhwFlowPercent
+	}
+	return 0
+}
+
+func (x *HeatPumpTelemetry) GetWaterPumpActive() bool {
+	if x != nil && x.WaterPumpActive != nil {
+		return *x.WaterPumpActive
+	}
+	return false
+}
+
+func (x *HeatPumpTelemetry) GetDhwValveActive() bool {
+	if x != nil && x.DhwValveActive != nil {
+		return *x.DhwValveActive
+	}
+	return false
+}
+
+func (x *HeatPumpTelemetry) GetElectricHeaterActive() bool {
+	if x != nil && x.ElectricHeaterActive != nil {
+		return *x.ElectricHeaterActive
+	}
+	return false
+}
+
+func (x *HeatPumpTelemetry) GetErrorCode() int32 {
+	if x != nil && x.ErrorCode != nil {
+		return *x.ErrorCode
+	}
+	return 0
+}
+
+type GetLatestTelemetryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HeatPumpId    string                 `protobuf:"bytes,1,opt,name=heat_pump_id,json=heatPumpId,proto3" json:"heat_pump_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLatestTelemetryRequest) Reset() {
+	*x = GetLatestTelemetryRequest{}
+	mi := &file_proto_plugins_weheat_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLatestTelemetryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLatestTelemetryRequest) ProtoMessage() {}
+
+func (x *GetLatestTelemetryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_plugins_weheat_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLatestTelemetryRequest.ProtoReflect.Descriptor instead.
+func (*GetLatestTelemetryRequest) Descriptor() ([]byte, []int) {
+	return file_proto_plugins_weheat_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GetLatestTelemetryRequest) GetHeatPumpId() string {
+	if x != nil {
+		return x.HeatPumpId
+	}
+	return ""
+}
+
+type GetLatestTelemetryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Telemetry     *HeatPumpTelemetry     `protobuf:"bytes,1,opt,name=telemetry,proto3" json:"telemetry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLatestTelemetryResponse) Reset() {
+	*x = GetLatestTelemetryResponse{}
+	mi := &file_proto_plugins_weheat_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLatestTelemetryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLatestTelemetryResponse) ProtoMessage() {}
+
+func (x *GetLatestTelemetryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_plugins_weheat_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLatestTelemetryResponse.ProtoReflect.Descriptor instead.
+func (*GetLatestTelemetryResponse) Descriptor() ([]byte, []int) {
+	return file_proto_plugins_weheat_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetLatestTelemetryResponse) GetTelemetry() *HeatPumpTelemetry {
+	if x != nil {
+		return x.Telemetry
+	}
+	return nil
+}
+
+type HeatPumpEnergySummary struct {
+	state                          protoimpl.MessageState `protogen:"open.v1"`
+	HeatPumpId                     string                 `protobuf:"bytes,1,opt,name=heat_pump_id,json=heatPumpId,proto3" json:"heat_pump_id,omitempty"`
+	ElectricityInHeatingKwh        *float64               `protobuf:"fixed64,2,opt,name=electricity_in_heating_kwh,json=electricityInHeatingKwh,proto3,oneof" json:"electricity_in_heating_kwh,omitempty"`
+	ElectricityInDhwKwh            *float64               `protobuf:"fixed64,3,opt,name=electricity_in_dhw_kwh,json=electricityInDhwKwh,proto3,oneof" json:"electricity_in_dhw_kwh,omitempty"`
+	ElectricityInStandbyKwh        *float64               `protobuf:"fixed64,4,opt,name=electricity_in_standby_kwh,json=electricityInStandbyKwh,proto3,oneof" json:"electricity_in_standby_kwh,omitempty"`
+	ElectricityInHeatingDefrostKwh *float64               `protobuf:"fixed64,5,opt,name=electricity_in_heating_defrost_kwh,json=electricityInHeatingDefrostKwh,proto3,oneof" json:"electricity_in_heating_defrost_kwh,omitempty"`
+	ElectricityInDhwDefrostKwh     *float64               `protobuf:"fixed64,6,opt,name=electricity_in_dhw_defrost_kwh,json=electricityInDhwDefrostKwh,proto3,oneof" json:"electricity_in_dhw_defrost_kwh,omitempty"`
+	ElectricityInCoolingKwh        *float64               `protobuf:"fixed64,7,opt,name=electricity_in_cooling_kwh,json=electricityInCoolingKwh,proto3,oneof" json:"electricity_in_cooling_kwh,omitempty"`
+	HeatOutHeatingKwh              *float64               `protobuf:"fixed64,8,opt,name=heat_out_heating_kwh,json=heatOutHeatingKwh,proto3,oneof" json:"heat_out_heating_kwh,omitempty"`
+	HeatOutDhwKwh                  *float64               `protobuf:"fixed64,9,opt,name=heat_out_dhw_kwh,json=heatOutDhwKwh,proto3,oneof" json:"heat_out_dhw_kwh,omitempty"`
+	HeatOutHeatingDefrostKwh       *float64               `protobuf:"fixed64,10,opt,name=heat_out_heating_defrost_kwh,json=heatOutHeatingDefrostKwh,proto3,oneof" json:"heat_out_heating_defrost_kwh,omitempty"`
+	HeatOutDhwDefrostKwh           *float64               `protobuf:"fixed64,11,opt,name=heat_out_dhw_defrost_kwh,json=heatOutDhwDefrostKwh,proto3,oneof" json:"heat_out_dhw_defrost_kwh,omitempty"`
+	HeatOutCoolingKwh              *float64               `protobuf:"fixed64,12,opt,name=heat_out_cooling_kwh,json=heatOutCoolingKwh,proto3,oneof" json:"heat_out_cooling_kwh,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
+}
+
+func (x *HeatPumpEnergySummary) Reset() {
+	*x = HeatPumpEnergySummary{}
+	mi := &file_proto_plugins_weheat_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeatPumpEnergySummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeatPumpEnergySummary) ProtoMessage() {}
+
+func (x *HeatPumpEnergySummary) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_plugins_weheat_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeatPumpEnergySummary.ProtoReflect.Descriptor instead.
+func (*HeatPumpEnergySummary) Descriptor() ([]byte, []int) {
+	return file_proto_plugins_weheat_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *HeatPumpEnergySummary) GetHeatPumpId() string {
+	if x != nil {
+		return x.HeatPumpId
+	}
+	return ""
+}
+
+func (x *HeatPumpEnergySummary) GetElectricityInHeatingKwh() float64 {
+	if x != nil && x.ElectricityInHeatingKwh != nil {
+		return *x.ElectricityInHeatingKwh
+	}
+	return 0
+}
+
+func (x *HeatPumpEnergySummary) GetElectricityInDhwKwh() float64 {
+	if x != nil && x.ElectricityInDhwKwh != nil {
+		return *x.ElectricityInDhwKwh
+	}
+	return 0
+}
+
+func (x *HeatPumpEnergySummary) GetElectricityInStandbyKwh() float64 {
+	if x != nil && x.ElectricityInStandbyKwh != nil {
+		return *x.ElectricityInStandbyKwh
+	}
+	return 0
+}
+
+func (x *HeatPumpEnergySummary) GetElectricityInHeatingDefrostKwh() float64 {
+	if x != nil && x.ElectricityInHeatingDefrostKwh != nil {
+		return *x.ElectricityInHeatingDefrostKwh
+	}
+	return 0
+}
+
+func (x *HeatPumpEnergySummary) GetElectricityInDhwDefrostKwh() float64 {
+	if x != nil && x.ElectricityInDhwDefrostKwh != nil {
+		return *x.ElectricityInDhwDefrostKwh
+	}
+	return 0
+}
+
+func (x *HeatPumpEnergySummary) GetElectricityInCoolingKwh() float64 {
+	if x != nil && x.ElectricityInCoolingKwh != nil {
+		return *x.ElectricityInCoolingKwh
+	}
+	return 0
+}
+
+func (x *HeatPumpEnergySummary) GetHeatOutHeatingKwh() float64 {
+	if x != nil && x.HeatOutHeatingKwh != nil {
+		return *x.HeatOutHeatingKwh
+	}
+	return 0
+}
+
+func (x *HeatPumpEnergySummary) GetHeatOutDhwKwh() float64 {
+	if x != nil && x.HeatOutDhwKwh != nil {
+		return *x.HeatOutDhwKwh
+	}
+	return 0
+}
+
+func (x *HeatPumpEnergySummary) GetHeatOutHeatingDefrostKwh() float64 {
+	if x != nil && x.HeatOutHeatingDefrostKwh != nil {
+		return *x.HeatOutHeatingDefrostKwh
+	}
+	return 0
+}
+
+func (x *HeatPumpEnergySummary) GetHeatOutDhwDefrostKwh() float64 {
+	if x != nil && x.HeatOutDhwDefrostKwh != nil {
+		return *x.HeatOutDhwDefrostKwh
+	}
+	return 0
+}
+
+func (x *HeatPumpEnergySummary) GetHeatOutCoolingKwh() float64 {
+	if x != nil && x.HeatOutCoolingKwh != nil {
+		return *x.HeatOutCoolingKwh
+	}
+	return 0
+}
+
+type GetEnergySummaryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HeatPumpId    string                 `protobuf:"bytes,1,opt,name=heat_pump_id,json=heatPumpId,proto3" json:"heat_pump_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEnergySummaryRequest) Reset() {
+	*x = GetEnergySummaryRequest{}
+	mi := &file_proto_plugins_weheat_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEnergySummaryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEnergySummaryRequest) ProtoMessage() {}
+
+func (x *GetEnergySummaryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_plugins_weheat_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEnergySummaryRequest.ProtoReflect.Descriptor instead.
+func (*GetEnergySummaryRequest) Descriptor() ([]byte, []int) {
+	return file_proto_plugins_weheat_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetEnergySummaryRequest) GetHeatPumpId() string {
+	if x != nil {
+		return x.HeatPumpId
+	}
+	return ""
+}
+
+type GetEnergySummaryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Summary       *HeatPumpEnergySummary `protobuf:"bytes,1,opt,name=summary,proto3" json:"summary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEnergySummaryResponse) Reset() {
+	*x = GetEnergySummaryResponse{}
+	mi := &file_proto_plugins_weheat_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEnergySummaryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEnergySummaryResponse) ProtoMessage() {}
+
+func (x *GetEnergySummaryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_plugins_weheat_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEnergySummaryResponse.ProtoReflect.Descriptor instead.
+func (*GetEnergySummaryResponse) Descriptor() ([]byte, []int) {
+	return file_proto_plugins_weheat_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetEnergySummaryResponse) GetSummary() *HeatPumpEnergySummary {
+	if x != nil {
+		return x.Summary
+	}
+	return nil
+}
+
 type WeheatConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BaseUrl       *string                `protobuf:"bytes,1,opt,name=base_url,json=baseUrl,proto3,oneof" json:"base_url,omitempty"`
@@ -915,7 +1451,7 @@ type WeheatConfig struct {
 
 func (x *WeheatConfig) Reset() {
 	*x = WeheatConfig{}
-	mi := &file_proto_plugins_weheat_proto_msgTypes[17]
+	mi := &file_proto_plugins_weheat_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -927,7 +1463,7 @@ func (x *WeheatConfig) String() string {
 func (*WeheatConfig) ProtoMessage() {}
 
 func (x *WeheatConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_plugins_weheat_proto_msgTypes[17]
+	mi := &file_proto_plugins_weheat_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -940,7 +1476,7 @@ func (x *WeheatConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WeheatConfig.ProtoReflect.Descriptor instead.
 func (*WeheatConfig) Descriptor() ([]byte, []int) {
-	return file_proto_plugins_weheat_proto_rawDescGZIP(), []int{17}
+	return file_proto_plugins_weheat_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *WeheatConfig) GetBaseUrl() string {
@@ -1029,13 +1565,104 @@ const file_proto_plugins_weheat_proto_rawDesc = "" +
 	"heatPumpId\x12;\n" +
 	"\x05query\x18\x02 \x01(\v2%.gohome.plugins.weheat.v1.EnergyQueryR\x05query\"+\n" +
 	"\x15GetEnergyLogsResponse\x12\x12\n" +
-	"\x04json\x18\x01 \x03(\tR\x04json\";\n" +
+	"\x04json\x18\x01 \x03(\tR\x04json\"\xaa\r\n" +
+	"\x11HeatPumpTelemetry\x12 \n" +
+	"\fheat_pump_id\x18\x01 \x01(\tR\n" +
+	"heatPumpId\x12;\n" +
+	"\vobserved_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\x125\n" +
+	"\x14operating_state_code\x18\x03 \x01(\x05H\x00R\x12operatingStateCode\x88\x01\x01\x12\x1b\n" +
+	"\x06online\x18\x04 \x01(\bH\x01R\x06online\x88\x01\x01\x12/\n" +
+	"\x11water_out_celsius\x18\x05 \x01(\x01H\x02R\x0fwaterOutCelsius\x88\x01\x01\x12-\n" +
+	"\x10water_in_celsius\x18\x06 \x01(\x01H\x03R\x0ewaterInCelsius\x88\x01\x01\x128\n" +
+	"\x16water_house_in_celsius\x18\a \x01(\x01H\x04R\x13waterHouseInCelsius\x88\x01\x01\x129\n" +
+	"\x16water_setpoint_celsius\x18\b \x01(\x01H\x05R\x14waterSetpointCelsius\x88\x01\x01\x123\n" +
+	"\x13outside_air_celsius\x18\t \x01(\x01H\x06R\x11outsideAirCelsius\x88\x01\x01\x123\n" +
+	"\x13exhaust_air_celsius\x18\n" +
+	" \x01(\x01H\aR\x11exhaustAirCelsius\x88\x01\x01\x12-\n" +
+	"\x10tank_top_celsius\x18\v \x01(\x01H\bR\x0etankTopCelsius\x88\x01\x01\x123\n" +
+	"\x13tank_bottom_celsius\x18\f \x01(\x01H\tR\x11tankBottomCelsius\x88\x01\x01\x123\n" +
+	"\x13tank_target_celsius\x18\r \x01(\x01H\n" +
+	"R\x11tankTargetCelsius\x88\x01\x01\x12&\n" +
+	"\froom_celsius\x18\x0e \x01(\x01H\vR\vroomCelsius\x88\x01\x01\x123\n" +
+	"\x13room_target_celsius\x18\x0f \x01(\x01H\fR\x11roomTargetCelsius\x88\x01\x01\x12*\n" +
+	"\x0ecompressor_rpm\x18\x10 \x01(\x01H\rR\rcompressorRpm\x88\x01\x01\x125\n" +
+	"\x14electricity_in_watts\x18\x11 \x01(\x05H\x0eR\x12electricityInWatts\x88\x01\x01\x12)\n" +
+	"\x0eheat_out_watts\x18\x12 \x01(\x05H\x0fR\fheatOutWatts\x88\x01\x01\x12D\n" +
+	"\x1ccentral_heating_flow_percent\x18\x13 \x01(\x05H\x10R\x19centralHeatingFlowPercent\x88\x01\x01\x12-\n" +
+	"\x10dhw_flow_percent\x18\x14 \x01(\x05H\x11R\x0edhwFlowPercent\x88\x01\x01\x12/\n" +
+	"\x11water_pump_active\x18\x15 \x01(\bH\x12R\x0fwaterPumpActive\x88\x01\x01\x12-\n" +
+	"\x10dhw_valve_active\x18\x16 \x01(\bH\x13R\x0edhwValveActive\x88\x01\x01\x129\n" +
+	"\x16electric_heater_active\x18\x17 \x01(\bH\x14R\x14electricHeaterActive\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"error_code\x18\x18 \x01(\x05H\x15R\terrorCode\x88\x01\x01B\x17\n" +
+	"\x15_operating_state_codeB\t\n" +
+	"\a_onlineB\x14\n" +
+	"\x12_water_out_celsiusB\x13\n" +
+	"\x11_water_in_celsiusB\x19\n" +
+	"\x17_water_house_in_celsiusB\x19\n" +
+	"\x17_water_setpoint_celsiusB\x16\n" +
+	"\x14_outside_air_celsiusB\x16\n" +
+	"\x14_exhaust_air_celsiusB\x13\n" +
+	"\x11_tank_top_celsiusB\x16\n" +
+	"\x14_tank_bottom_celsiusB\x16\n" +
+	"\x14_tank_target_celsiusB\x0f\n" +
+	"\r_room_celsiusB\x16\n" +
+	"\x14_room_target_celsiusB\x11\n" +
+	"\x0f_compressor_rpmB\x17\n" +
+	"\x15_electricity_in_wattsB\x11\n" +
+	"\x0f_heat_out_wattsB\x1f\n" +
+	"\x1d_central_heating_flow_percentB\x13\n" +
+	"\x11_dhw_flow_percentB\x14\n" +
+	"\x12_water_pump_activeB\x13\n" +
+	"\x11_dhw_valve_activeB\x19\n" +
+	"\x17_electric_heater_activeB\r\n" +
+	"\v_error_code\"=\n" +
+	"\x19GetLatestTelemetryRequest\x12 \n" +
+	"\fheat_pump_id\x18\x01 \x01(\tR\n" +
+	"heatPumpId\"g\n" +
+	"\x1aGetLatestTelemetryResponse\x12I\n" +
+	"\ttelemetry\x18\x01 \x01(\v2+.gohome.plugins.weheat.v1.HeatPumpTelemetryR\ttelemetry\"\xb6\b\n" +
+	"\x15HeatPumpEnergySummary\x12 \n" +
+	"\fheat_pump_id\x18\x01 \x01(\tR\n" +
+	"heatPumpId\x12@\n" +
+	"\x1aelectricity_in_heating_kwh\x18\x02 \x01(\x01H\x00R\x17electricityInHeatingKwh\x88\x01\x01\x128\n" +
+	"\x16electricity_in_dhw_kwh\x18\x03 \x01(\x01H\x01R\x13electricityInDhwKwh\x88\x01\x01\x12@\n" +
+	"\x1aelectricity_in_standby_kwh\x18\x04 \x01(\x01H\x02R\x17electricityInStandbyKwh\x88\x01\x01\x12O\n" +
+	"\"electricity_in_heating_defrost_kwh\x18\x05 \x01(\x01H\x03R\x1eelectricityInHeatingDefrostKwh\x88\x01\x01\x12G\n" +
+	"\x1eelectricity_in_dhw_defrost_kwh\x18\x06 \x01(\x01H\x04R\x1aelectricityInDhwDefrostKwh\x88\x01\x01\x12@\n" +
+	"\x1aelectricity_in_cooling_kwh\x18\a \x01(\x01H\x05R\x17electricityInCoolingKwh\x88\x01\x01\x124\n" +
+	"\x14heat_out_heating_kwh\x18\b \x01(\x01H\x06R\x11heatOutHeatingKwh\x88\x01\x01\x12,\n" +
+	"\x10heat_out_dhw_kwh\x18\t \x01(\x01H\aR\rheatOutDhwKwh\x88\x01\x01\x12C\n" +
+	"\x1cheat_out_heating_defrost_kwh\x18\n" +
+	" \x01(\x01H\bR\x18heatOutHeatingDefrostKwh\x88\x01\x01\x12;\n" +
+	"\x18heat_out_dhw_defrost_kwh\x18\v \x01(\x01H\tR\x14heatOutDhwDefrostKwh\x88\x01\x01\x124\n" +
+	"\x14heat_out_cooling_kwh\x18\f \x01(\x01H\n" +
+	"R\x11heatOutCoolingKwh\x88\x01\x01B\x1d\n" +
+	"\x1b_electricity_in_heating_kwhB\x19\n" +
+	"\x17_electricity_in_dhw_kwhB\x1d\n" +
+	"\x1b_electricity_in_standby_kwhB%\n" +
+	"#_electricity_in_heating_defrost_kwhB!\n" +
+	"\x1f_electricity_in_dhw_defrost_kwhB\x1d\n" +
+	"\x1b_electricity_in_cooling_kwhB\x17\n" +
+	"\x15_heat_out_heating_kwhB\x13\n" +
+	"\x11_heat_out_dhw_kwhB\x1f\n" +
+	"\x1d_heat_out_heating_defrost_kwhB\x1b\n" +
+	"\x19_heat_out_dhw_defrost_kwhB\x17\n" +
+	"\x15_heat_out_cooling_kwh\";\n" +
+	"\x17GetEnergySummaryRequest\x12 \n" +
+	"\fheat_pump_id\x18\x01 \x01(\tR\n" +
+	"heatPumpId\"e\n" +
+	"\x18GetEnergySummaryResponse\x12I\n" +
+	"\asummary\x18\x01 \x01(\v2/.gohome.plugins.weheat.v1.HeatPumpEnergySummaryR\asummary\";\n" +
 	"\fWeheatConfig\x12\x1e\n" +
 	"\bbase_url\x18\x01 \x01(\tH\x00R\abaseUrl\x88\x01\x01B\v\n" +
-	"\t_base_url2\x9b\x06\n" +
+	"\t_base_url2\x97\b\n" +
 	"\rWeheatService\x12p\n" +
 	"\rListHeatPumps\x12..gohome.plugins.weheat.v1.ListHeatPumpsRequest\x1a/.gohome.plugins.weheat.v1.ListHeatPumpsResponse\x12j\n" +
-	"\vGetHeatPump\x12,.gohome.plugins.weheat.v1.GetHeatPumpRequest\x1a-.gohome.plugins.weheat.v1.GetHeatPumpResponse\x12m\n" +
+	"\vGetHeatPump\x12,.gohome.plugins.weheat.v1.GetHeatPumpRequest\x1a-.gohome.plugins.weheat.v1.GetHeatPumpResponse\x12\x7f\n" +
+	"\x12GetLatestTelemetry\x123.gohome.plugins.weheat.v1.GetLatestTelemetryRequest\x1a4.gohome.plugins.weheat.v1.GetLatestTelemetryResponse\x12y\n" +
+	"\x10GetEnergySummary\x121.gohome.plugins.weheat.v1.GetEnergySummaryRequest\x1a2.gohome.plugins.weheat.v1.GetEnergySummaryResponse\x12m\n" +
 	"\fGetLatestLog\x12-.gohome.plugins.weheat.v1.GetLatestLogRequest\x1a..gohome.plugins.weheat.v1.GetLatestLogResponse\x12g\n" +
 	"\n" +
 	"GetRawLogs\x12+.gohome.plugins.weheat.v1.GetRawLogsRequest\x1a,.gohome.plugins.weheat.v1.GetRawLogsResponse\x12j\n" +
@@ -1055,57 +1682,70 @@ func file_proto_plugins_weheat_proto_rawDescGZIP() []byte {
 	return file_proto_plugins_weheat_proto_rawDescData
 }
 
-var file_proto_plugins_weheat_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_proto_plugins_weheat_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_proto_plugins_weheat_proto_goTypes = []any{
-	(*ListHeatPumpsRequest)(nil),    // 0: gohome.plugins.weheat.v1.ListHeatPumpsRequest
-	(*HeatPump)(nil),                // 1: gohome.plugins.weheat.v1.HeatPump
-	(*ListHeatPumpsResponse)(nil),   // 2: gohome.plugins.weheat.v1.ListHeatPumpsResponse
-	(*GetHeatPumpRequest)(nil),      // 3: gohome.plugins.weheat.v1.GetHeatPumpRequest
-	(*GetHeatPumpResponse)(nil),     // 4: gohome.plugins.weheat.v1.GetHeatPumpResponse
-	(*LogQuery)(nil),                // 5: gohome.plugins.weheat.v1.LogQuery
-	(*GetLatestLogRequest)(nil),     // 6: gohome.plugins.weheat.v1.GetLatestLogRequest
-	(*GetLatestLogResponse)(nil),    // 7: gohome.plugins.weheat.v1.GetLatestLogResponse
-	(*GetRawLogsRequest)(nil),       // 8: gohome.plugins.weheat.v1.GetRawLogsRequest
-	(*GetRawLogsResponse)(nil),      // 9: gohome.plugins.weheat.v1.GetRawLogsResponse
-	(*GetLogViewsRequest)(nil),      // 10: gohome.plugins.weheat.v1.GetLogViewsRequest
-	(*GetLogViewsResponse)(nil),     // 11: gohome.plugins.weheat.v1.GetLogViewsResponse
-	(*EnergyQuery)(nil),             // 12: gohome.plugins.weheat.v1.EnergyQuery
-	(*GetEnergyTotalsRequest)(nil),  // 13: gohome.plugins.weheat.v1.GetEnergyTotalsRequest
-	(*GetEnergyTotalsResponse)(nil), // 14: gohome.plugins.weheat.v1.GetEnergyTotalsResponse
-	(*GetEnergyLogsRequest)(nil),    // 15: gohome.plugins.weheat.v1.GetEnergyLogsRequest
-	(*GetEnergyLogsResponse)(nil),   // 16: gohome.plugins.weheat.v1.GetEnergyLogsResponse
-	(*WeheatConfig)(nil),            // 17: gohome.plugins.weheat.v1.WeheatConfig
-	(*timestamppb.Timestamp)(nil),   // 18: google.protobuf.Timestamp
+	(*ListHeatPumpsRequest)(nil),       // 0: gohome.plugins.weheat.v1.ListHeatPumpsRequest
+	(*HeatPump)(nil),                   // 1: gohome.plugins.weheat.v1.HeatPump
+	(*ListHeatPumpsResponse)(nil),      // 2: gohome.plugins.weheat.v1.ListHeatPumpsResponse
+	(*GetHeatPumpRequest)(nil),         // 3: gohome.plugins.weheat.v1.GetHeatPumpRequest
+	(*GetHeatPumpResponse)(nil),        // 4: gohome.plugins.weheat.v1.GetHeatPumpResponse
+	(*LogQuery)(nil),                   // 5: gohome.plugins.weheat.v1.LogQuery
+	(*GetLatestLogRequest)(nil),        // 6: gohome.plugins.weheat.v1.GetLatestLogRequest
+	(*GetLatestLogResponse)(nil),       // 7: gohome.plugins.weheat.v1.GetLatestLogResponse
+	(*GetRawLogsRequest)(nil),          // 8: gohome.plugins.weheat.v1.GetRawLogsRequest
+	(*GetRawLogsResponse)(nil),         // 9: gohome.plugins.weheat.v1.GetRawLogsResponse
+	(*GetLogViewsRequest)(nil),         // 10: gohome.plugins.weheat.v1.GetLogViewsRequest
+	(*GetLogViewsResponse)(nil),        // 11: gohome.plugins.weheat.v1.GetLogViewsResponse
+	(*EnergyQuery)(nil),                // 12: gohome.plugins.weheat.v1.EnergyQuery
+	(*GetEnergyTotalsRequest)(nil),     // 13: gohome.plugins.weheat.v1.GetEnergyTotalsRequest
+	(*GetEnergyTotalsResponse)(nil),    // 14: gohome.plugins.weheat.v1.GetEnergyTotalsResponse
+	(*GetEnergyLogsRequest)(nil),       // 15: gohome.plugins.weheat.v1.GetEnergyLogsRequest
+	(*GetEnergyLogsResponse)(nil),      // 16: gohome.plugins.weheat.v1.GetEnergyLogsResponse
+	(*HeatPumpTelemetry)(nil),          // 17: gohome.plugins.weheat.v1.HeatPumpTelemetry
+	(*GetLatestTelemetryRequest)(nil),  // 18: gohome.plugins.weheat.v1.GetLatestTelemetryRequest
+	(*GetLatestTelemetryResponse)(nil), // 19: gohome.plugins.weheat.v1.GetLatestTelemetryResponse
+	(*HeatPumpEnergySummary)(nil),      // 20: gohome.plugins.weheat.v1.HeatPumpEnergySummary
+	(*GetEnergySummaryRequest)(nil),    // 21: gohome.plugins.weheat.v1.GetEnergySummaryRequest
+	(*GetEnergySummaryResponse)(nil),   // 22: gohome.plugins.weheat.v1.GetEnergySummaryResponse
+	(*WeheatConfig)(nil),               // 23: gohome.plugins.weheat.v1.WeheatConfig
+	(*timestamppb.Timestamp)(nil),      // 24: google.protobuf.Timestamp
 }
 var file_proto_plugins_weheat_proto_depIdxs = []int32{
 	1,  // 0: gohome.plugins.weheat.v1.ListHeatPumpsResponse.heat_pumps:type_name -> gohome.plugins.weheat.v1.HeatPump
 	1,  // 1: gohome.plugins.weheat.v1.GetHeatPumpResponse.heat_pump:type_name -> gohome.plugins.weheat.v1.HeatPump
-	18, // 2: gohome.plugins.weheat.v1.LogQuery.start_time:type_name -> google.protobuf.Timestamp
-	18, // 3: gohome.plugins.weheat.v1.LogQuery.end_time:type_name -> google.protobuf.Timestamp
+	24, // 2: gohome.plugins.weheat.v1.LogQuery.start_time:type_name -> google.protobuf.Timestamp
+	24, // 3: gohome.plugins.weheat.v1.LogQuery.end_time:type_name -> google.protobuf.Timestamp
 	5,  // 4: gohome.plugins.weheat.v1.GetRawLogsRequest.query:type_name -> gohome.plugins.weheat.v1.LogQuery
 	5,  // 5: gohome.plugins.weheat.v1.GetLogViewsRequest.query:type_name -> gohome.plugins.weheat.v1.LogQuery
-	18, // 6: gohome.plugins.weheat.v1.EnergyQuery.start_time:type_name -> google.protobuf.Timestamp
-	18, // 7: gohome.plugins.weheat.v1.EnergyQuery.end_time:type_name -> google.protobuf.Timestamp
+	24, // 6: gohome.plugins.weheat.v1.EnergyQuery.start_time:type_name -> google.protobuf.Timestamp
+	24, // 7: gohome.plugins.weheat.v1.EnergyQuery.end_time:type_name -> google.protobuf.Timestamp
 	12, // 8: gohome.plugins.weheat.v1.GetEnergyLogsRequest.query:type_name -> gohome.plugins.weheat.v1.EnergyQuery
-	0,  // 9: gohome.plugins.weheat.v1.WeheatService.ListHeatPumps:input_type -> gohome.plugins.weheat.v1.ListHeatPumpsRequest
-	3,  // 10: gohome.plugins.weheat.v1.WeheatService.GetHeatPump:input_type -> gohome.plugins.weheat.v1.GetHeatPumpRequest
-	6,  // 11: gohome.plugins.weheat.v1.WeheatService.GetLatestLog:input_type -> gohome.plugins.weheat.v1.GetLatestLogRequest
-	8,  // 12: gohome.plugins.weheat.v1.WeheatService.GetRawLogs:input_type -> gohome.plugins.weheat.v1.GetRawLogsRequest
-	10, // 13: gohome.plugins.weheat.v1.WeheatService.GetLogViews:input_type -> gohome.plugins.weheat.v1.GetLogViewsRequest
-	13, // 14: gohome.plugins.weheat.v1.WeheatService.GetEnergyTotals:input_type -> gohome.plugins.weheat.v1.GetEnergyTotalsRequest
-	15, // 15: gohome.plugins.weheat.v1.WeheatService.GetEnergyLogs:input_type -> gohome.plugins.weheat.v1.GetEnergyLogsRequest
-	2,  // 16: gohome.plugins.weheat.v1.WeheatService.ListHeatPumps:output_type -> gohome.plugins.weheat.v1.ListHeatPumpsResponse
-	4,  // 17: gohome.plugins.weheat.v1.WeheatService.GetHeatPump:output_type -> gohome.plugins.weheat.v1.GetHeatPumpResponse
-	7,  // 18: gohome.plugins.weheat.v1.WeheatService.GetLatestLog:output_type -> gohome.plugins.weheat.v1.GetLatestLogResponse
-	9,  // 19: gohome.plugins.weheat.v1.WeheatService.GetRawLogs:output_type -> gohome.plugins.weheat.v1.GetRawLogsResponse
-	11, // 20: gohome.plugins.weheat.v1.WeheatService.GetLogViews:output_type -> gohome.plugins.weheat.v1.GetLogViewsResponse
-	14, // 21: gohome.plugins.weheat.v1.WeheatService.GetEnergyTotals:output_type -> gohome.plugins.weheat.v1.GetEnergyTotalsResponse
-	16, // 22: gohome.plugins.weheat.v1.WeheatService.GetEnergyLogs:output_type -> gohome.plugins.weheat.v1.GetEnergyLogsResponse
-	16, // [16:23] is the sub-list for method output_type
-	9,  // [9:16] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	24, // 9: gohome.plugins.weheat.v1.HeatPumpTelemetry.observed_at:type_name -> google.protobuf.Timestamp
+	17, // 10: gohome.plugins.weheat.v1.GetLatestTelemetryResponse.telemetry:type_name -> gohome.plugins.weheat.v1.HeatPumpTelemetry
+	20, // 11: gohome.plugins.weheat.v1.GetEnergySummaryResponse.summary:type_name -> gohome.plugins.weheat.v1.HeatPumpEnergySummary
+	0,  // 12: gohome.plugins.weheat.v1.WeheatService.ListHeatPumps:input_type -> gohome.plugins.weheat.v1.ListHeatPumpsRequest
+	3,  // 13: gohome.plugins.weheat.v1.WeheatService.GetHeatPump:input_type -> gohome.plugins.weheat.v1.GetHeatPumpRequest
+	18, // 14: gohome.plugins.weheat.v1.WeheatService.GetLatestTelemetry:input_type -> gohome.plugins.weheat.v1.GetLatestTelemetryRequest
+	21, // 15: gohome.plugins.weheat.v1.WeheatService.GetEnergySummary:input_type -> gohome.plugins.weheat.v1.GetEnergySummaryRequest
+	6,  // 16: gohome.plugins.weheat.v1.WeheatService.GetLatestLog:input_type -> gohome.plugins.weheat.v1.GetLatestLogRequest
+	8,  // 17: gohome.plugins.weheat.v1.WeheatService.GetRawLogs:input_type -> gohome.plugins.weheat.v1.GetRawLogsRequest
+	10, // 18: gohome.plugins.weheat.v1.WeheatService.GetLogViews:input_type -> gohome.plugins.weheat.v1.GetLogViewsRequest
+	13, // 19: gohome.plugins.weheat.v1.WeheatService.GetEnergyTotals:input_type -> gohome.plugins.weheat.v1.GetEnergyTotalsRequest
+	15, // 20: gohome.plugins.weheat.v1.WeheatService.GetEnergyLogs:input_type -> gohome.plugins.weheat.v1.GetEnergyLogsRequest
+	2,  // 21: gohome.plugins.weheat.v1.WeheatService.ListHeatPumps:output_type -> gohome.plugins.weheat.v1.ListHeatPumpsResponse
+	4,  // 22: gohome.plugins.weheat.v1.WeheatService.GetHeatPump:output_type -> gohome.plugins.weheat.v1.GetHeatPumpResponse
+	19, // 23: gohome.plugins.weheat.v1.WeheatService.GetLatestTelemetry:output_type -> gohome.plugins.weheat.v1.GetLatestTelemetryResponse
+	22, // 24: gohome.plugins.weheat.v1.WeheatService.GetEnergySummary:output_type -> gohome.plugins.weheat.v1.GetEnergySummaryResponse
+	7,  // 25: gohome.plugins.weheat.v1.WeheatService.GetLatestLog:output_type -> gohome.plugins.weheat.v1.GetLatestLogResponse
+	9,  // 26: gohome.plugins.weheat.v1.WeheatService.GetRawLogs:output_type -> gohome.plugins.weheat.v1.GetRawLogsResponse
+	11, // 27: gohome.plugins.weheat.v1.WeheatService.GetLogViews:output_type -> gohome.plugins.weheat.v1.GetLogViewsResponse
+	14, // 28: gohome.plugins.weheat.v1.WeheatService.GetEnergyTotals:output_type -> gohome.plugins.weheat.v1.GetEnergyTotalsResponse
+	16, // 29: gohome.plugins.weheat.v1.WeheatService.GetEnergyLogs:output_type -> gohome.plugins.weheat.v1.GetEnergyLogsResponse
+	21, // [21:30] is the sub-list for method output_type
+	12, // [12:21] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_proto_plugins_weheat_proto_init() }
@@ -1116,13 +1756,15 @@ func file_proto_plugins_weheat_proto_init() {
 	file_proto_plugins_weheat_proto_msgTypes[0].OneofWrappers = []any{}
 	file_proto_plugins_weheat_proto_msgTypes[1].OneofWrappers = []any{}
 	file_proto_plugins_weheat_proto_msgTypes[17].OneofWrappers = []any{}
+	file_proto_plugins_weheat_proto_msgTypes[20].OneofWrappers = []any{}
+	file_proto_plugins_weheat_proto_msgTypes[23].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_plugins_weheat_proto_rawDesc), len(file_proto_plugins_weheat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

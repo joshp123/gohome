@@ -145,6 +145,8 @@ func decodeInverterTelemetry(row map[string]any, serial, timezone string) (*v1.I
 			if field.channel == "3" || field.channel == "4" {
 				continue
 			}
+		default:
+			// All other quantities have no per-channel hardware filter.
 		}
 		if value, ok := parseFloatOK(row[field.source]); ok {
 			result.Measurements = append(result.Measurements, &v1.InverterMeasurement{Quantity: field.quantity, Channel: field.channel, Value: value})
