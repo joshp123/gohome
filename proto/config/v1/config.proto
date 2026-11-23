@@ -15,6 +15,8 @@ import "proto/plugins/shelly.proto";
 import "proto/plugins/hikvision.proto";
 import "proto/plugins/sonos.proto";
 import "proto/plugins/casambi.proto";
+import "proto/plugins/brother.proto";
+import "proto/plugins/unifi.proto";
 
 message CoreConfig {
   string grpc_addr = 1;
@@ -51,4 +53,6 @@ message Config {
   gohome.plugins.hikvision.v1.HikvisionConfig hikvision = 19;
   gohome.plugins.sonos.v1.SonosConfig sonos = 20;
   gohome.plugins.casambi.v1.CasambiConfig casambi = 21;
+  gohome.plugins.brother.v1.BrotherConfig brother = 22;
+  gohome.plugins.unifi.v1.UniFiConfig unifi = 23;
 }

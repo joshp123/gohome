@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package gohome.plugins.brother.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/brother/v1;brotherv1";
+
+import "google/protobuf/timestamp.proto";
+
+// BrotherConfig configures read-only scraping of a Brother network printer's
+// local maintenance CSV endpoint (/etc/mnt_info.csv).
+message BrotherConfig {
+  // Printer HTTP origin, e.g. "http://192.0.2.50".
+  string base_url = 1;
+}
+
+message GetPrinterStatusRequest {}
+
+message PrinterErrorEntry {
+  string message = 1;
+  uint64 page_count = 2;
+}
+
+message PrinterStatus {
+  string node_name = 1;
+  string model_name = 2;
+  string ip_address = 3;
+  string serial_number = 4;
+  string firmware_version = 5;
+  optional uint32 memory_megabytes = 6;
+  optional uint64 page_counter = 7;
+  optional uint64 duplex_page_counter = 8;
+  optional double average_coverage_percent = 9;
+  optional double drum_remaining_percent = 10;
+  optional double toner_remaining_percent = 11;
+  optional uint64 toner_replace_count = 12;
+  optional uint64 drum_replace_count = 13;
+  optional uint64 total_paper_jams = 14;
+  optional uint64 jam_tray1_count = 15;
+  optional uint64 jam_inside_count = 16;
+  optional uint64 jam_rear_count = 17;
+  optional uint64 jam_duplex_count = 18;
+  repeated PrinterErrorEntry recent_errors = 19;
+  google.protobuf.Timestamp observed_at = 20;
+}
+
+message GetPrinterStatusResponse {
+  PrinterStatus status = 1;
+}
+
+service BrotherService {
+  rpc GetPrinterStatus(GetPrinterStatusRequest) returns (GetPrinterStatusResponse);
+}

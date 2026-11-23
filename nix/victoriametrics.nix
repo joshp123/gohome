@@ -19,8 +19,8 @@ let
   # Per-source scrape intervals: keep fast local/live telemetry at 15s, moderate local/bridge sources at 30s,
   # and slow cloud-throttled sources at 60s to avoid pointless disk churn and local RPC bursts.
   scrapeIntervalFor = source:
-    if elem source [ "growatt" "daikin" ] then "60s"
-    else if elem source [ "roborock" "tado" "airgradient" "sonos" "hikvision" "applehome" ] then "30s"
+    if elem source [ "growatt" "daikin" "brother" ] then "60s"
+    else if elem source [ "roborock" "tado" "airgradient" "sonos" "hikvision" "applehome" "unifi" ] then "30s"
     else "15s";
 
   # Drop high-cardinality per-characteristic read timestamps from Apple Home (530+ unused series);

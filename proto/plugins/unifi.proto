@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package gohome.plugins.unifi.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/plugins/unifi/v1;unifiv1";
+
+import "google/protobuf/timestamp.proto";
+
+// UniFiConfig configures read-only scraping of a local UniFi OS / Network
+// controller using an X-API-KEY secret file.
+message UniFiConfig {
+  // Controller origin, e.g. "https://192.0.2.1".
+  string base_url = 1;
+  // Path to a read-only file holding the UniFi Network API key.
+  string api_key_file = 2;
+  // UniFi site name (defaults to "default").
+  string site = 3;
+  // Skip TLS verification for self-signed local controller certificates.
+  bool insecure_skip_verify = 4;
+}
+
+message SubsystemHealth {
+  string subsystem = 1;
+  string status = 2;
+  optional uint64 active_users = 3;
+  optional uint64 active_guests = 4;
+  optional uint64 adopted_devices = 5;
+  optional uint64 disconnected_devices = 6;
+  optional double tx_bytes_per_second = 7;
+  optional double rx_bytes_per_second = 8;
+  optional double wan_latency_milliseconds = 9;
+  optional double wan_uptime_seconds = 10;
+  string wan_ip = 11;
+  string isp_name = 12;
+}
+
+message NetworkDevice {
+  string mac = 1;
+  string name = 2;
+  string model = 3;
+  string device_type = 4;
+  string ip = 5;
+  string version = 6;
+  bool online = 7;
+  optional double uptime_seconds = 8;
+  optional double cpu_percent = 9;
+  optional double memory_percent = 10;
+  optional double temperature_celsius = 11;
+  optional uint64 active_clients = 12;
+  optional double satisfaction_percent = 13;
+}
+
+message SiteSummary {
+  string controller_name = 1;
+  string hardware_shortname = 2;
+  string site = 3;
+  uint64 wired_clients = 4;
+  uint64 wireless_clients = 5;
+  repeated SubsystemHealth subsystems = 6;
+  repeated NetworkDevice devices = 7;
+  google.protobuf.Timestamp observed_at = 8;
+}
+
+message GetSiteSummaryRequest {}
+
+message GetSiteSummaryResponse {
+  SiteSummary summary = 1;
+}
+
+service UniFiService {
+  rpc GetSiteSummary(GetSiteSummaryRequest) returns (GetSiteSummaryResponse);
+}

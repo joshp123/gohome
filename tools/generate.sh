@@ -8,6 +8,7 @@ protoc \
   --go-grpc_out=. --go-grpc_opt=module=github.com/joshp123/gohome \
   proto/registry.proto \
   proto/config/v1/config.proto \
+  proto/actuation/policy.proto \
   proto/plugins/tado.proto \
   proto/plugins/daikin.proto \
   proto/plugins/growatt.proto \
@@ -18,4 +19,6 @@ protoc \
   proto/plugins/weheat.proto \
   proto/plugins/hikvision.proto \
   proto/plugins/sonos.proto \
-  proto/plugins/casambi.proto
+  proto/plugins/casambi.proto \
+  proto/plugins/brother.proto \
+  proto/plugins/unifi.proto

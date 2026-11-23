@@ -150,7 +150,18 @@ ${lib.concatMapStringsSep "\n" (cover: ''
     casambi {
       bridge_address: ${textprotoString cfg.plugins.casambi.bridgeAddress}
     }
-  '';
+  '' + optionalString (cfg.plugins.brother != null) ''
+    brother {
+      base_url: ${textprotoString cfg.plugins.brother.baseUrl}
+    }
+  '' + optionalString (cfg.plugins.unifi != null) (''
+    unifi {
+      base_url: ${textprotoString cfg.plugins.unifi.baseUrl}
+      api_key_file: ${textprotoString cfg.plugins.unifi.apiKeyFile}
+      site: ${textprotoString cfg.plugins.unifi.site}
+      insecure_skip_verify: ${if cfg.plugins.unifi.insecureSkipVerify then "true" else "false"}
+    }
+  '');
 
 in
 {
@@ -532,6 +543,48 @@ in
       default = null;
       description = "Casambi lights via the light bridge, read-only (presence enables the plugin)";
     };
+
+    plugins.brother = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          baseUrl = mkOption {
+            type = types.str;
+            example = "http://192.0.2.50";
+            description = "Brother printer HTTP origin serving /etc/mnt_info.csv";
+          };
+        };
+      });
+      default = null;
+      description = "Brother network printer telemetry, read-only (presence enables the plugin)";
+    };
+
+    plugins.unifi = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          baseUrl = mkOption {
+            type = types.str;
+            example = "https://192.0.2.1";
+            description = "UniFi OS / Network controller origin";
+          };
+          apiKeyFile = mkOption {
+            type = types.path;
+            description = "Path to a read-only file holding the UniFi Network API key";
+          };
+          site = mkOption {
+            type = types.str;
+            default = "default";
+            description = "UniFi site name";
+          };
+          insecureSkipVerify = mkOption {
+            type = types.bool;
+            default = true;
+            description = "Skip TLS verification for self-signed local controller certificates";
+          };
+        };
+      });
+      default = null;
+      description = "UniFi network controller telemetry, read-only (presence enables the plugin)";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -586,6 +639,7 @@ in
         ++ lib.optional (cfg.plugins.growatt != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.growatt.tokenFile}"
         ++ lib.optional (cfg.plugins.roborock != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.roborock.bootstrapFile}"
         ++ lib.optional (cfg.plugins.hikvision != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.hikvision.credentialsFile}"
+        ++ lib.optional (cfg.plugins.unifi != null) "${pkgs.coreutils}/bin/test -r ${cfg.plugins.unifi.apiKeyFile}"
         ;
     in {
       description = "GoHome";
