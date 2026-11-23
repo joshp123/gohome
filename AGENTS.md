@@ -38,6 +38,18 @@ secrets, tokens or keys.
 
 Notes, facts and analyses about a specific house live in private repos, never here.
 
+## Engineering Standards
+
+<!-- Written by AI on 2026.11.23 by model gemini-3-pro. -->
+
+Follow Ben Vinegar's [How coding agents read your code](https://modem.dev/blog/how-coding-agents-read-your-code) and our cross-repo Go rules:
+
+- **Discoverable names (ASD-STE100):** Coding agents navigate with `rg`. Every file, type, protobuf message, field, enum, and function is a search address. Use full, domain-specific words; ban junk-drawer filenames (`types.go`, `helpers.go`, `utils.go`) and bare generic symbols (`Data`, `Info`, `State`, `Status`, `Manager`) unless qualified by domain meaning.
+- **Strong domain types everywhere:** Use protobuf messages and enums for RPC contracts — never `string json = 1` blobs. Avoid `any`, `interface{}`, and `map[string]any` inside the system; decode untrusted external JSON into concrete structs at the boundary.
+- **One CLI output renderer:** All human and `--json` output in `cmd/gohome-cli` and `cmd/gohome-act` goes through `internal/render` (enforced by `forbidigo` in `.golangci.yml`). Keep `gohome-cli` strictly read-only and route all device writes through `gohome-act` with explicit policy bounds and audit logging.
+- **One live schema before v1:** Change live schemas and all callers together instead of carrying compatibility aliases or version-branch machinery.
+- **Static gates:** Run `go test ./... && go vet ./... && ./scripts/check-lint` before committing.
+
 ## Commit Policy
 
 - One logical change per commit
