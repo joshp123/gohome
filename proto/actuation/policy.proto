@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package gohome.actuation.v1;
+
+option go_package = "github.com/joshp123/gohome/proto/gen/actuation/v1;actuationv1";
+
+// ActionTier classifies whether a device write can execute within hard bounds
+// or requires explicit human approval through Agent Keyring.
+enum ActionTier {
+  ACTION_TIER_UNSPECIFIED = 0;
+  ACTION_TIER_DENIED = 1;
+  ACTION_TIER_BOUNDED_REVERSIBLE = 2;
+  ACTION_TIER_HIGH_IMPACT_APPROVAL_REQUIRED = 3;
+}
+
+// NumericBounds clamps scalar write parameters (such as temperature setpoints
+// or volume percentages) in Go before any device RPC is dialed.
+message NumericBounds {
+  optional double min_value = 1;
+  optional double max_value = 2;
+}
+
+// RateLimit caps repeated writes to a device rule within a rolling window.
+message RateLimit {
+  uint32 max_calls = 1;
+  uint32 window_seconds = 2;
+}
+
+// AgentKeyringApprovalConfig configures approval leases via the agent-keyring CLI.
+message AgentKeyringApprovalConfig {
+  // Binary name or absolute path to agent-keyring (defaults to "agent-keyring").
+  string binary_path = 1;
+  // Default Agent Keyring login/rule identifier requested for high-impact actions.
+  string login_id = 2;
+}
+
+// DeviceActionRule declares one permitted write operation. Anything not matched
+// by a rule is denied by default.
+message DeviceActionRule {
+  string plugin_id = 1;
+  string action = 2;
+  // Allowed device/zone/room names (case-insensitive), or "*" for any discovered target.
+  repeated string allowed_targets = 3;
+  ActionTier tier = 4;
+  // Escalates BOUNDED_REVERSIBLE actions to HIGH_IMPACT_APPROVAL_REQUIRED when the house is away.
+  bool require_approval_when_away = 5;
+  NumericBounds numeric_bounds = 6;
+  RateLimit rate_limit = 7;
+  // Optional per-rule override of AgentKeyringApprovalConfig.login_id.
+  string approval_login_id = 8;
+}
+
+// ActuationPolicy is the Nix-declared write policy evaluated by gohome-act.
+message ActuationPolicy {
+  string audit_log_path = 1;
+  string rate_limit_state_path = 2;
+  AgentKeyringApprovalConfig agent_keyring = 3;
+  repeated DeviceActionRule rules = 4;
+}

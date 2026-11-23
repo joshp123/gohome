@@ -1,0 +1,89 @@
+# Example Nix-declared actuation policy for gohome-act.
+# Any plugin, action, or target not listed here is denied by default.
+
+audit_log_path: "/var/lib/gohome/actuation-audit.jsonl"
+rate_limit_state_path: "/var/lib/gohome/actuation-rate-limit.json"
+
+agent_keyring {
+  binary_path: "agent-keyring"
+  login_id: "gohome-actuation-approval"
+}
+
+rules {
+  plugin_id: "tado"
+  action: "set_temperature"
+  allowed_targets: ["living_room", "bedroom", "study"]
+  tier: ACTION_TIER_BOUNDED_REVERSIBLE
+  require_approval_when_away: true
+  numeric_bounds {
+    min_value: 16.0
+    max_value: 24.0
+  }
+  rate_limit {
+    max_calls: 6
+    window_seconds: 600
+  }
+}
+
+rules {
+  plugin_id: "daikin"
+  action: "set_power"
+  allowed_targets: ["*"]
+  tier: ACTION_TIER_BOUNDED_REVERSIBLE
+  require_approval_when_away: true
+  rate_limit {
+    max_calls: 6
+    window_seconds: 600
+  }
+}
+
+rules {
+  plugin_id: "daikin"
+  action: "set_temperature"
+  allowed_targets: ["*"]
+  tier: ACTION_TIER_BOUNDED_REVERSIBLE
+  require_approval_when_away: true
+  numeric_bounds {
+    min_value: 18.0
+    max_value: 25.0
+  }
+  rate_limit {
+    max_calls: 6
+    window_seconds: 600
+  }
+}
+
+rules {
+  plugin_id: "roborock"
+  action: "clean_room"
+  allowed_targets: ["*"]
+  tier: ACTION_TIER_BOUNDED_REVERSIBLE
+  require_approval_when_away: false
+  rate_limit {
+    max_calls: 3
+    window_seconds: 1800
+  }
+}
+
+rules {
+  plugin_id: "roborock"
+  action: "dock"
+  allowed_targets: ["*"]
+  tier: ACTION_TIER_BOUNDED_REVERSIBLE
+  require_approval_when_away: false
+}
+
+rules {
+  plugin_id: "roborock"
+  action: "locate"
+  allowed_targets: ["*"]
+  tier: ACTION_TIER_BOUNDED_REVERSIBLE
+  require_approval_when_away: true
+}
+
+rules {
+  plugin_id: "roborock"
+  action: "clean_all"
+  allowed_targets: ["*"]
+  tier: ACTION_TIER_HIGH_IMPACT_APPROVAL_REQUIRED
+}

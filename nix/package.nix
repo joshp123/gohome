@@ -26,6 +26,7 @@ buildGoModule {
   subPackages = [
     "cmd/gohome"
     "cmd/gohome-cli"
+    "cmd/gohome-act"
   ];
 
   tags = buildTags;
