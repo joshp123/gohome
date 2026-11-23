@@ -130,6 +130,15 @@ func Validate(cfg *configv1.Config) error {
 	if cfg.Casambi != nil && cfg.Casambi.BridgeAddress == "" {
 		return fmt.Errorf("casambi.bridge_address is required")
 	}
+	if cfg.Brother != nil && cfg.Brother.BaseUrl == "" {
+		return fmt.Errorf("brother.base_url is required")
+	}
+	if cfg.Unifi != nil && cfg.Unifi.BaseUrl == "" {
+		return fmt.Errorf("unifi.base_url is required")
+	}
+	if cfg.Unifi != nil && cfg.Unifi.ApiKeyFile == "" {
+		return fmt.Errorf("unifi.api_key_file is required")
+	}
 	// weheat uses hardcoded public client credentials; no bootstrap file needed.
 
 	return nil
@@ -173,6 +182,12 @@ func EnabledPlugins(cfg *configv1.Config) map[string]bool {
 	}
 	if cfg.Casambi != nil {
 		enabled["casambi"] = true
+	}
+	if cfg.Brother != nil {
+		enabled["brother"] = true
+	}
+	if cfg.Unifi != nil {
+		enabled["unifi"] = true
 	}
 	return enabled
 }
