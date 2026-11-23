@@ -3,77 +3,41 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"strconv"
-	"strings"
 
+	"github.com/joshp123/gohome/internal/render"
 	tadov1 "github.com/joshp123/gohome/proto/gen/plugins/tado/v1"
 	"google.golang.org/grpc"
 )
 
-func tadoCmd(ctx context.Context, conn *grpc.ClientConn, args []string, jsonOutput bool) {
-	out := outputMode{json: jsonOutput}
-	if len(args) == 0 {
-		tadoUsage()
-		os.Exit(2)
+func tadoCmd(ctx context.Context, conn *grpc.ClientConn, out render.Renderer, args []string) int {
+	sub := "zones"
+	if len(args) > 0 {
+		sub = args[0]
 	}
 
 	client := tadov1.NewTadoServiceClient(conn)
-	switch args[0] {
+	switch sub {
 	case "zones", "list":
 		resp, err := client.ListZones(ctx, &tadov1.ListZonesRequest{})
 		if err != nil {
-			fatal("tado list zones", err)
+			out.WriteError("tado zones", err, render.ExitRuntimeError)
+			return render.ExitRuntimeError
 		}
-		if out.json {
-			out.printJSON(resp)
-			return
+		if out.Format == render.FormatJSON {
+			_ = out.WriteProto(resp)
+			return render.ExitOK
 		}
-		rows := [][]string{{"ZONE", "ID"}}
+		rows := make([][]string, 0, len(resp.Zones))
 		for _, zone := range resp.Zones {
-			rows = append(rows, []string{zone.Name, zone.Id})
+			rows = append(rows, []string{zone.GetName(), zone.GetId()})
 		}
-		out.table(rows)
+		_ = out.WriteTable([]string{"ZONE", "ID"}, rows)
+		return render.ExitOK
 	case "set":
-		if len(args) < 3 {
-			fatal("tado set", fmt.Errorf("usage: gohome-cli tado set <zone> <temp>"))
-		}
-		zoneName := args[1]
-		temp, err := strconv.ParseFloat(args[2], 64)
-		if err != nil {
-			fatal("tado set", fmt.Errorf("invalid temperature %q", args[2]))
-		}
-		zones, err := client.ListZones(ctx, &tadov1.ListZonesRequest{})
-		if err != nil {
-			fatal("tado list zones", err)
-		}
-		zoneMap := make(map[string]string)
-		for _, zone := range zones.Zones {
-			zoneMap[zone.Name] = zone.Id
-		}
-		zoneID, err := resolveNamedID("zone", zoneName, zoneMap)
-		if err != nil {
-			fatal("tado set", err)
-		}
-		_, err = client.SetTemperature(ctx, &tadov1.SetTemperatureRequest{ZoneId: zoneID, TemperatureCelsius: temp})
-		if err != nil {
-			fatal("tado set", err)
-		}
-		if out.json {
-			out.printJSON(map[string]any{"zone": zoneName, "temperature_celsius": temp, "status": "ok"})
-			return
-		}
-		fmt.Printf("ok: %s -> %.1f°C\n", strings.ToLower(zoneName), temp)
+		out.WriteError("tado set", fmt.Errorf("gohome-cli is read-only; use 'gohome-act tado set <zone> <temp_c>' for policy-gated writes"), render.ExitUsageError)
+		return render.ExitUsageError
 	default:
-		tadoUsage()
-		os.Exit(2)
+		out.WriteHelp("gohome-cli tado <zones>", nil)
+		return render.ExitUsageError
 	}
-}
-
-func tadoUsage() {
-	fmt.Println("gohome-cli tado <command>")
-	fmt.Println("")
-	fmt.Println("Commands:")
-	fmt.Println("  zones")
-	fmt.Println("  set <zone> <temp>")
 }

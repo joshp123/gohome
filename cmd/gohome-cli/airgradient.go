@@ -3,108 +3,105 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 
+	"github.com/joshp123/gohome/internal/render"
 	airgradientv1 "github.com/joshp123/gohome/proto/gen/plugins/airgradient/v1"
 	"google.golang.org/grpc"
 )
 
-func airgradientCmd(ctx context.Context, conn *grpc.ClientConn, args []string, jsonOutput bool) {
-	out := outputMode{json: jsonOutput}
-	if len(args) == 0 {
-		airgradientUsage()
-		os.Exit(2)
+func airgradientCmd(ctx context.Context, conn *grpc.ClientConn, out render.Renderer, args []string) int {
+	sub := "current"
+	if len(args) > 0 {
+		sub = args[0]
 	}
 
 	client := airgradientv1.NewAirGradientServiceClient(conn)
-	switch args[0] {
+	switch sub {
 	case "current", "status":
 		resp, err := client.GetCurrent(ctx, &airgradientv1.GetCurrentRequest{})
 		if err != nil {
-			fatal("airgradient current", err)
+			out.WriteError("airgradient current", err, render.ExitRuntimeError)
+			return render.ExitRuntimeError
 		}
-		if out.json {
-			out.printJSON(resp)
-			return
+		if out.Format == render.FormatJSON {
+			_ = out.WriteProto(resp)
+			return render.ExitOK
 		}
 		reading := resp.GetReading()
 		if reading == nil {
-			fmt.Println("no data")
-			return
+			_ = out.WriteLine("no data")
+			return render.ExitOK
 		}
-		rows := [][]string{{"METRIC", "VALUE"}}
-		addStringRow(&rows, "serial", reading.Serial)
-		addStringRow(&rows, "model", reading.Model)
-		addStringRow(&rows, "firmware", reading.Firmware)
-		addStringRow(&rows, "led_mode", reading.LedMode)
-		addFloatRow(&rows, "co2_ppm", reading.Co2Ppm, "ppm")
-		addFloatRow(&rows, "pm01_ugm3", reading.Pm01Ugm3, "ug/m3")
-		addFloatRow(&rows, "pm02_ugm3", reading.Pm02Ugm3, "ug/m3")
-		addFloatRow(&rows, "pm02_comp_ugm3", reading.Pm02CompensatedUgm3, "ug/m3")
-		addFloatRow(&rows, "pm10_ugm3", reading.Pm10Ugm3, "ug/m3")
-		addFloatRow(&rows, "temperature_c", reading.TemperatureCelsius, "C")
-		addFloatRow(&rows, "temperature_comp_c", reading.TemperatureCompensatedCelsius, "C")
-		addFloatRow(&rows, "humidity_percent", reading.HumidityPercent, "%")
-		addFloatRow(&rows, "humidity_comp_percent", reading.HumidityCompensatedPercent, "%")
-		addFloatRow(&rows, "tvoc_index", reading.TvocIndex, "")
-		addFloatRow(&rows, "nox_index", reading.NoxIndex, "")
-		addFloatRow(&rows, "wifi_rssi_dbm", reading.WifiRssiDbm, "dBm")
-		addFloatRow(&rows, "boot_count", reading.BootCount, "")
-		out.table(rows)
+		pairs := make([]render.KeyValue, 0, 18)
+		appendStringKV(&pairs, "serial", reading.Serial)
+		appendStringKV(&pairs, "model", reading.Model)
+		appendStringKV(&pairs, "firmware", reading.Firmware)
+		appendStringKV(&pairs, "led_mode", reading.LedMode)
+		appendFloatKV(&pairs, "co2_ppm", reading.Co2Ppm, "ppm")
+		appendFloatKV(&pairs, "pm01_ugm3", reading.Pm01Ugm3, "ug/m3")
+		appendFloatKV(&pairs, "pm02_ugm3", reading.Pm02Ugm3, "ug/m3")
+		appendFloatKV(&pairs, "pm02_comp_ugm3", reading.Pm02CompensatedUgm3, "ug/m3")
+		appendFloatKV(&pairs, "pm10_ugm3", reading.Pm10Ugm3, "ug/m3")
+		appendFloatKV(&pairs, "temperature_c", reading.TemperatureCelsius, "C")
+		appendFloatKV(&pairs, "temperature_comp_c", reading.TemperatureCompensatedCelsius, "C")
+		appendFloatKV(&pairs, "humidity_percent", reading.HumidityPercent, "%")
+		appendFloatKV(&pairs, "humidity_comp_percent", reading.HumidityCompensatedPercent, "%")
+		appendFloatKV(&pairs, "tvoc_index", reading.TvocIndex, "")
+		appendFloatKV(&pairs, "nox_index", reading.NoxIndex, "")
+		appendFloatKV(&pairs, "wifi_rssi_dbm", reading.WifiRssiDbm, "dBm")
+		appendFloatKV(&pairs, "boot_count", reading.BootCount, "")
+		_ = out.WriteKeyValues(pairs)
+		return render.ExitOK
 	case "snapshot":
 		resp, err := client.GetSnapshot(ctx, &airgradientv1.GetSnapshotRequest{})
 		if err != nil {
-			fatal("airgradient snapshot", err)
+			out.WriteError("airgradient snapshot", err, render.ExitRuntimeError)
+			return render.ExitRuntimeError
 		}
-		if out.json {
-			out.printJSON(resp)
-			return
+		if out.Format == render.FormatJSON {
+			_ = out.WriteProto(resp)
+			return render.ExitOK
 		}
-		fmt.Println(resp.GetJson())
+		_ = out.WriteLine(resp.GetJson())
+		return render.ExitOK
 	case "metrics":
 		resp, err := client.GetMetrics(ctx, &airgradientv1.GetMetricsRequest{})
 		if err != nil {
-			fatal("airgradient metrics", err)
+			out.WriteError("airgradient metrics", err, render.ExitRuntimeError)
+			return render.ExitRuntimeError
 		}
-		if out.json {
-			out.printJSON(resp)
-			return
+		if out.Format == render.FormatJSON {
+			_ = out.WriteProto(resp)
+			return render.ExitOK
 		}
-		fmt.Print(resp.GetOpenmetrics())
+		_ = out.WriteRaw(resp.GetOpenmetrics())
+		return render.ExitOK
 	case "config":
 		resp, err := client.GetConfig(ctx, &airgradientv1.GetConfigRequest{})
 		if err != nil {
-			fatal("airgradient config", err)
+			out.WriteError("airgradient config", err, render.ExitRuntimeError)
+			return render.ExitRuntimeError
 		}
-		if out.json {
-			out.printJSON(resp)
-			return
+		if out.Format == render.FormatJSON {
+			_ = out.WriteProto(resp)
+			return render.ExitOK
 		}
-		fmt.Println(resp.GetJson())
+		_ = out.WriteLine(resp.GetJson())
+		return render.ExitOK
 	default:
-		airgradientUsage()
-		os.Exit(2)
+		out.WriteHelp("gohome-cli airgradient <current|snapshot|metrics|config>", nil)
+		return render.ExitUsageError
 	}
 }
 
-func airgradientUsage() {
-	fmt.Println("gohome-cli airgradient <command>")
-	fmt.Println("")
-	fmt.Println("Commands:")
-	fmt.Println("  current")
-	fmt.Println("  snapshot")
-	fmt.Println("  metrics")
-	fmt.Println("  config")
-}
-
-func addStringRow(rows *[][]string, label string, value *string) {
+func appendStringKV(pairs *[]render.KeyValue, label string, value *string) {
 	if value == nil || *value == "" {
 		return
 	}
-	*rows = append(*rows, []string{label, *value})
+	*pairs = append(*pairs, render.KeyValue{Key: label, Value: *value})
 }
 
-func addFloatRow(rows *[][]string, label string, value *float64, unit string) {
+func appendFloatKV(pairs *[]render.KeyValue, label string, value *float64, unit string) {
 	if value == nil {
 		return
 	}
@@ -112,5 +109,5 @@ func addFloatRow(rows *[][]string, label string, value *float64, unit string) {
 	if unit != "" {
 		formatted = fmt.Sprintf("%s %s", formatted, unit)
 	}
-	*rows = append(*rows, []string{label, formatted})
+	*pairs = append(*pairs, render.KeyValue{Key: label, Value: formatted})
 }

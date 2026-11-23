@@ -8,164 +8,371 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/fullstorydev/grpcurl"
 	"github.com/jhump/protoreflect/grpcreflect"
-	"google.golang.org/grpc/credentials/insecure"
-
 	"github.com/joshp123/gohome/internal/config"
+	"github.com/joshp123/gohome/internal/render"
 	registryv1 "github.com/joshp123/gohome/proto/gen/registry/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
+type pluginNodeEntry struct {
+	Node        string `json:"node"`
+	PluginID    string `json:"plugin_id"`
+	DisplayName string `json:"display_name"`
+	Version     string `json:"version"`
+	Status      string `json:"status"`
+}
+
 func main() {
-	args := os.Args[1:]
-	if len(args) == 0 {
-		usage()
-		os.Exit(2)
-	}
+	os.Exit(run(os.Args[1:]))
+}
 
-	if args[0] == "-h" || args[0] == "--help" {
-		usage()
-		os.Exit(0)
-	}
-
+func run(args []string) int {
 	jsonOutput := false
+	addrsFlag := ""
 	for len(args) > 0 {
-		if args[0] == "--json" {
+		switch {
+		case args[0] == "-h" || args[0] == "--help":
+			out := render.NewRenderer(os.Stdout, os.Stderr, render.FormatText)
+			writeRootUsage(out)
+			return render.ExitOK
+		case args[0] == "--json":
 			jsonOutput = true
 			args = args[1:]
-			continue
+		case args[0] == "--addrs" && len(args) > 1:
+			addrsFlag = args[1]
+			args = args[2:]
+		case strings.HasPrefix(args[0], "--addrs="):
+			addrsFlag = strings.TrimPrefix(args[0], "--addrs=")
+			args = args[1:]
+		default:
+			goto parsed
 		}
-		break
 	}
+
+parsed:
+	format := render.FormatText
+	if jsonOutput {
+		format = render.FormatJSON
+	}
+	out := render.NewRenderer(os.Stdout, os.Stderr, format)
 
 	if len(args) == 0 {
-		usage()
-		os.Exit(2)
+		writeRootUsage(out)
+		return render.ExitUsageError
 	}
 
-	addr := resolveAddr()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	addrs := resolveAddrs(addrsFlag)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-
-	conn, err := grpcurl.BlockingDial(ctx, "tcp", addr, insecure.NewCredentials())
-	if err != nil {
-		fatal("dial", err)
-	}
-	defer conn.Close()
 
 	switch args[0] {
 	case "plugins":
-		pluginsCmd(ctx, conn, args[1:])
+		return pluginsCmd(ctx, out, addrs, args[1:])
 	case "services":
-		servicesCmd(ctx, conn)
+		return servicesCmd(ctx, out, addrs)
 	case "methods":
-		methodsCmd(ctx, conn, args[1:])
+		return methodsCmd(ctx, out, addrs, args[1:])
 	case "call":
-		callCmd(ctx, conn, args[1:])
+		return callCmd(ctx, out, addrs[0], args[1:])
 	case "tado":
-		tadoCmd(ctx, conn, args[1:], jsonOutput)
+		return withPluginConn(ctx, out, addrs, "tado", func(conn *grpc.ClientConn) int {
+			return tadoCmd(ctx, conn, out, args[1:])
+		})
 	case "roborock":
-		roborockCmd(ctx, conn, args[1:], jsonOutput)
+		return withPluginConn(ctx, out, addrs, "roborock", func(conn *grpc.ClientConn) int {
+			return roborockCmd(ctx, conn, out, args[1:])
+		})
 	case "airgradient":
-		airgradientCmd(ctx, conn, args[1:], jsonOutput)
+		return withPluginConn(ctx, out, addrs, "airgradient", func(conn *grpc.ClientConn) int {
+			return airgradientCmd(ctx, conn, out, args[1:])
+		})
 	case "hikvision":
-		hikvisionCmd(ctx, conn, args[1:], jsonOutput)
+		return withPluginConn(ctx, out, addrs, "hikvision", func(conn *grpc.ClientConn) int {
+			return hikvisionCmd(ctx, conn, out, args[1:])
+		})
+	case "p1":
+		return withPluginConn(ctx, out, addrs, "p1_homewizard", func(conn *grpc.ClientConn) int {
+			return p1Cmd(ctx, conn, out, args[1:])
+		})
+	case "weheat":
+		return withPluginConn(ctx, out, addrs, "weheat", func(conn *grpc.ClientConn) int {
+			return weheatCmd(ctx, conn, out, args[1:])
+		})
+	case "daikin":
+		return withPluginConn(ctx, out, addrs, "daikin", func(conn *grpc.ClientConn) int {
+			return daikinCmd(ctx, conn, out, args[1:])
+		})
+	case "growatt":
+		return withPluginConn(ctx, out, addrs, "growatt", func(conn *grpc.ClientConn) int {
+			return growattCmd(ctx, conn, out, args[1:])
+		})
+	case "shelly":
+		return withPluginConn(ctx, out, addrs, "shelly", func(conn *grpc.ClientConn) int {
+			return shellyCmd(ctx, conn, out, args[1:])
+		})
+	case "sonos":
+		return withPluginConn(ctx, out, addrs, "sonos", func(conn *grpc.ClientConn) int {
+			return sonosCmd(ctx, conn, out, args[1:])
+		})
+	case "casambi":
+		return withPluginConn(ctx, out, addrs, "casambi", func(conn *grpc.ClientConn) int {
+			return casambiCmd(ctx, conn, out, args[1:])
+		})
+	case "brother":
+		return withPluginConn(ctx, out, addrs, "brother", func(conn *grpc.ClientConn) int {
+			return brotherCmd(ctx, conn, out, args[1:])
+		})
+	case "unifi":
+		return withPluginConn(ctx, out, addrs, "unifi", func(conn *grpc.ClientConn) int {
+			return unifiCmd(ctx, conn, out, args[1:])
+		})
 	default:
-		usage()
-		os.Exit(2)
+		out.WriteError("gohome-cli", fmt.Errorf("unknown command %q", args[0]), render.ExitUsageError)
+		writeRootUsage(out)
+		return render.ExitUsageError
 	}
 }
 
-func pluginsCmd(ctx context.Context, conn *grpc.ClientConn, args []string) {
-	if len(args) < 1 {
-		usage()
-		os.Exit(2)
+func withPluginConn(ctx context.Context, out render.Renderer, addrs []string, pluginID string, fn func(*grpc.ClientConn) int) int {
+	conn, err := dialPluginNode(ctx, addrs, pluginID)
+	if err != nil {
+		out.WriteError(pluginID, err, render.ExitRuntimeError)
+		return render.ExitRuntimeError
 	}
+	defer func() { _ = conn.Close() }()
+	return fn(conn)
+}
 
-	client := registryv1.NewRegistryClient(conn)
-	switch args[0] {
-	case "list":
+func dialPluginNode(ctx context.Context, addrs []string, pluginID string) (*grpc.ClientConn, error) {
+	if len(addrs) == 1 {
+		return dialNode(ctx, addrs[0])
+	}
+	var lastErr error
+	for _, addr := range addrs {
+		conn, err := dialNode(ctx, addr)
+		if err != nil {
+			lastErr = fmt.Errorf("%s: %w", addr, err)
+			continue
+		}
+		client := registryv1.NewRegistryClient(conn)
 		resp, err := client.ListPlugins(ctx, &registryv1.ListPluginsRequest{})
 		if err != nil {
-			fatal("list plugins", err)
+			_ = conn.Close()
+			lastErr = fmt.Errorf("%s: %w", addr, err)
+			continue
 		}
-		for _, plugin := range resp.Plugins {
-			fmt.Printf("%s\t%s\t%s\t%s\n", plugin.PluginId, plugin.DisplayName, plugin.Version, plugin.Status)
-		}
-	case "describe":
-		if len(args) < 2 {
-			fatal("describe", fmt.Errorf("missing plugin id"))
-		}
-		resp, err := client.DescribePlugin(ctx, &registryv1.DescribePluginRequest{PluginId: args[1]})
-		if err != nil {
-			fatal("describe plugin", err)
-		}
-		if resp.Plugin == nil {
-			fmt.Println("not found")
-			return
-		}
-		fmt.Printf("id: %s\n", resp.Plugin.PluginId)
-		fmt.Printf("name: %s\n", resp.Plugin.DisplayName)
-		fmt.Printf("version: %s\n", resp.Plugin.Version)
-		fmt.Printf("status: %s\n", resp.Plugin.Status)
-		if resp.Plugin.HealthMessage != "" {
-			fmt.Printf("health: %s\n", resp.Plugin.HealthMessage)
-			if resp.Plugin.LastSuccess != nil {
-				fmt.Printf("last successful read: %s\n", resp.Plugin.LastSuccess.AsTime().Format(time.RFC3339))
+		for _, plugin := range resp.GetPlugins() {
+			if strings.EqualFold(plugin.GetPluginId(), pluginID) {
+				return conn, nil
 			}
 		}
-		fmt.Println("services:")
-		for _, svc := range resp.Plugin.Services {
-			fmt.Printf("  - %s\n", svc)
-		}
-		fmt.Println("agents_md:")
-		fmt.Println(resp.Plugin.AgentsMd)
-	default:
-		usage()
-		os.Exit(2)
+		_ = conn.Close()
 	}
+	if lastErr != nil {
+		return nil, fmt.Errorf("plugin %q not found on %v (last error: %w)", pluginID, addrs, lastErr)
+	}
+	return nil, fmt.Errorf("plugin %q not hosted on any configured node (%v)", pluginID, addrs)
 }
 
-func servicesCmd(ctx context.Context, conn *grpc.ClientConn) {
-	descSource := reflectionSource(ctx, conn)
-	services, err := grpcurl.ListServices(descSource)
-	if err != nil {
-		fatal("list services", err)
-	}
-
-	for _, service := range services {
-		fmt.Println(service)
-	}
+func dialNode(ctx context.Context, addr string) (*grpc.ClientConn, error) {
+	return grpcurl.BlockingDial(ctx, "tcp", addr, insecure.NewCredentials())
 }
 
-func methodsCmd(ctx context.Context, conn *grpc.ClientConn, args []string) {
+func pluginsCmd(ctx context.Context, out render.Renderer, addrs []string, args []string) int {
 	if len(args) < 1 {
-		fatal("methods", fmt.Errorf("missing service name"))
+		out.WriteHelp("gohome-cli plugins <list|describe <plugin_id>>", nil)
+		return render.ExitUsageError
 	}
 
-	descSource := reflectionSource(ctx, conn)
-	methods, err := grpcurl.ListMethods(descSource, args[0])
-	if err != nil {
-		fatal("list methods", err)
-	}
+	switch args[0] {
+	case "list":
+		var entries []pluginNodeEntry
+		var dialErrors []string
+		for _, addr := range addrs {
+			conn, err := dialNode(ctx, addr)
+			if err != nil {
+				dialErrors = append(dialErrors, fmt.Sprintf("%s: %v", addr, err))
+				continue
+			}
+			client := registryv1.NewRegistryClient(conn)
+			resp, err := client.ListPlugins(ctx, &registryv1.ListPluginsRequest{})
+			_ = conn.Close()
+			if err != nil {
+				dialErrors = append(dialErrors, fmt.Sprintf("%s: %v", addr, err))
+				continue
+			}
+			for _, plugin := range resp.GetPlugins() {
+				entries = append(entries, pluginNodeEntry{
+					Node:        addr,
+					PluginID:    plugin.GetPluginId(),
+					DisplayName: plugin.GetDisplayName(),
+					Version:     plugin.GetVersion(),
+					Status:      plugin.GetStatus(),
+				})
+			}
+		}
+		if len(entries) == 0 && len(dialErrors) > 0 {
+			out.WriteError("plugins list", fmt.Errorf("%s", strings.Join(dialErrors, "; ")), render.ExitRuntimeError)
+			return render.ExitRuntimeError
+		}
+		sort.Slice(entries, func(i, j int) bool {
+			if entries[i].PluginID == entries[j].PluginID {
+				return entries[i].Node < entries[j].Node
+			}
+			return entries[i].PluginID < entries[j].PluginID
+		})
+		if out.Format == render.FormatJSON {
+			_ = out.WriteJSON(entries)
+			return render.ExitOK
+		}
+		rows := make([][]string, 0, len(entries))
+		for _, e := range entries {
+			rows = append(rows, []string{e.PluginID, e.DisplayName, e.Status, e.Node})
+		}
+		_ = out.WriteTable([]string{"PLUGIN", "NAME", "STATUS", "NODE"}, rows)
+		return render.ExitOK
 
-	for _, method := range methods {
-		fmt.Println(method)
+	case "describe":
+		if len(args) < 2 {
+			out.WriteError("plugins describe", fmt.Errorf("missing plugin id"), render.ExitUsageError)
+			return render.ExitUsageError
+		}
+		pluginID := args[1]
+		return withPluginConn(ctx, out, addrs, pluginID, func(conn *grpc.ClientConn) int {
+			client := registryv1.NewRegistryClient(conn)
+			resp, err := client.DescribePlugin(ctx, &registryv1.DescribePluginRequest{PluginId: pluginID})
+			if err != nil {
+				out.WriteError("describe plugin", err, render.ExitRuntimeError)
+				return render.ExitRuntimeError
+			}
+			if resp.Plugin == nil {
+				out.WriteError("describe plugin", fmt.Errorf("plugin %q not found", pluginID), render.ExitRuntimeError)
+				return render.ExitRuntimeError
+			}
+			if out.Format == render.FormatJSON {
+				_ = out.WriteProto(resp.Plugin)
+				return render.ExitOK
+			}
+			pairs := []render.KeyValue{
+				{Key: "id", Value: resp.Plugin.GetPluginId()},
+				{Key: "name", Value: resp.Plugin.GetDisplayName()},
+				{Key: "version", Value: resp.Plugin.GetVersion()},
+				{Key: "status", Value: resp.Plugin.GetStatus()},
+			}
+			if resp.Plugin.GetHealthMessage() != "" {
+				pairs = append(pairs, render.KeyValue{Key: "health", Value: resp.Plugin.GetHealthMessage()})
+			}
+			if resp.Plugin.LastSuccess != nil {
+				pairs = append(pairs, render.KeyValue{Key: "last_success", Value: resp.Plugin.LastSuccess.AsTime().Format(time.RFC3339)})
+			}
+			if len(resp.Plugin.Services) > 0 {
+				pairs = append(pairs, render.KeyValue{Key: "services", Value: strings.Join(resp.Plugin.Services, ", ")})
+			}
+			_ = out.WriteKeyValues(pairs)
+			if resp.Plugin.GetAgentsMd() != "" {
+				_ = out.WriteLine("")
+				_ = out.WriteLine(resp.Plugin.GetAgentsMd())
+			}
+			return render.ExitOK
+		})
+	default:
+		out.WriteHelp("gohome-cli plugins <list|describe <plugin_id>>", nil)
+		return render.ExitUsageError
 	}
 }
 
-func callCmd(ctx context.Context, conn *grpc.ClientConn, args []string) {
-	flags := flag.NewFlagSet("call", flag.ExitOnError)
+func servicesCmd(ctx context.Context, out render.Renderer, addrs []string) int {
+	rows := make([][]string, 0)
+	type svcEntry struct {
+		Node    string `json:"node"`
+		Service string `json:"service"`
+	}
+	var entries []svcEntry
+	for _, addr := range addrs {
+		conn, err := dialNode(ctx, addr)
+		if err != nil {
+			continue
+		}
+		descSource := reflectionSource(ctx, conn)
+		services, err := grpcurl.ListServices(descSource)
+		_ = conn.Close()
+		if err != nil {
+			continue
+		}
+		for _, svc := range services {
+			entries = append(entries, svcEntry{Node: addr, Service: svc})
+			rows = append(rows, []string{svc, addr})
+		}
+	}
+	if len(entries) == 0 {
+		out.WriteError("services", fmt.Errorf("no services discovered on %v", addrs), render.ExitRuntimeError)
+		return render.ExitRuntimeError
+	}
+	if out.Format == render.FormatJSON {
+		_ = out.WriteJSON(entries)
+		return render.ExitOK
+	}
+	_ = out.WriteTable([]string{"SERVICE", "NODE"}, rows)
+	return render.ExitOK
+}
+
+func methodsCmd(ctx context.Context, out render.Renderer, addrs []string, args []string) int {
+	if len(args) < 1 {
+		out.WriteError("methods", fmt.Errorf("missing service name"), render.ExitUsageError)
+		return render.ExitUsageError
+	}
+	serviceName := args[0]
+	for _, addr := range addrs {
+		conn, err := dialNode(ctx, addr)
+		if err != nil {
+			continue
+		}
+		descSource := reflectionSource(ctx, conn)
+		methods, err := grpcurl.ListMethods(descSource, serviceName)
+		_ = conn.Close()
+		if err != nil {
+			continue
+		}
+		if out.Format == render.FormatJSON {
+			_ = out.WriteJSON(methods)
+			return render.ExitOK
+		}
+		for _, method := range methods {
+			_ = out.WriteLine(method)
+		}
+		return render.ExitOK
+	}
+	out.WriteError("methods", fmt.Errorf("service %q not found on %v", serviceName, addrs), render.ExitRuntimeError)
+	return render.ExitRuntimeError
+}
+
+func callCmd(ctx context.Context, out render.Renderer, addr string, args []string) int {
+	flags := flag.NewFlagSet("call", flag.ContinueOnError)
 	data := flags.String("data", "", "JSON request body")
-	_ = flags.Parse(args)
+	flags.SetOutput(os.Stderr)
+	if err := flags.Parse(args); err != nil {
+		out.WriteError("call", err, render.ExitUsageError)
+		return render.ExitUsageError
+	}
 	remaining := flags.Args()
 	if len(remaining) < 1 {
-		fatal("call", fmt.Errorf("missing method (service/method)"))
+		out.WriteError("call", fmt.Errorf("missing method (service/method)"), render.ExitUsageError)
+		return render.ExitUsageError
 	}
+
+	conn, err := dialNode(ctx, addr)
+	if err != nil {
+		out.WriteError("call dial", err, render.ExitRuntimeError)
+		return render.ExitRuntimeError
+	}
+	defer func() { _ = conn.Close() }()
 
 	method := remaining[0]
 	descSource := reflectionSource(ctx, conn)
@@ -181,16 +388,23 @@ func callCmd(ctx context.Context, conn *grpc.ClientConn, args []string) {
 
 	parser, formatter, err := grpcurl.RequestParserAndFormatter(grpcurl.FormatJSON, descSource, reader, grpcurl.FormatOptions{})
 	if err != nil {
-		fatal("parse request", err)
+		out.WriteError("parse request", err, render.ExitUsageError)
+		return render.ExitUsageError
 	}
 
-	handler := grpcurl.NewDefaultEventHandler(os.Stdout, descSource, formatter, false)
+	handler := &grpcurl.DefaultEventHandler{
+		Out:       os.Stdout,
+		Formatter: formatter,
+	}
 	if err := grpcurl.InvokeRPC(ctx, descSource, conn, method, nil, handler, parser.Next); err != nil {
-		fatal("invoke", err)
+		out.WriteError("invoke", err, render.ExitRuntimeError)
+		return render.ExitRuntimeError
 	}
 	if err := handler.Status.Err(); err != nil {
-		fatal(method, err)
+		out.WriteError(method, err, render.ExitRuntimeError)
+		return render.ExitRuntimeError
 	}
+	return render.ExitOK
 }
 
 func reflectionSource(ctx context.Context, conn *grpc.ClientConn) grpcurl.DescriptorSource {
@@ -206,16 +420,32 @@ func isStdinTerminal() bool {
 	return (info.Mode() & os.ModeCharDevice) != 0
 }
 
-func resolveAddr() string {
-	if value := os.Getenv("GOHOME_GRPC_ADDR"); value != "" {
-		return value
+func resolveAddrs(flagValue string) []string {
+	raw := strings.TrimSpace(flagValue)
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("GOHOME_GRPC_ADDRS"))
+	}
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("GOHOME_GRPC_ADDR"))
+	}
+	if raw != "" {
+		parts := strings.Split(raw, ",")
+		out := make([]string, 0, len(parts))
+		for _, p := range parts {
+			if trimmed := strings.TrimSpace(p); trimmed != "" {
+				out = append(out, trimmed)
+			}
+		}
+		if len(out) > 0 {
+			return out
+		}
 	}
 	for _, path := range configSearchPaths() {
 		if addr := addrFromConfig(path); addr != "" {
-			return addr
+			return []string{addr}
 		}
 	}
-	return "gohome:9000"
+	return []string{"gohome:9000"}
 }
 
 func resolveHTTPBase() string {
@@ -249,7 +479,7 @@ func resolveHTTPBase() string {
 			host = "gohome"
 		}
 	}
-	return fmt.Sprintf("http://%s:%s", host, port)
+	return "http://" + net.JoinHostPort(host, port)
 }
 
 func configSearchPaths() []string {
@@ -276,25 +506,35 @@ func httpAddrFromConfig(path string) string {
 	return cfg.Core.HttpAddr
 }
 
-func usage() {
-	fmt.Println("gohome-cli <command> [args]")
-	fmt.Println("")
-	fmt.Println("Commands:")
-	fmt.Println("  tado <zones|set>")
-	fmt.Println("  roborock <status|rooms|clean|dock|locate|map>")
-	fmt.Println("  airgradient <current|snapshot|metrics|config>")
-	fmt.Println("  hikvision <camera|snapshot|events|alarms|watch-alarms|frame>")
-	fmt.Println("  plugins list")
-	fmt.Println("  plugins describe <plugin_id>")
-	fmt.Println("  services")
-	fmt.Println("  methods <service>")
-	fmt.Println("  call <service/method> --data '{}' (or pipe JSON via stdin)")
-	fmt.Println("")
-	fmt.Println("Global flags:")
-	fmt.Println("  --json  output raw JSON")
-}
-
-func fatal(action string, err error) {
-	fmt.Fprintf(os.Stderr, "%s: %v\n", action, err)
-	os.Exit(1)
+func writeRootUsage(out render.Renderer) {
+	out.WriteHelp("gohome-cli [--json] [--addrs host1:9000,host2:9000] <command> [args]", []render.HelpSection{
+		{
+			Heading: "Read-only device commands (writes live in gohome-act)",
+			Lines: []string{
+				"p1 <status|info>",
+				"weheat <status|energy>",
+				"tado <zones>",
+				"daikin <list|status [unit_id]>",
+				"growatt <status>",
+				"roborock <status|rooms|map>",
+				"airgradient <current|metrics>",
+				"shelly <list>",
+				"sonos <status|zones>",
+				"casambi <lights|scenes|switches>",
+				"hikvision <camera|snapshot|events|alarms|watch-alarms|frame>",
+				"brother <status>",
+				"unifi <status>",
+			},
+		},
+		{
+			Heading: "Discovery",
+			Lines: []string{
+				"plugins list",
+				"plugins describe <plugin_id>",
+				"services",
+				"methods <service>",
+				"call <service/method> --data '{}'",
+			},
+		},
+	})
 }
